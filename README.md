@@ -5,18 +5,13 @@
 
   <p>Amon 是一个基于 Claude Agent SDK + Electron 构建的桌面 Agent 应用，可以作为 Claude Code 的可视化图形界面。目标是成为一个通用的 Agent 客户端。</p>
 
-</div>
-
-<div align="center" style="margin-top: 10px">
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="License: AGPL v3"></a>
   <a href="https://www.electronjs.org/"><img src="https://img.shields.io/badge/Electron-39-47848F?logo=electron&logoColor=white" alt="Electron"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="https://github.com/anthropics/claude-code"><img src="https://img.shields.io/badge/Claude-Agent%20SDK-CC785C?logo=anthropic&logoColor=white" alt="Claude"></a>
-</div>
 
-<div align="center" style="margin-top: 20px">
-<img src="./screenshots/example.png" alt="Amon Logo" width="400" />
+  <img src="./screenshots/example.png" alt="Amon Logo" width="600" />
 </div>
 
 ## 项目简介
