@@ -1,5 +1,8 @@
 import { SDKMessage, ContentBlock, StreamEvent, ToolCall } from '../../shared/types';
 import { sessionStore } from '../store/sessionStore';
+import { createLogger } from '../store/logger';
+
+const log = createLogger('MessageHandler');
 
 /**
  * 消息处理上下文
@@ -35,8 +38,11 @@ export interface ResultData {
  * 处理 SDK 消息的主入口
  */
 export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): HandleResult {
+  const { sessionId } = ctx;
+
   switch (sdkMessage.type) {
     case 'assistant':
+      log.debug('Received assistant message', undefined, sessionId);
       return handleAssistantMessage(sdkMessage, ctx);
 
     case 'user':
@@ -49,10 +55,11 @@ export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): Hand
       return handleSystemMessage(sdkMessage, ctx);
 
     case 'result':
+      log.debug('Received result message', { subtype: sdkMessage.subtype }, sessionId);
       return handleResultMessage(sdkMessage, ctx);
 
     default:
-      console.warn('Unknown SDKMessage type:', (sdkMessage as { type: string }).type);
+      log.warn('Unknown SDKMessage type', { type: (sdkMessage as { type: string }).type }, sessionId);
       return { type: 'continue' };
   }
 }
@@ -99,6 +106,7 @@ function handleAssistantMessage(sdkMessage: SDKMessage, ctx: MessageContext): Ha
             name: block.name,
             input: block.input,
           };
+          log.info('Tool call received', { toolName: block.name, toolId: block.id }, sessionId);
           sessionStore.addToolCallToMessage(sessionId, messageId, toolCall);
         }
         break;
@@ -197,7 +205,7 @@ function handleContentBlockDelta(sessionId: string, messageId: string, event: St
 function handleSystemMessage(sdkMessage: SDKMessage, _ctx: MessageContext): HandleResult {
   // 系统消息通常用于日志或调试
   void _ctx;
-  console.log('System message:', sdkMessage);
+  log.debug('System message received', sdkMessage);
   return { type: 'continue' };
 }
 

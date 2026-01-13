@@ -4,6 +4,9 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { sessionStore } from '../store/sessionStore';
 import { Message, SDKMessage } from '../../shared/types';
+import { createLogger } from '../store/logger';
+
+const log = createLogger('TitleService');
 
 const DEFAULT_TITLE_PREFIX = '新会话';
 
@@ -67,6 +70,8 @@ export function shouldUpdateTitle(sessionId: string): boolean {
  * 使用 AI 生成会话标题
  */
 export async function generateTitle(sessionId: string): Promise<void> {
+  log.info('Generating title', undefined, sessionId);
+
   const session = sessionStore.getSession(sessionId);
   if (!session) return;
 
@@ -122,11 +127,11 @@ ${conversationSummary}
       if (title) {
         await sessionStore.renameSession(sessionId, title);
         lastTitleUpdateCount.set(sessionId, userMessageCount);
-        console.log(`Session ${sessionId} title updated to: ${title}`);
+        log.info('Title generated', { title }, sessionId);
       }
     }
   } catch (error) {
-    console.error('Error generating title:', error);
+    log.error('Failed to generate title', error instanceof Error ? { message: error.message } : error, sessionId);
   }
 }
 

@@ -8,6 +8,9 @@ import { permissionManager } from '../agent/permissionManager';
 import * as configStore from '../store/configStore';
 import * as skillsStore from '../store/skillsStore';
 import { openSettingsWindow, closeSettingsWindow, registerShortcuts } from '../index';
+import { createLogger } from '../store/logger';
+
+const log = createLogger('IpcHandlers');
 
 // 设置保存结果类型
 interface SettingsSetResult {
@@ -27,6 +30,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     IPC_CHANNELS.AGENT_QUERY,
     async (_event, params: { prompt: string; sessionId: string; options?: QueryOptions }) => {
       try {
+        log.info('IPC: Agent query received', { promptLength: params.prompt.length }, params.sessionId);
         // 获取 SDK session ID
         const sdkSessionId = sessionStore.getSdkSessionId(params.sessionId);
         await executeQuery({
@@ -37,7 +41,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         });
         return { success: true };
       } catch (error) {
-        console.log("===AGENT_QUERY_ERROR", error);
+        log.error('IPC: Agent query failed', error instanceof Error ? { message: error.message } : error, params.sessionId);
         const message = error instanceof Error ? error.message : 'Unknown error';
         return { success: false, error: message };
       }
@@ -47,9 +51,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   // 中断查询
   ipcMain.handle(IPC_CHANNELS.AGENT_INTERRUPT, async (_event, sessionId: string) => {
     try {
+      log.info('IPC: Agent interrupt requested', undefined, sessionId);
       await interruptQuery(sessionId);
       return { success: true };
     } catch (error) {
+      log.error('IPC: Agent interrupt failed', error instanceof Error ? { message: error.message } : error, sessionId);
       const message = error instanceof Error ? error.message : 'Unknown error';
       return { success: false, error: message };
     }
@@ -61,6 +67,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(
     IPC_CHANNELS.PERMISSION_RESPOND,
     async (_event, params: { requestId: string; result: PermissionResult }) => {
+      log.debug('IPC: Permission response received', { requestId: params.requestId, behavior: params.result.behavior });
+
       // 获取待处理的请求信息（在响应前获取）
       const pendingRequest = permissionManager.getPendingRequestById(params.requestId);
 

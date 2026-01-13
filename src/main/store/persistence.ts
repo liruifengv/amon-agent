@@ -2,6 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { Session } from '../../shared/types';
+import { createLogger } from './logger';
+
+const log = createLogger('Persistence');
 
 const CONFIG_DIR = path.join(os.homedir(), '.amon');
 const DATA_DIR = path.join(CONFIG_DIR, 'sessions');
@@ -28,8 +31,10 @@ class Persistence {
   async loadSession(sessionId: string): Promise<Session | null> {
     try {
       const content = await fs.readFile(this.getPath(sessionId), 'utf-8');
+      log.debug('Session loaded from disk', undefined, sessionId);
       return JSON.parse(content);
     } catch {
+      log.debug('Session not found on disk', undefined, sessionId);
       return null;
     }
   }
@@ -72,6 +77,7 @@ class Persistence {
       // 先写临时文件，再原子重命名
       await fs.writeFile(tempPath, JSON.stringify(session, null, 2));
       await fs.rename(tempPath, finalPath);
+      log.debug('Session saved to disk', { messageCount: session.messages.length }, session.id);
     });
 
     this.writeQueue.set(session.id, writePromise);
@@ -88,8 +94,10 @@ class Persistence {
   async deleteSession(sessionId: string): Promise<boolean> {
     try {
       await fs.unlink(this.getPath(sessionId));
+      log.debug('Session deleted from disk', undefined, sessionId);
       return true;
     } catch {
+      log.warn('Failed to delete session from disk', undefined, sessionId);
       return false;
     }
   }

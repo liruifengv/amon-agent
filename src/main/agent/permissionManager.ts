@@ -7,6 +7,9 @@ import {
   AskUserQuestion,
   AskUserQuestionResponse,
 } from '../../shared/types';
+import { createLogger } from '../store/logger';
+
+const log = createLogger('PermissionManager');
 
 /**
  * 待处理的权限请求
@@ -67,10 +70,13 @@ class PermissionManager extends EventEmitter {
       timestamp: new Date().toISOString(),
     };
 
+    log.info('Permission requested', { toolName, requestId: request.id }, sessionId);
+
     return new Promise((resolve, reject) => {
       // 设置超时
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(request.id);
+        log.warn('Permission request timed out', { toolName, requestId: request.id }, sessionId);
         // 超时默认拒绝
         resolve({
           behavior: 'deny',
@@ -97,9 +103,11 @@ class PermissionManager extends EventEmitter {
   respondToRequest(requestId: string, result: PermissionResult): boolean {
     const pending = this.pendingRequests.get(requestId);
     if (!pending) {
-      console.warn('Permission request not found:', requestId);
+      log.warn('Permission request not found', { requestId });
       return false;
     }
+
+    log.info('Permission responded', { requestId, behavior: result.behavior }, pending.request.sessionId);
 
     // 清除超时
     clearTimeout(pending.timeout);
@@ -117,6 +125,7 @@ class PermissionManager extends EventEmitter {
    * 取消会话的所有待处理请求
    */
   cancelSessionRequests(sessionId: string): void {
+    let cancelCount = 0;
     for (const [id, pending] of this.pendingRequests) {
       if (pending.request.sessionId === sessionId) {
         clearTimeout(pending.timeout);
@@ -125,7 +134,11 @@ class PermissionManager extends EventEmitter {
           message: 'Session interrupted',
         });
         this.pendingRequests.delete(id);
+        cancelCount++;
       }
+    }
+    if (cancelCount > 0) {
+      log.info('Cancelled pending permission requests', { count: cancelCount }, sessionId);
     }
   }
 
@@ -172,10 +185,13 @@ class PermissionManager extends EventEmitter {
       timestamp: new Date().toISOString(),
     };
 
+    log.info('User question requested', { requestId: request.id, questionCount: questions.length }, sessionId);
+
     return new Promise((resolve, reject) => {
       // 设置超时
       const timeout = setTimeout(() => {
         this.pendingQuestions.delete(request.id);
+        log.warn('User question request timed out', { requestId: request.id }, sessionId);
         // 超时返回空答案
         resolve({
           questions,
@@ -202,9 +218,11 @@ class PermissionManager extends EventEmitter {
   respondToQuestion(requestId: string, answers: Record<string, string>): boolean {
     const pending = this.pendingQuestions.get(requestId);
     if (!pending) {
-      console.warn('Question request not found:', requestId);
+      log.warn('Question request not found', { requestId });
       return false;
     }
+
+    log.info('User question responded', { requestId, answerCount: Object.keys(answers).length }, pending.request.sessionId);
 
     // 清除超时
     clearTimeout(pending.timeout);

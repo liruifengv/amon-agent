@@ -10,7 +10,10 @@ import { sessionStore } from '../store/sessionStore';
 import { DEFAULT_WORKSPACE } from '../store/persistence';
 import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from './messageHandler';
 import { permissionManager } from './permissionManager';
+import { createLogger } from '../store/logger';
 import { shouldUpdateTitle, generateTitle } from './titleService';
+
+const log = createLogger('AgentService');
 
 // ==================== 类型定义 ====================
 
@@ -254,6 +257,12 @@ async function processStream(
 
     const sdkMessage = message as SDKMessage;
 
+    // 记录 stderr 输出（如果存在）
+    const rawMessage = message as { stderr?: string };
+    if (rawMessage.stderr) {
+      log.warn('stderr output', { stderr: rawMessage.stderr }, ctx.sessionId);
+    }
+
     // 捕获 SDK session_id（只处理一次）
     if (!sdkSessionIdSent) {
       sdkSessionIdSent = handleSdkSessionId(sdkMessage, ctx.sessionId);
@@ -276,6 +285,8 @@ async function handleQueryComplete(
   sessionId: string,
   data: ResultData
 ): Promise<void> {
+  log.info('Query complete', { success: data.success, cost: data.cost, duration: data.duration }, sessionId);
+
   // 立即保存
   await sessionStore.saveNow(sessionId);
 
@@ -284,8 +295,9 @@ async function handleQueryComplete(
 
   // 异步更新标题（不阻塞主流程）
   if (shouldUpdateTitle(sessionId)) {
+    log.debug('Triggering title generation', undefined, sessionId);
     generateTitle(sessionId).catch(err => {
-      console.error('Failed to generate title:', err);
+      log.error('Failed to generate title', err instanceof Error ? { message: err.message } : err, sessionId);
     });
   }
 }
@@ -298,11 +310,14 @@ async function handleQueryComplete(
 export async function executeQuery(params: QueryParams): Promise<void> {
   const { prompt, sessionId, sdkSessionId, options } = params;
 
+  log.info('Query started', { promptLength: prompt.length, sdkSessionId: !!sdkSessionId, options }, sessionId);
+
   // 环境准备
   ensureNodeInPath();
 
   // 中断已有查询
   if (activeQueries.has(sessionId)) {
+    log.info('Interrupting existing query', undefined, sessionId);
     await interruptQuery(sessionId);
   }
 
@@ -325,20 +340,27 @@ export async function executeQuery(params: QueryParams): Promise<void> {
     // 构建查询选项（传入临时 options）
     const queryOptions = buildQueryOptions(settings, sessionId, sdkSessionId, abortController, workspace, options);
 
+    log.debug('Query options built', { workspace, permissionMode: queryOptions.permissionMode }, sessionId);
+
     // 创建并注册查询实例
     const queryInstance = query({ prompt, options: queryOptions });
     activeQueries.set(sessionId, queryInstance);
 
+    log.info('Query instance created, processing stream', undefined, sessionId);
+
     // 处理流式响应
     await processStream(queryInstance, { sessionId, messageId }, abortController);
+
+    log.info('Query completed successfully', undefined, sessionId);
   } catch (error) {
-    console.error('Query error:', error);
+    log.error('Query failed', error instanceof Error ? { message: error.message, stack: error.stack } : error, sessionId);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     sessionStore.emit('query:error', sessionId, errorMessage);
     throw error;
   } finally {
     activeQueries.delete(sessionId);
     sessionStore.clearQueryState(sessionId);
+    log.debug('Query state cleared', undefined, sessionId);
   }
 }
 
@@ -348,6 +370,7 @@ export async function executeQuery(params: QueryParams): Promise<void> {
  * 中断指定会话的查询
  */
 export async function interruptQuery(sessionId: string): Promise<void> {
+  log.info('Interrupt requested', undefined, sessionId);
   const queryState = sessionStore.getQueryState(sessionId);
 
   // 取消待处理的权限请求和问题请求
@@ -383,6 +406,7 @@ export async function interruptQuery(sessionId: string): Promise<void> {
   }
 
   sessionStore.clearQueryState(sessionId);
+  log.info('Query interrupted', undefined, sessionId);
 }
 
 /**

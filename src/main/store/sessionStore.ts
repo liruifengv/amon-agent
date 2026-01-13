@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Session, Message, MessageContentBlock, ToolCall } from '../../shared/types';
 import { persistence, DEFAULT_WORKSPACE } from './persistence';
 import * as configStore from './configStore';
+import { createLogger } from './logger';
+
+const log = createLogger('SessionStore');
 
 interface QueryState {
   sessionId: string;
@@ -79,6 +82,8 @@ class SessionStore extends EventEmitter {
       workspace: resolvedWorkspace,
     };
 
+    log.info('Session created', { name: session.name, workspace: resolvedWorkspace }, session.id);
+
     this.sessions.set(session.id, session);
     await this.saveNow(session.id);
     this.emit('session:created', session);
@@ -87,6 +92,7 @@ class SessionStore extends EventEmitter {
   }
 
   async deleteSession(sessionId: string): Promise<boolean> {
+    log.info('Session deleted', undefined, sessionId);
     this.sessions.delete(sessionId);
     this.dirtySessionIds.delete(sessionId);
     this.activeQueries.delete(sessionId);
@@ -101,6 +107,7 @@ class SessionStore extends EventEmitter {
     const session = this.sessions.get(sessionId);
     if (!session) return null;
 
+    log.info('Session renamed', { oldName: session.name, newName }, sessionId);
     session.name = newName;
     session.updatedAt = new Date().toISOString();
     this.markDirty(sessionId);
@@ -130,6 +137,7 @@ class SessionStore extends EventEmitter {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
+    log.debug('Message added', { role: message.role, messageId: message.id }, sessionId);
     session.messages.push(message);
     session.updatedAt = new Date().toISOString();
     this.markDirty(sessionId);
@@ -282,6 +290,8 @@ class SessionStore extends EventEmitter {
     const sessionIds = Array.from(this.dirtySessionIds);
     this.dirtySessionIds.clear();
 
+    log.debug('Flushing dirty sessions', { count: sessionIds.length });
+
     await Promise.all(
       sessionIds.map(async (id) => {
         const session = this.sessions.get(id);
@@ -305,6 +315,7 @@ class SessionStore extends EventEmitter {
   async loadAllSessions(): Promise<Session[]> {
     const sessions = await persistence.loadAllSessions();
     sessions.forEach(s => this.sessions.set(s.id, s));
+    log.info('All sessions loaded', { count: sessions.length });
     return sessions;
   }
 
