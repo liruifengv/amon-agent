@@ -8,20 +8,22 @@ interface ChatState {
   sessionLoadingState: Record<string, boolean>;
   // 各会话的临时权限模式（覆盖全局设置）
   sessionPermissionMode: Record<string, PermissionMode | undefined>;
-  // 错误信息
-  error: string | null;
+  // 各会话的错误信息
+  sessionErrors: Record<string, string | null>;
 
   // Getters
   getMessages: (sessionId: string | null) => Message[];
   isSessionLoading: (sessionId: string | null) => boolean;
   getSessionPermissionMode: (sessionId: string | null) => PermissionMode | undefined;
+  getSessionError: (sessionId: string | null) => string | null;
 
   // Actions（仅用于更新本地缓存，实际数据由主进程管理）
   setMessages: (sessionId: string, messages: Message[]) => void;
   setLoadingState: (sessionId: string, isLoading: boolean) => void;
   setLoadingStates: (states: Record<string, boolean>) => void;
   setSessionPermissionMode: (sessionId: string, mode: PermissionMode | undefined) => void;
-  setError: (error: string | null) => void;
+  setSessionError: (sessionId: string, error: string | null) => void;
+  clearSessionError: (sessionId: string) => void;
   clearSessionCache: (sessionId: string) => void;
 
   // 发送到主进程
@@ -34,7 +36,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessionMessages: {},
   sessionLoadingState: {},
   sessionPermissionMode: {},
-  error: null,
+  sessionErrors: {},
 
   getMessages: (sessionId) => {
     if (!sessionId) return [];
@@ -49,6 +51,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   getSessionPermissionMode: (sessionId) => {
     if (!sessionId) return undefined;
     return get().sessionPermissionMode[sessionId];
+  },
+
+  getSessionError: (sessionId) => {
+    if (!sessionId) return null;
+    return get().sessionErrors[sessionId] || null;
   },
 
   setMessages: (sessionId, messages) =>
@@ -69,25 +76,41 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sessionPermissionMode: { ...state.sessionPermissionMode, [sessionId]: mode },
     })),
 
-  setError: (error) => set({ error }),
+  setSessionError: (sessionId, error) =>
+    set((state) => ({
+      sessionErrors: { ...state.sessionErrors, [sessionId]: error },
+    })),
+
+  clearSessionError: (sessionId) =>
+    set((state) => ({
+      sessionErrors: { ...state.sessionErrors, [sessionId]: null },
+    })),
 
   clearSessionCache: (sessionId) =>
     set((state) => {
       const { [sessionId]: _removedMessages, ...restMessages } = state.sessionMessages;
       const { [sessionId]: _removedState, ...restLoadingState } = state.sessionLoadingState;
       const { [sessionId]: _removedMode, ...restPermissionMode } = state.sessionPermissionMode;
+      const { [sessionId]: _removedError, ...restErrors } = state.sessionErrors;
       void _removedMessages;
       void _removedState;
       void _removedMode;
+      void _removedError;
       return {
         sessionMessages: restMessages,
         sessionLoadingState: restLoadingState,
         sessionPermissionMode: restPermissionMode,
+        sessionErrors: restErrors,
       };
     }),
 
   sendMessage: async (content, sessionId, options) => {
     try {
+      // 清除之前的错误
+      set((state) => ({
+        sessionErrors: { ...state.sessionErrors, [sessionId]: null },
+      }));
+
       // 如果有临时权限模式，合并到 options 中
       const sessionMode = get().sessionPermissionMode[sessionId];
       const mergedOptions: QueryOptions | undefined = sessionMode || options
@@ -97,7 +120,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       await window.electronAPI.agent.query(content, sessionId, mergedOptions);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      set({ error: errorMessage });
+      set((state) => ({
+        sessionErrors: { ...state.sessionErrors, [sessionId]: errorMessage },
+      }));
     }
   },
 
@@ -134,8 +159,8 @@ if (typeof window !== 'undefined' && window.electronAPI) {
   });
 
   // 监听查询错误
-  window.electronAPI.agent.onQueryError(({ error }) => {
-    useChatStore.getState().setError(error);
+  window.electronAPI.agent.onQueryError(({ sessionId, error }) => {
+    useChatStore.getState().setSessionError(sessionId, error);
   });
 
   // 监听查询完成（可用于更新 UI 状态）

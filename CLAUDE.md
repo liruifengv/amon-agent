@@ -9,10 +9,10 @@ Amon (amon-agent) is a desktop chat application built with Electron + React + Ty
 ## Commands
 
 ```bash
-npm start        # Development server with hot reload
-npm run lint     # Run ESLint on TypeScript files
-npm run package  # Package for distribution
-npm run make     # Create platform installers (macOS ZIP, Linux DEB/RPM, Windows)
+bun start        # Development server with hot reload
+bun run lint     # Run ESLint on TypeScript files
+bun run package  # Package for distribution
+bun run make     # Create platform installers (macOS ZIP, Linux DEB/RPM, Windows)
 ```
 
 ## Architecture

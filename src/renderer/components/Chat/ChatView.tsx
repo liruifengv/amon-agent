@@ -6,9 +6,7 @@ import { Button } from '../ui/button';
 import MessageList, { MessageListRef } from './MessageList';
 import InputArea from './InputArea';
 import WorkspaceSelector from './WorkspaceSelector';
-
-// 默认工作空间路径
-const DEFAULT_WORKSPACE_DISPLAY = '~/.amon/workspace';
+import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
 
 interface ChatViewProps {
   sidebarCollapsed: boolean;
@@ -44,7 +42,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
 
   const workspaceDisplay = currentSession?.workspace
     ? formatPath(currentSession.workspace)
-    : DEFAULT_WORKSPACE_DISPLAY;
+    : DEFAULT_WORKSPACE_PATH;
 
   const handleScrollToBottom = useCallback(() => {
     messageListRef.current?.scrollToBottom();

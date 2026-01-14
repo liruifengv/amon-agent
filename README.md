@@ -102,14 +102,14 @@ $env:ANTHROPIC_API_KEY="your-api-key"
 ```bash
 git clone https://github.com/liruifengv/amon-agent.git
 cd amon-agent
-npm install
-npm start
+bun install
+bun start
 ```
 
 构建安装包：
 
 ```bash
-npm run make
+bun run make
 ```
 
 ## 技术栈

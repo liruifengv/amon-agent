@@ -1,7 +1,9 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync } from 'fs';
+import { execSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 import { createRequire } from 'module';
+import { homedir } from 'os';
 import { SDKMessage, Message, AskUserQuestionInput, QueryOptions } from '../../shared/types';
 import { Settings } from '../../shared/schemas';
 import { getSettings } from '../store/configStore';
@@ -11,7 +13,7 @@ import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from '.
 import { permissionManager } from './permissionManager';
 import { createLogger } from '../store/logger';
 import { shouldUpdateTitle, generateTitle } from './titleService';
-import { buildClaudeSessionEnv } from './config';
+import { buildClaudeSessionEnv, getBundledBunPath } from './config';
 
 const requireModule = createRequire(import.meta.url);
 const log = createLogger('AgentService');
@@ -40,6 +42,16 @@ type CanUseToolResult =
 const activeQueries = new Map<string, AsyncGenerator<unknown, void, unknown>>();
 
 // ==================== 路径解析 ====================
+
+/**
+ * 展开路径中的 ~ 符号为用户主目录
+ */
+function expandTildePath(path: string): string {
+  if (path.startsWith('~/') || path === '~') {
+    return path.replace('~', homedir());
+  }
+  return path;
+}
 
 /**
  * 解析 Claude Code CLI 路径
@@ -109,8 +121,11 @@ function buildQueryOptions(
   // 临时权限模式优先于全局设置
   const permissionMode = queryOptions?.permissionMode ?? agent.permissionMode ?? 'default';
 
+  // 展开工作空间路径中的 ~ 符号
+  const expandedWorkspace = expandTildePath(workspace || DEFAULT_WORKSPACE);
+
   // 使用统一的环境变量构建器
-  const env = buildClaudeSessionEnv(workspace || DEFAULT_WORKSPACE);
+  const env = buildClaudeSessionEnv(expandedWorkspace);
 
   const options: Record<string, unknown> = {
     // 基础配置
@@ -127,10 +142,10 @@ function buildQueryOptions(
     maxThinkingTokens: agent.maxThinkingTokens ?? 10000,
     abortController,
     pathToClaudeCodeExecutable: resolveClaudeCodeCli(),
-    executable: 'bun',
+    executable: getBundledBunPath(),
 
     // 工作空间
-    cwd: workspace || DEFAULT_WORKSPACE,
+    cwd: expandedWorkspace,
 
     // 消息处理
     includePartialMessages: true,
@@ -138,6 +153,11 @@ function buildQueryOptions(
     // 权限
     canUseTool: createCanUseTool(sessionId),
     permissionMode,
+
+    // stderr 回调，捕获子进程的错误输出
+    stderr: (data: string) => {
+      log.warn('SDK stderr', { data }, sessionId);
+    },
   };
 
   // 会话恢复
@@ -298,7 +318,50 @@ export async function executeQuery(params: QueryParams): Promise<void> {
     // 构建查询选项（传入临时 options）
     const queryOptions = buildQueryOptions(settings, sessionId, sdkSessionId, abortController, workspace, options);
 
-    log.debug('Query options built', { workspace, permissionMode: queryOptions.permissionMode }, sessionId);
+    log.debug('Query options built', {
+      workspace,
+      permissionMode: queryOptions.permissionMode,
+      cliPath: queryOptions.pathToClaudeCodeExecutable,
+      executable: queryOptions.executable,
+      envPath: (queryOptions.env as Record<string, string>)?.PATH?.substring(0, 200) + '...',
+    }, sessionId);
+
+    // 预检查：测试 bun 和 CLI 是否可以在目标工作目录中运行
+    try {
+      const bunPath = getBundledBunPath();
+      const cliPath = queryOptions.pathToClaudeCodeExecutable as string;
+      const env = queryOptions.env as Record<string, string>;
+      const cwd = queryOptions.cwd as string;
+
+      log.debug('Pre-check: testing bun execution', { bunPath, cliPath, cwd }, sessionId);
+
+      const result = execSync(`"${bunPath}" "${cliPath}" --version`, {
+        cwd,
+        env: { ...env },
+        encoding: 'utf-8',
+        timeout: 5000,
+      });
+      log.debug('Pre-check passed', { result: result.trim() }, sessionId);
+    } catch (preCheckError) {
+      const err = preCheckError as { message?: string; stderr?: string; stdout?: string; status?: number };
+      log.error('Pre-check failed', {
+        message: err.message,
+        stderr: err.stderr,
+        stdout: err.stdout,
+        status: err.status,
+      }, sessionId);
+
+      // 检测 macOS 权限错误
+      const errorMessage = err.message || err.stderr || '';
+      if (errorMessage.includes('Operation not permitted') || errorMessage.includes('getcwd: cannot access parent directories')) {
+        const permissionError = new Error(
+          `无法访问工作空间目录: ${workspace}\n\n` +
+          `这是 macOS 权限限制。请在「系统设置 > 隐私与安全性 > 完全磁盘访问权限」中添加 Amon 应用，然后重启应用。`
+        );
+        permissionError.name = 'PermissionError';
+        throw permissionError;
+      }
+    }
 
     // 创建并注册查询实例
     const queryInstance = query({ prompt, options: queryOptions });
@@ -311,9 +374,9 @@ export async function executeQuery(params: QueryParams): Promise<void> {
 
     log.info('Query completed successfully', undefined, sessionId);
   } catch (error) {
-    log.error('Query failed', error instanceof Error ? { message: error.message, stack: error.stack } : error, sessionId);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     sessionStore.emit('query:error', sessionId, errorMessage);
+    log.error('Query failed', errorMessage, sessionId);
     throw error;
   } finally {
     activeQueries.delete(sessionId);

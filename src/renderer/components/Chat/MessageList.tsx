@@ -17,9 +17,10 @@ interface MessageListProps {
 
 const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNearBottom }, ref) => {
   const { currentSessionId } = useSessionStore();
-  const { getMessages, error } = useChatStore();
+  const { getMessages, getSessionError, clearSessionError } = useChatStore();
   const { getPendingRequest, getPendingQuestionRequest } = usePermissionStore();
   const messages = getMessages(currentSessionId);
+  const error = getSessionError(currentSessionId);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   // 获取待处理的请求
@@ -86,8 +87,17 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
 
               {/* 错误提示 */}
               {error && (
-                <div className="mt-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <div className="mt-3 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl relative">
+                  <button
+                    onClick={() => currentSessionId && clearSessionError(currentSessionId)}
+                    className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-600 dark:text-red-500 dark:hover:text-red-300 rounded-md hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors"
+                    aria-label="关闭错误提示"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <p className="text-sm text-red-600 dark:text-red-400 pr-6 whitespace-pre-wrap">{error}</p>
                 </div>
               )}
             </div>

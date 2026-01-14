@@ -4,9 +4,7 @@ import { useSessionStore } from '../../store/sessionStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useChatStore } from '../../store/chatStore';
 import type { Workspace } from '../../types';
-
-// 系统默认工作空间
-const SYSTEM_DEFAULT_WORKSPACE = '~/.amon/workspace';
+import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
 
 interface WorkspaceSelectorProps {
   sessionId: string;
@@ -46,7 +44,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
   const handleSelectDefaultWorkspace = async () => {
     if (hasMessages) return;
-    await updateSessionWorkspace(sessionId, SYSTEM_DEFAULT_WORKSPACE);
+    await updateSessionWorkspace(sessionId, DEFAULT_WORKSPACE_PATH);
     onClose();
   };
 
@@ -121,26 +119,26 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                       ${hasMessages
                         ? 'opacity-50 cursor-not-allowed'
                         : 'hover:bg-gray-100 dark:hover:bg-gray-700'}
-                      ${currentWorkspace === SYSTEM_DEFAULT_WORKSPACE
+                      ${currentWorkspace === DEFAULT_WORKSPACE_PATH
                         ? 'bg-primary-50 dark:bg-primary-900/20'
                         : ''}`}
         >
           <Home className={`w-4 h-4 flex-shrink-0
-            ${currentWorkspace === SYSTEM_DEFAULT_WORKSPACE ? 'text-primary-500' : 'text-gray-400'}`}
+            ${currentWorkspace === DEFAULT_WORKSPACE_PATH ? 'text-primary-500' : 'text-gray-400'}`}
           />
           <div className="flex-1 min-w-0">
             <div className={`font-medium truncate
-              ${currentWorkspace === SYSTEM_DEFAULT_WORKSPACE
+              ${currentWorkspace === DEFAULT_WORKSPACE_PATH
                 ? 'text-primary-600 dark:text-primary-400'
                 : 'text-gray-700 dark:text-gray-200'}`}
             >
               默认目录
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-              {SYSTEM_DEFAULT_WORKSPACE}
+              {DEFAULT_WORKSPACE_PATH}
             </div>
           </div>
-          {currentWorkspace === SYSTEM_DEFAULT_WORKSPACE && (
+          {currentWorkspace === DEFAULT_WORKSPACE_PATH && (
             <Check className="w-4 h-4 text-primary-500 flex-shrink-0" />
           )}
         </button>

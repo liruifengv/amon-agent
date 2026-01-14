@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Folder, Star, Trash2, Edit2, FolderOpen, Plus, Check, X, Home } from 'lucide-react';
 import type { Workspace } from '../../types';
-
-// 系统默认工作空间
-const SYSTEM_DEFAULT_WORKSPACE = '~/.amon/workspace';
+import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
 
 const WorkspaceSettings: React.FC = () => {
   const { formData, setFormData } = useSettingsStore();
@@ -132,7 +130,7 @@ const WorkspaceSettings: React.FC = () => {
               )}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              {SYSTEM_DEFAULT_WORKSPACE}
+              {DEFAULT_WORKSPACE_PATH}
             </p>
           </div>
           {/* 操作按钮 */}
@@ -149,7 +147,7 @@ const WorkspaceSettings: React.FC = () => {
               </button>
             )}
             <button
-              onClick={() => handleOpenInFinder(SYSTEM_DEFAULT_WORKSPACE)}
+              onClick={() => handleOpenInFinder(DEFAULT_WORKSPACE_PATH)}
               className="p-1.5 text-gray-500 hover:text-blue-600
                          hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded
                          transition-colors"
