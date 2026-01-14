@@ -34,6 +34,15 @@ export type Workspace = z.infer<typeof WorkspaceSchema>;
 // ==================== Agent 配置 Schema ====================
 
 export const AgentSchema = z.object({
+  // API Key
+  apiKey: z.string().default(''),
+
+  // API 基础 URL（可选，用于自定义端点）
+  baseUrl: z.string().default(''),
+
+  // 模型名称
+  model: z.string().default(''),
+
   // 系统提示词（追加到 SDK 预设提示词后）
   systemPrompt: z.string().default(''),
 
@@ -56,6 +65,9 @@ export const AgentSchema = z.object({
 export type AgentSettings = z.infer<typeof AgentSchema>;
 
 export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
+  apiKey: '',
+  baseUrl: '',
+  model: '',
   systemPrompt: '',
   permissionMode: 'default',
   maxTurns: 50,

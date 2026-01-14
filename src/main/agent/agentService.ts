@@ -1,4 +1,4 @@
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
 import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
@@ -115,7 +115,7 @@ function buildQueryOptions(
   abortController: AbortController,
   workspace?: string,
   queryOptions?: QueryOptions
-): Record<string, unknown> {
+): Options {
   const agent = settings.agent;
 
   // 临时权限模式优先于全局设置
@@ -124,10 +124,10 @@ function buildQueryOptions(
   // 展开工作空间路径中的 ~ 符号
   const expandedWorkspace = expandTildePath(workspace || DEFAULT_WORKSPACE);
 
-  // 使用统一的环境变量构建器
-  const env = buildClaudeSessionEnv(expandedWorkspace);
+  // 使用统一的环境变量构建器，传入 settings 以支持 API 配置
+  const env = buildClaudeSessionEnv(expandedWorkspace, settings);
 
-  const options: Record<string, unknown> = {
+  const options: Options = {
     // 基础配置
     settingSources: ['user', 'project'],
     systemPrompt: {
@@ -142,7 +142,7 @@ function buildQueryOptions(
     maxThinkingTokens: agent.maxThinkingTokens ?? 10000,
     abortController,
     pathToClaudeCodeExecutable: resolveClaudeCodeCli(),
-    executable: getBundledBunPath(),
+    executable: "bun",
 
     // 工作空间
     cwd: expandedWorkspace,

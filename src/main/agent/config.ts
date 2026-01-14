@@ -1,6 +1,7 @@
 import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { app } from 'electron';
+import type { Settings } from '../../shared/schemas';
 
 /**
  * 获取打包的 bun 可执行文件路径
@@ -201,8 +202,9 @@ export function buildEnhancedPath(): string {
  * - PATH（增强后包含打包的工具）
  * - CLAUDE_CODE_GIT_BASH_PATH（仅 Windows，如果找到 bash.exe）
  * - MSYSTEM, MSYS2_PATH_TYPE, HOME（仅 Windows 且使用 MSYS2 bash 时）
+ * - ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, CLAUDE_MODEL（如果设置中配置了）
  */
-export function buildClaudeSessionEnv(workspaceDir?: string): Record<string, string> {
+export function buildClaudeSessionEnv(workspaceDir?: string, settings?: Settings): Record<string, string> {
   const enhancedPath = buildEnhancedPath();
 
   const env: Record<string, string> = {
@@ -211,6 +213,20 @@ export function buildClaudeSessionEnv(workspaceDir?: string): Record<string, str
     ),
     PATH: enhancedPath,
   };
+
+  // 如果设置中配置了 API 相关字段，设置环境变量
+  if (settings?.agent) {
+    const { apiKey, baseUrl, model } = settings.agent;
+    if (apiKey) {
+      env.ANTHROPIC_API_KEY = apiKey;
+    }
+    if (baseUrl) {
+      env.ANTHROPIC_BASE_URL = baseUrl;
+    }
+    if (model) {
+      env.ANTHROPIC_MODEL = model;
+    }
+  }
 
   // Windows 特定配置
   if (process.platform === 'win32') {
