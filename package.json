@@ -4,12 +4,16 @@
   "version": "1.0.0",
   "description": "Amon - A desktop chat application powered by Claude AI",
   "main": ".vite/build/index.js",
+  "packageManager": "bun@1.3.3",
   "scripts": {
     "start": "electron-forge start",
+    "dev": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "typecheck": "tsc --noEmit",
+    "download:binaries": "node scripts/downloadRuntimeBinaries.js"
   },
   "keywords": [],
   "author": {

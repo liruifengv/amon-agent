@@ -8,6 +8,7 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import { cpSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { spawnSync } from 'child_process';
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -16,9 +17,23 @@ const config: ForgeConfig = {
     asar: {
       unpack: '**/node_modules/@anthropic-ai/**',
     },
-    // 将 resources/skills 复制到打包目录的 resources 中
+    // 将 resources/skills、bun 和 uv 复制到打包目录的 resources 中
     extraResource: [
       './resources/skills',
+      // bun 可执行文件（macOS/Linux）
+      ...(process.platform !== 'win32' ? ['./resources/bun'] : []),
+      // bun 可执行文件（Windows）
+      ...(process.platform === 'win32' ? ['./resources/bun.exe'] : []),
+      // uv 可执行文件（macOS/Linux）
+      ...(process.platform !== 'win32' ? ['./resources/uv'] : []),
+      // uv 可执行文件（Windows）
+      ...(process.platform === 'win32' ? ['./resources/uv.exe'] : []),
+      // jq 可执行文件（仅 Windows）
+      ...(process.platform === 'win32' ? ['./resources/jq.exe'] : []),
+      // git-portable（仅 Windows）
+      ...(process.platform === 'win32' ? ['./resources/git-portable'] : []),
+      // msys2（仅 Windows）
+      ...(process.platform === 'win32' ? ['./resources/msys2'] : []),
     ],
   },
   rebuildConfig: {},
@@ -29,6 +44,17 @@ const config: ForgeConfig = {
     new MakerDeb({}),
   ],
   hooks: {
+    prePackage: async () => {
+      // 在打包前确保运行时二进制文件已下载
+      console.log('\n=== Running prePackage hook: downloading runtime binaries ===\n');
+      const result = spawnSync('node', ['scripts/downloadRuntimeBinaries.js'], {
+        stdio: 'inherit',
+        shell: true,
+      });
+      if (result.status !== 0) {
+        throw new Error('Failed to download runtime binaries');
+      }
+    },
     packageAfterCopy: async (_config, buildPath) => {
       // 将 claude-agent-sdk 复制到打包目录的 node_modules 中
       const sdkSrc = join(process.cwd(), 'node_modules', '@anthropic-ai');

@@ -1,10 +1,9 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { app } from 'electron';
+import { existsSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { createRequire } from 'module';
 import { SDKMessage, Message, AskUserQuestionInput, QueryOptions } from '../../shared/types';
 import { Settings } from '../../shared/schemas';
-import { existsSync } from 'fs';
-import { join } from 'path';
 import { getSettings } from '../store/configStore';
 import { sessionStore } from '../store/sessionStore';
 import { DEFAULT_WORKSPACE } from '../store/persistence';
@@ -12,7 +11,9 @@ import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from '.
 import { permissionManager } from './permissionManager';
 import { createLogger } from '../store/logger';
 import { shouldUpdateTitle, generateTitle } from './titleService';
+import { buildClaudeSessionEnv } from './config';
 
+const requireModule = createRequire(import.meta.url);
 const log = createLogger('AgentService');
 
 // ==================== 类型定义 ====================
@@ -45,61 +46,16 @@ const activeQueries = new Map<string, AsyncGenerator<unknown, void, unknown>>();
  * 支持打包后和开发环境
  */
 function resolveClaudeCodeCli(): string {
-  const appPath = app.getAppPath();
-
-  // 打包后的环境（路径包含 app.asar）
-  if (appPath.includes('app.asar')) {
-    const unpackedPath = join(
-      appPath.replace('app.asar', 'app.asar.unpacked'),
-      'node_modules',
-      '@anthropic-ai',
-      'claude-agent-sdk',
-      'cli.js'
-    );
+  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
+  if (cliPath.includes('app.asar')) {
+    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
     if (existsSync(unpackedPath)) {
       return unpackedPath;
     }
   }
-
-  // 开发环境：直接在 node_modules 中查找
-  const devPath = join(appPath, 'node_modules', '@anthropic-ai', 'claude-agent-sdk', 'cli.js');
-  if (existsSync(devPath)) {
-    return devPath;
-  }
-
-  // 备选：从当前目录的 node_modules 查找
-  const cwdPath = join(process.cwd(), 'node_modules', '@anthropic-ai', 'claude-agent-sdk', 'cli.js');
-  if (existsSync(cwdPath)) {
-    return cwdPath;
-  }
-
-  throw new Error('Could not find claude-agent-sdk CLI');
+  return cliPath;
 }
 
-/**
- * 确保 PATH 环境变量包含常见的 Node.js 安装路径
- * macOS GUI 应用不会继承终端的 PATH
- */
-function ensureNodeInPath(): void {
-  const currentPath = process.env.PATH || '';
-
-  const nodePaths = [
-    '/usr/local/bin',
-    '/opt/homebrew/bin',
-    '/usr/local/opt/node/bin',
-    '/opt/homebrew/opt/node/bin',
-    `${process.env.HOME}/.nvm/current/bin`,
-    `${process.env.HOME}/.volta/bin`,
-    `${process.env.HOME}/.fnm/current/bin`,
-    '/usr/bin',
-  ];
-
-  const pathsToAdd = nodePaths.filter(p => !currentPath.includes(p) && existsSync(p));
-
-  if (pathsToAdd.length > 0) {
-    process.env.PATH = [...pathsToAdd, currentPath].join(':');
-  }
-}
 
 /**
  * 创建工具权限回调
@@ -153,6 +109,9 @@ function buildQueryOptions(
   // 临时权限模式优先于全局设置
   const permissionMode = queryOptions?.permissionMode ?? agent.permissionMode ?? 'default';
 
+  // 使用统一的环境变量构建器
+  const env = buildClaudeSessionEnv(workspace || DEFAULT_WORKSPACE);
+
   const options: Record<string, unknown> = {
     // 基础配置
     settingSources: ['user', 'project'],
@@ -161,12 +120,14 @@ function buildQueryOptions(
       preset: 'claude_code',
       append: agent.systemPrompt,
     },
+    env,
 
     // 执行控制
     maxTurns: agent.maxTurns ?? 50,
     maxThinkingTokens: agent.maxThinkingTokens ?? 10000,
     abortController,
     pathToClaudeCodeExecutable: resolveClaudeCodeCli(),
+    executable: 'bun',
 
     // 工作空间
     cwd: workspace || DEFAULT_WORKSPACE,
@@ -311,9 +272,6 @@ export async function executeQuery(params: QueryParams): Promise<void> {
   const { prompt, sessionId, sdkSessionId, options } = params;
 
   log.info('Query started', { promptLength: prompt.length, sdkSessionId: !!sdkSessionId, options }, sessionId);
-
-  // 环境准备
-  ensureNodeInPath();
 
   // 中断已有查询
   if (activeQueries.has(sessionId)) {

@@ -1,11 +1,12 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { app } from 'electron';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { createRequire } from 'module';
 import { sessionStore } from '../store/sessionStore';
 import { Message, SDKMessage } from '../../shared/types';
 import { createLogger } from '../store/logger';
+import { buildClaudeSessionEnv } from './config';
 
+const requireModule = createRequire(import.meta.url);
 const log = createLogger('TitleService');
 
 const DEFAULT_TITLE_PREFIX = '新会话';
@@ -14,32 +15,14 @@ const DEFAULT_TITLE_PREFIX = '新会话';
 const lastTitleUpdateCount: Map<string, number> = new Map();
 
 function resolveClaudeCodeCli(): string {
-  const appPath = app.getAppPath();
-
-  if (appPath.includes('app.asar')) {
-    const unpackedPath = join(
-      appPath.replace('app.asar', 'app.asar.unpacked'),
-      'node_modules',
-      '@anthropic-ai',
-      'claude-agent-sdk',
-      'cli.js'
-    );
+  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
+  if (cliPath.includes('app.asar')) {
+    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
     if (existsSync(unpackedPath)) {
       return unpackedPath;
     }
   }
-
-  const devPath = join(appPath, 'node_modules', '@anthropic-ai', 'claude-agent-sdk', 'cli.js');
-  if (existsSync(devPath)) {
-    return devPath;
-  }
-
-  const cwdPath = join(process.cwd(), 'node_modules', '@anthropic-ai', 'claude-agent-sdk', 'cli.js');
-  if (existsSync(cwdPath)) {
-    return cwdPath;
-  }
-
-  throw new Error('Could not find claude-agent-sdk CLI');
+  return cliPath;
 }
 
 /**
@@ -91,7 +74,9 @@ ${conversationSummary}
 标题：`;
 
   try {
-    // 环境变量由 SDK 自动从系统环境读取
+    // 使用统一的环境变量构建器
+    const env = buildClaudeSessionEnv();
+
     const queryInstance = query({
       prompt,
       options: {
@@ -99,6 +84,8 @@ ${conversationSummary}
         maxTurns: 1,
         allowedTools: [],
         pathToClaudeCodeExecutable: resolveClaudeCodeCli(),
+        executable: 'bun',
+        env,
       },
     });
 
