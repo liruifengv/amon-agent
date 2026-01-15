@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow, shell, dialog } from 'electron';
 import os from 'os';
 import { IPC_CHANNELS } from '../../shared/ipc';
-import { Settings, Message, PermissionResult, ToolPermissionRequest, AskUserQuestionRequest, Session, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, QueryOptions } from '../../shared/types';
+import { Settings, Message, PermissionResult, ToolPermissionRequest, AskUserQuestionRequest, Session, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, QueryOptions, SettingsSetResult } from '../../shared/types';
 import { executeQuery, interruptQuery } from '../agent/agentService';
 import { sessionStore } from '../store/sessionStore';
 import { permissionManager } from '../agent/permissionManager';
@@ -11,13 +11,6 @@ import { openSettingsWindow, closeSettingsWindow, registerShortcuts } from '../i
 import { createLogger } from '../store/logger';
 
 const log = createLogger('IpcHandlers');
-
-// 设置保存结果类型
-interface SettingsSetResult {
-  success: boolean;
-  data?: Settings;
-  errors?: { field: string; message: string }[];
-}
 
 /**
  * 注册所有 IPC 处理器

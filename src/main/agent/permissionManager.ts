@@ -7,6 +7,7 @@ import {
   AskUserQuestion,
   AskUserQuestionResponse,
 } from '../../shared/types';
+import { PERMISSION_TIMEOUT_MS } from '../../shared/constants';
 import { createLogger } from '../store/logger';
 
 const log = createLogger('PermissionManager');
@@ -39,9 +40,6 @@ class PermissionManager extends EventEmitter {
   private static instance: PermissionManager;
   private pendingRequests: Map<string, PendingRequest> = new Map();
   private pendingQuestions: Map<string, PendingQuestion> = new Map();
-
-  // 超时时间（毫秒），SDK 要求 60 秒内响应
-  private readonly TIMEOUT_MS = 60000;
 
   private constructor() {
     super();
@@ -82,7 +80,7 @@ class PermissionManager extends EventEmitter {
           behavior: 'deny',
           message: 'Permission request timed out',
         });
-      }, this.TIMEOUT_MS);
+      }, PERMISSION_TIMEOUT_MS);
 
       // 保存请求
       this.pendingRequests.set(request.id, {
@@ -197,7 +195,7 @@ class PermissionManager extends EventEmitter {
           questions,
           answers: {},
         });
-      }, this.TIMEOUT_MS);
+      }, PERMISSION_TIMEOUT_MS);
 
       // 保存请求
       this.pendingQuestions.set(request.id, {

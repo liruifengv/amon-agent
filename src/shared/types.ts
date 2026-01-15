@@ -1,7 +1,7 @@
 // ==================== 设置相关类型 (从 schema 导入) ====================
 
 // 从 schemas.ts 导出设置相关类型
-export type { Settings, AgentSettings, Shortcuts, PermissionMode, Workspace } from './schemas';
+export type { Settings, AgentSettings, Shortcuts, PermissionMode, Workspace, Provider } from './schemas';
 export { DEFAULT_SETTINGS, DEFAULT_SHORTCUTS, DEFAULT_AGENT_SETTINGS } from './schemas';
 
 // 导入 PermissionMode 用于本地类型定义
@@ -273,6 +273,30 @@ export interface RecommendedSkill {
  */
 export type SkillInstallTarget = 'system' | 'workspace';
 
+// ==================== IPC 结果类型 ====================
+
+/**
+ * 设置保存结果
+ */
+export interface SettingsSetResult {
+  success: boolean;
+  data?: import('./schemas').Settings;
+  errors?: { field: string; message: string }[];
+}
+
+/**
+ * 查询完成数据
+ */
+export interface QueryCompleteData {
+  sessionId: string;
+  success: boolean;
+  result?: string;
+  cost?: number;
+  duration?: number;
+  usage?: SDKUsage;
+  errors?: string[];
+}
+
 // ==================== 查询选项类型 ====================
 
 /**
@@ -281,4 +305,14 @@ export type SkillInstallTarget = 'system' | 'workspace';
 export interface QueryOptions {
   /** 临时权限模式（覆盖全局设置，仅对当前查询生效） */
   permissionMode?: PermissionMode;
+}
+
+/**
+ * Agent 查询参数
+ */
+export interface QueryParams {
+  prompt: string;
+  sessionId: string;
+  sdkSessionId?: string;
+  options?: QueryOptions;
 }

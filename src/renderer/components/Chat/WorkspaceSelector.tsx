@@ -5,6 +5,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useChatStore } from '../../store/chatStore';
 import type { Workspace } from '../../types';
 import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
+import { formatPathWithTilde, getPathName } from '../../utils/path';
 
 interface WorkspaceSelectorProps {
   sessionId: string;
@@ -24,17 +25,6 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
   const workspaces = settings.workspaces || [];
   const hasMessages = messages.length > 0;
-
-  // 格式化路径显示
-  const formatPath = (path: string) => {
-    const home = '/Users/';
-    if (path.startsWith(home)) {
-      const afterHome = path.slice(home.length);
-      const username = afterHome.split('/')[0];
-      return path.replace(`${home}${username}`, '~');
-    }
-    return path;
-  };
 
   const handleSelectWorkspace = async (workspace: Workspace) => {
     if (hasMessages) return;
@@ -63,7 +53,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
       }
 
       // 添加到保存的工作空间列表
-      const name = result.path.split('/').filter(Boolean).pop() || 'workspace';
+      const name = getPathName(result.path) || 'workspace';
       const newWorkspace: Workspace = {
         id: crypto.randomUUID(),
         name,
@@ -179,7 +169,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                       {workspace.name}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                      {formatPath(workspace.path)}
+                      {formatPathWithTilde(workspace.path)}
                     </div>
                   </div>
                   {isSelected && (

@@ -3,6 +3,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { Folder, Star, Trash2, Edit2, FolderOpen, Plus, Check, X, Home } from 'lucide-react';
 import type { Workspace } from '../../types';
 import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
+import { formatPathWithTilde, getPathName } from '../../utils/path';
 
 const WorkspaceSettings: React.FC = () => {
   const { formData, setFormData } = useSettingsStore();
@@ -19,7 +20,7 @@ const WorkspaceSettings: React.FC = () => {
         return; // 已存在，不重复添加
       }
       // 提取目录最后一级作为名称
-      const name = result.path.split('/').filter(Boolean).pop() || 'workspace';
+      const name = getPathName(result.path) || 'workspace';
       const newWorkspace: Workspace = {
         id: crypto.randomUUID(),
         name,
@@ -86,18 +87,6 @@ const WorkspaceSettings: React.FC = () => {
 
   const handleOpenInFinder = async (path: string) => {
     await window.electronAPI.shell.openPath(path);
-  };
-
-  // 格式化路径显示
-  const formatPath = (path: string) => {
-    // 替换 home 目录为 ~
-    const home = '/Users/';
-    if (path.startsWith(home)) {
-      const afterHome = path.slice(home.length);
-      const username = afterHome.split('/')[0];
-      return path.replace(`${home}${username}`, '~');
-    }
-    return path;
   };
 
   // 检查是否有用户设置的默认工作空间
@@ -244,7 +233,7 @@ const WorkspaceSettings: React.FC = () => {
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                        {formatPath(workspace.path)}
+                        {formatPathWithTilde(workspace.path)}
                       </p>
                     </>
                   )}

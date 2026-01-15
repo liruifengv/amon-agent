@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles, FolderOpen, RefreshCw, ChevronDown, ChevronRight, AlertCircle, Home, Folder, Download, Check, X, Trash2 } from 'lucide-react';
 import type { SkillsLoadResult, Skill, WorkspaceSkills, RecommendedSkill, Workspace, SkillInstallTarget } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
+import { formatPathWithTilde } from '../../utils/path';
 
 type TabType = 'installed' | 'recommended';
 
@@ -215,16 +216,6 @@ const SkillsSettings: React.FC = () => {
     await window.electronAPI.shell.openPath(path);
   };
 
-  const formatPath = (path: string) => {
-    const home = '/Users/';
-    if (path.startsWith(home)) {
-      const afterHome = path.slice(home.length);
-      const username = afterHome.split('/')[0];
-      return path.replace(`${home}${username}`, '~');
-    }
-    return path;
-  };
-
   const renderSkillCard = (skill: Skill) => (
     <div
       key={skill.id}
@@ -253,7 +244,7 @@ const SkillsSettings: React.FC = () => {
           title="打开文件夹"
         >
           <FolderOpen className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate max-w-[120px]">{formatPath(skill.path)}</span>
+          <span className="truncate max-w-[120px]">{formatPathWithTilde(skill.path)}</span>
         </button>
         <button
           onClick={() => handleUninstall(skill)}
@@ -501,7 +492,7 @@ const SkillsSettings: React.FC = () => {
                 ws.workspacePath,
                 ws.skills,
                 <FolderOpen className="w-5 h-5 text-primary-500" />,
-                `${formatPath(ws.workspacePath)}/.claude/skills`,
+                `${formatPathWithTilde(ws.workspacePath)}/.claude/skills`,
                 `${ws.workspacePath}/.claude/skills`
               )
             )}

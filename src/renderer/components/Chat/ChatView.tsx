@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { PanelLeft, SquarePen, MessageSquare, ArrowDown, Folder, ChevronDown, Lock } from 'lucide-react';
 import { useSessionStore } from '../../store/sessionStore';
 import { useChatStore } from '../../store/chatStore';
@@ -7,6 +7,7 @@ import MessageList, { MessageListRef } from './MessageList';
 import InputArea from './InputArea';
 import WorkspaceSelector from './WorkspaceSelector';
 import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
+import { shortenPath } from '../../utils/path';
 
 interface ChatViewProps {
   sidebarCollapsed: boolean;
@@ -16,8 +17,11 @@ interface ChatViewProps {
 const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }) => {
   const { currentSessionId, sessions, createSession } = useSessionStore();
   const currentSession = sessions.find((s) => s.id === currentSessionId);
+  
+  // 获取当前会话的消息
   const sessionMessages = useChatStore((state) => state.sessionMessages);
-  const messages = currentSessionId ? (sessionMessages[currentSessionId] || []) : [];
+  const messages = currentSessionId ? sessionMessages[currentSessionId] || [] : [];
+  
   const messageListRef = useRef<MessageListRef>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [showWorkspaceSelector, setShowWorkspaceSelector] = useState(false);
@@ -30,19 +34,10 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
     setShowWorkspaceSelector(false);
   }, [currentSessionId]);
 
-  // 格式化显示路径（简化路径显示）
-  const formatPath = (pathStr: string) => {
-    // 尝试提取最后两级目录名
-    const parts = pathStr.split('/').filter(Boolean);
-    if (parts.length > 2) {
-      return `.../${parts.slice(-2).join('/')}`;
-    }
-    return pathStr;
-  };
-
-  const workspaceDisplay = currentSession?.workspace
-    ? formatPath(currentSession.workspace)
-    : DEFAULT_WORKSPACE_PATH;
+  const workspaceDisplay = useMemo(
+    () => (currentSession?.workspace ? shortenPath(currentSession.workspace) : DEFAULT_WORKSPACE_PATH),
+    [currentSession?.workspace]
+  );
 
   const handleScrollToBottom = useCallback(() => {
     messageListRef.current?.scrollToBottom();

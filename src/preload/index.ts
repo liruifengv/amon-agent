@@ -1,19 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/ipc';
-import { Settings, Session, Message, ToolPermissionRequest, PermissionResult, AskUserQuestionRequest, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, QueryOptions } from '../shared/types';
+import { Settings, Session, Message, ToolPermissionRequest, PermissionResult, AskUserQuestionRequest, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, QueryOptions, SettingsSetResult, QueryCompleteData } from '../shared/types';
 
 // 推送事件回调类型
 type MessagesUpdatedCallback = (data: { sessionId: string; messages: Message[] }) => void;
 type QueryStateCallback = (data: { sessionId: string; isLoading: boolean }) => void;
-type QueryCompleteCallback = (data: {
-  sessionId: string;
-  success: boolean;
-  result?: string;
-  cost?: number;
-  duration?: number;
-  usage?: { input_tokens: number; output_tokens: number };
-  errors?: string[];
-}) => void;
+type QueryCompleteCallback = (data: QueryCompleteData) => void;
 type QueryErrorCallback = (data: { sessionId: string; error: string }) => void;
 type SessionCreatedCallback = (session: Session) => void;
 type SessionDeletedCallback = (data: { sessionId: string }) => void;
@@ -291,7 +283,7 @@ const electronAPI = {
     /**
      * 保存设置
      */
-    set: (settings: Partial<Settings>): Promise<Settings> => {
+    set: (settings: Partial<Settings>): Promise<SettingsSetResult> => {
       return ipcRenderer.invoke(IPC_CHANNELS.SETTINGS_SET, settings);
     },
 

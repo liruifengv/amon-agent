@@ -6,13 +6,15 @@ import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 export interface ToolGroupProps {
   blocks: MessageContentBlock[];
   isStreaming?: boolean;
+  /** Whether the group should be collapsed by default (for historical messages) */
+  defaultCollapsed?: boolean;
 }
 
 /**
  * 工具调用组容器 - 支持折叠和自动滚动
  */
-const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false }) => {
+  const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 流式输出时自动滚动到底部

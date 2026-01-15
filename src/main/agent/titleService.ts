@@ -1,29 +1,15 @@
 import { query } from '@anthropic-ai/claude-agent-sdk';
-import { existsSync } from 'fs';
-import { createRequire } from 'module';
 import { sessionStore } from '../store/sessionStore';
-import { Message, SDKMessage } from '../../shared/types';
+import { Message, SDKMessage, Settings } from '../../shared/types';
 import { createLogger } from '../store/logger';
-import { buildClaudeSessionEnv } from './config';
+import { buildClaudeSessionEnv, resolveClaudeCodeCli } from './config';
 
-const requireModule = createRequire(import.meta.url);
 const log = createLogger('TitleService');
 
 const DEFAULT_TITLE_PREFIX = '新会话';
 
 // 记录每个会话上次更新标题时的用户消息数
 const lastTitleUpdateCount: Map<string, number> = new Map();
-
-function resolveClaudeCodeCli(): string {
-  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
-  if (cliPath.includes('app.asar')) {
-    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
-    if (existsSync(unpackedPath)) {
-      return unpackedPath;
-    }
-  }
-  return cliPath;
-}
 
 /**
  * 检查会话是否需要更新标题
@@ -52,7 +38,7 @@ export function shouldUpdateTitle(sessionId: string): boolean {
 /**
  * 使用 AI 生成会话标题
  */
-export async function generateTitle(sessionId: string): Promise<void> {
+export async function generateTitle(sessionId: string, workspace?: string, settings?: Settings): Promise<void> {
   log.info('Generating title', undefined, sessionId);
 
   const session = sessionStore.getSession(sessionId);
@@ -75,12 +61,12 @@ ${conversationSummary}
 
   try {
     // 使用统一的环境变量构建器
-    const env = buildClaudeSessionEnv();
+    const env = buildClaudeSessionEnv(workspace, settings);
 
     const queryInstance = query({
       prompt,
       options: {
-        settingSources: ['user'],
+        settingSources: settings?.agent.claudeCodeMode ? ['user'] : undefined,
         maxTurns: 1,
         allowedTools: [],
         pathToClaudeCodeExecutable: resolveClaudeCodeCli(),

@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useSettingsStore, initSettingsListeners } from '../../store/settingsStore';
 import GeneralSettings from './GeneralSettings';
 import AgentSettings from './AgentSettings';
+import ProviderSettings from './ProviderSettings';
 import ShortcutsSettings from './ShortcutsSettings';
 import WorkspaceSettings from './WorkspaceSettings';
 import SkillsSettings from './SkillsSettings';
 import AboutSettings from './AboutSettings';
-import { Settings, MessageCircle, Info, Keyboard, Folder, Sparkles } from 'lucide-react';
+import { Settings, MessageCircle, Info, Keyboard, Folder, Sparkles, Server } from 'lucide-react';
 
-type SettingsTab = 'general' | 'workspace' | 'agent' | 'shortcuts' | 'skills' | 'about';
+type SettingsTab = 'general' | 'provider' | 'workspace' | 'agent' | 'shortcuts' | 'skills' | 'about';
 
 const SettingsWindow: React.FC = () => {
   const { saveSettings, saveError, isSaving, loadSettings, hasChanges } = useSettingsStore();
@@ -38,6 +39,11 @@ const SettingsWindow: React.FC = () => {
       id: 'general',
       label: '通用',
       icon: <Settings className="w-5 h-5" />,
+    },
+    {
+      id: 'provider',
+      label: 'Provider',
+      icon: <Server className="w-5 h-5" />,
     },
     {
       id: 'agent',
@@ -70,10 +76,12 @@ const SettingsWindow: React.FC = () => {
     switch (activeTab) {
       case 'general':
         return <GeneralSettings />;
+      case 'provider':
+        return <ProviderSettings />;
       case 'workspace':
         return <WorkspaceSettings />;
       case 'agent':
-        return <AgentSettings />;
+        return <AgentSettings onNavigateToProvider={() => setActiveTab('provider')} />;
       case 'shortcuts':
         return <ShortcutsSettings />;
       case 'skills':

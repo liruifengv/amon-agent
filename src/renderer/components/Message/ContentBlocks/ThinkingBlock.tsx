@@ -4,10 +4,13 @@ import { ChevronRight, Lightbulb } from 'lucide-react';
 export interface ThinkingBlockProps {
   content: string;
   isStreaming?: boolean;
+  /** Whether the block should be collapsed by default (for historical messages) */
+  defaultCollapsed?: boolean;
 }
 
-const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ content, isStreaming }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ content, isStreaming, defaultCollapsed = false }) => {
+  // When streaming, always expand; otherwise use defaultCollapsed setting
+  const [isExpanded, setIsExpanded] = useState(isStreaming ? true : !defaultCollapsed);
 
   if (!content) return null;
 

@@ -5,6 +5,34 @@ import { useChatStore } from '../../store/chatStore';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
+/**
+ * 格式化时间显示
+ * - 今天: 显示时间 (如 14:30)
+ * - 昨天: 显示 "昨天"
+ * - 今年内: 显示月日 (如 3/15)
+ * - 更早: 显示年月日 (如 2024/3/15)
+ */
+function formatTime(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+  const isThisYear = date.getFullYear() === now.getFullYear();
+
+  if (isToday) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  } else if (isYesterday) {
+    return '昨天';
+  } else if (isThisYear) {
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  } else {
+    return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+  }
+}
+
 const SessionList: React.FC = () => {
   const { sessions, currentSessionId, setCurrentSessionId, deleteSession, renameSession } =
     useSessionStore();
@@ -15,10 +43,9 @@ const SessionList: React.FC = () => {
   const handleSelectSession = async (sessionId: string) => {
     if (sessionId === currentSessionId) return;
 
-    setCurrentSessionId(sessionId);
-
-    // 从主进程加载消息
+    // 先加载消息，再切换会话，避免闪烁
     await loadMessages(sessionId);
+    setCurrentSessionId(sessionId);
   };
 
   const handleStartRename = (id: string, name: string) => {
@@ -86,17 +113,22 @@ const SessionList: React.FC = () => {
             />
           ) : (
             <>
-              <span
-                className="flex-1 text-sm truncate"
-                onDoubleClick={() => handleStartRename(session.id, session.name)}
-              >
-                {session.name}
-              </span>
+              <div className="flex-1 min-w-0">
+                <span
+                  className="block text-sm truncate"
+                  onDoubleClick={() => handleStartRename(session.id, session.name)}
+                >
+                  {session.name}
+                </span>
+                <span className="block text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  {formatTime(session.updatedAt)}
+                </span>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={(e) => handleDelete(e, session.id, session.name)}
-                className="opacity-0 group-hover:opacity-100 h-7 w-7 text-gray-400 hover:text-red-500"
+                className="opacity-0 group-hover:opacity-100 h-7 w-7 text-gray-400 hover:text-red-500 flex-shrink-0"
                 title="删除会话"
               >
                 <Trash2 className="h-4 w-4" />

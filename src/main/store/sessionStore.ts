@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { Session, Message, MessageContentBlock, ToolCall } from '../../shared/types';
+import { AUTO_SAVE_INTERVAL_MS } from '../../shared/constants';
 import { persistence, DEFAULT_WORKSPACE } from './persistence';
 import * as configStore from './configStore';
 import { createLogger } from './logger';
@@ -278,10 +279,10 @@ class SessionStore extends EventEmitter {
   }
 
   private startAutoSave(): void {
-    // 每 3 秒检查并保存脏数据
+    // 定期检查并保存脏数据
     this.saveTimer = setInterval(() => {
       this.flushDirty();
-    }, 3000);
+    }, AUTO_SAVE_INTERVAL_MS);
   }
 
   async flushDirty(): Promise<void> {

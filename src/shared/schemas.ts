@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_MAX_THINKING_TOKENS, DEFAULT_SYSTEM_PROMPT } from './constants';
 
 // ==================== 权限模式 Schema ====================
 
@@ -31,20 +32,33 @@ export const WorkspaceSchema = z.object({
 
 export type Workspace = z.infer<typeof WorkspaceSchema>;
 
+// ==================== Provider Schema ====================
+
+export const ProviderSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, 'Provider 名称不能为空'),
+  apiUrl: z.string().min(1, 'API URL 不能为空'),
+  apiKey: z.string().min(1, 'API Key 不能为空'),
+  model: z.string().min(1, '模型名称不能为空'),
+});
+
+export type Provider = z.infer<typeof ProviderSchema>;
+
 // ==================== Agent 配置 Schema ====================
 
 export const AgentSchema = z.object({
-  // API Key
-  apiKey: z.string().default(''),
+  // Provider 列表
+  providers: z.array(ProviderSchema).default([]),
 
-  // API 基础 URL（可选，用于自定义端点）
-  baseUrl: z.string().default(''),
-
-  // 模型名称
-  model: z.string().default(''),
+  // 当前选中的 Provider ID
+  activeProviderId: z.string().nullable().default(null),
 
   // 系统提示词（追加到 SDK 预设提示词后）
-  systemPrompt: z.string().default(''),
+  // 空字符串视为未设置，使用默认提示词
+  systemPrompt: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().default(DEFAULT_SYSTEM_PROMPT)
+  ),
 
   // 权限模式
   permissionMode: PermissionModeSchema.default('default'),
@@ -53,25 +67,28 @@ export const AgentSchema = z.object({
   maxTurns: z.number().default(50),
 
   // 最大思考 token 数（不暴露 UI）
-  maxThinkingTokens: z.number().default(10000),
+  maxThinkingTokens: z.number().default(DEFAULT_MAX_THINKING_TOKENS),
 
   // 可用的工具（不暴露 UI）
   tools: z.array(z.string()).optional(),
 
   // 允许的工具（不暴露 UI）
   allowedTools: z.array(z.string()).optional(),
+
+  // Claude Code 模式：开启后继承 Claude Code 配置
+  claudeCodeMode: z.boolean().default(false),
 });
 
 export type AgentSettings = z.infer<typeof AgentSchema>;
 
 export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
-  apiKey: '',
-  baseUrl: '',
-  model: '',
-  systemPrompt: '',
+  providers: [],
+  activeProviderId: null,
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
   permissionMode: 'default',
-  maxTurns: 50,
-  maxThinkingTokens: 10000,
+  maxTurns: 100,
+  maxThinkingTokens: DEFAULT_MAX_THINKING_TOKENS,
+  claudeCodeMode: false,
 };
 
 // ==================== 设置 Schema ====================

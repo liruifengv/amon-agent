@@ -6,6 +6,8 @@ import TodoList, { TodoItem } from './TodoList';
 
 export interface AssistantMessageProps {
   message: Message;
+  /** Whether tool groups and thinking blocks should be collapsed by default */
+  defaultCollapsed?: boolean;
 }
 
 /**
@@ -66,7 +68,7 @@ function extractLatestTodos(blocks: MessageContentBlock[]): TodoItem[] | null {
 /**
  * 助手消息组件
  */
-const AssistantMessage: React.FC<AssistantMessageProps> = ({ message }) => {
+const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, defaultCollapsed = false }) => {
   const { contentBlocks, isStreaming } = message;
 
   // 分组内容块
@@ -94,6 +96,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message }) => {
                 key={`tool-group-${groupIndex}`}
                 blocks={group.blocks}
                 isStreaming={isStreaming}
+                defaultCollapsed={defaultCollapsed}
               />
             );
           }
@@ -104,6 +107,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message }) => {
               block={group.block}
               isStreaming={isStreaming}
               isLastBlock={group.index === totalBlocks - 1}
+              defaultCollapsed={defaultCollapsed}
             />
           );
         })

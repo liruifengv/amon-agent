@@ -1,11 +1,10 @@
 import { query, type Options } from '@anthropic-ai/claude-agent-sdk';
-import { existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
-import { createRequire } from 'module';
 import { homedir } from 'os';
-import { SDKMessage, Message, AskUserQuestionInput, QueryOptions } from '../../shared/types';
+import { SDKMessage, Message, AskUserQuestionInput, QueryParams, PermissionResult, QueryOptions } from '../../shared/types';
 import { Settings } from '../../shared/schemas';
+import { DEFAULT_MAX_THINKING_TOKENS, COMMAND_TIMEOUT_MS } from '../../shared/constants';
 import { getSettings } from '../store/configStore';
 import { sessionStore } from '../store/sessionStore';
 import { DEFAULT_WORKSPACE } from '../store/persistence';
@@ -13,29 +12,17 @@ import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from '.
 import { permissionManager } from './permissionManager';
 import { createLogger } from '../store/logger';
 import { shouldUpdateTitle, generateTitle } from './titleService';
-import { buildClaudeSessionEnv, getBundledBunPath } from './config';
+import { buildClaudeSessionEnv, getBundledBunPath, resolveClaudeCodeCli } from './config';
 
-const requireModule = createRequire(import.meta.url);
 const log = createLogger('AgentService');
 
 // ==================== 类型定义 ====================
 
-export interface QueryParams {
-  prompt: string;
-  sessionId: string;
-  sdkSessionId?: string;
-  options?: QueryOptions;
-}
-
-interface QueryContext {
-  sessionId: string;
-  messageId: string;
+interface QueryContext extends MessageContext {
   abortController: AbortController;
+  workspace: string;
+  settings: Settings;
 }
-
-type CanUseToolResult =
-  | { behavior: 'allow'; updatedInput: Record<string, unknown> }
-  | { behavior: 'deny'; message: string };
 
 // ==================== 活跃查询管理 ====================
 
@@ -53,21 +40,6 @@ function expandTildePath(path: string): string {
   return path;
 }
 
-/**
- * 解析 Claude Code CLI 路径
- * 支持打包后和开发环境
- */
-function resolveClaudeCodeCli(): string {
-  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
-  if (cliPath.includes('app.asar')) {
-    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
-    if (existsSync(unpackedPath)) {
-      return unpackedPath;
-    }
-  }
-  return cliPath;
-}
-
 
 /**
  * 创建工具权限回调
@@ -76,7 +48,7 @@ function createCanUseTool(sessionId: string) {
   return async (
     toolName: string,
     input: Record<string, unknown>
-  ): Promise<CanUseToolResult> => {
+  ): Promise<PermissionResult> => {
     // 特殊处理 AskUserQuestion 工具
     if (toolName === 'AskUserQuestion') {
       const questionInput = input as unknown as AskUserQuestionInput;
@@ -129,17 +101,19 @@ function buildQueryOptions(
 
   const options: Options = {
     // 基础配置
-    settingSources: ['user', 'project'],
-    systemPrompt: {
-      type: 'preset',
-      preset: 'claude_code',
-      append: agent.systemPrompt,
-    },
+    settingSources: agent.claudeCodeMode ? ['user', 'project'] : ['project'],
+    systemPrompt: agent.claudeCodeMode
+      ? {
+          type: 'preset',
+          preset: 'claude_code',
+          append: agent.systemPrompt,
+        }
+      : agent.systemPrompt || undefined,
     env,
 
     // 执行控制
     maxTurns: agent.maxTurns ?? 50,
-    maxThinkingTokens: agent.maxThinkingTokens ?? 10000,
+    maxThinkingTokens: agent.maxThinkingTokens ?? DEFAULT_MAX_THINKING_TOKENS,
     abortController,
     pathToClaudeCodeExecutable: resolveClaudeCodeCli(),
     executable: "bun",
@@ -226,13 +200,12 @@ function setupQueryState(ctx: QueryContext): void {
  */
 async function processStream(
   queryInstance: AsyncGenerator<unknown, void, unknown>,
-  ctx: MessageContext,
-  abortController: AbortController
+  ctx: QueryContext
 ): Promise<void> {
   let sdkSessionIdSent = false;
 
   for await (const message of queryInstance) {
-    if (abortController.signal.aborted) {
+    if (ctx.abortController.signal.aborted) {
       break;
     }
 
@@ -254,7 +227,7 @@ async function processStream(
 
     // 处理完成结果
     if (result.type === 'complete' && result.data) {
-      await handleQueryComplete(ctx.sessionId, result.data);
+      await handleQueryComplete(ctx.sessionId, result.data, ctx.workspace, ctx.settings);
     }
   }
 }
@@ -264,7 +237,9 @@ async function processStream(
  */
 async function handleQueryComplete(
   sessionId: string,
-  data: ResultData
+  data: ResultData,
+  workspace: string,
+  settings: Settings
 ): Promise<void> {
   log.info('Query complete', { success: data.success, cost: data.cost, duration: data.duration }, sessionId);
 
@@ -277,7 +252,7 @@ async function handleQueryComplete(
   // 异步更新标题（不阻塞主流程）
   if (shouldUpdateTitle(sessionId)) {
     log.debug('Triggering title generation', undefined, sessionId);
-    generateTitle(sessionId).catch(err => {
+    generateTitle(sessionId, workspace, settings).catch(err => {
       log.error('Failed to generate title', err instanceof Error ? { message: err.message } : err, sessionId);
     });
   }
@@ -309,7 +284,7 @@ export async function executeQuery(params: QueryParams): Promise<void> {
 
   // 初始化消息
   const messageId = initializeMessages(sessionId, prompt);
-  const ctx: QueryContext = { sessionId, messageId, abortController };
+  const ctx: QueryContext = { sessionId, messageId, abortController, workspace, settings };
 
   // 设置查询状态
   setupQueryState(ctx);
@@ -339,7 +314,7 @@ export async function executeQuery(params: QueryParams): Promise<void> {
         cwd,
         env: { ...env },
         encoding: 'utf-8',
-        timeout: 5000,
+        timeout: COMMAND_TIMEOUT_MS,
       });
       log.debug('Pre-check passed', { result: result.trim() }, sessionId);
     } catch (preCheckError) {
@@ -370,7 +345,7 @@ export async function executeQuery(params: QueryParams): Promise<void> {
     log.info('Query instance created, processing stream', undefined, sessionId);
 
     // 处理流式响应
-    await processStream(queryInstance, { sessionId, messageId }, abortController);
+    await processStream(queryInstance, ctx);
 
     log.info('Query completed successfully', undefined, sessionId);
   } catch (error) {

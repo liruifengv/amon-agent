@@ -9,6 +9,7 @@ export type {
   Shortcuts,
   PermissionMode,
   Workspace,
+  Provider,
   SDKMessageType,
   SDKMessage,
   SDKUsage,
@@ -34,6 +35,8 @@ export type {
   RecommendedSkill,
   SkillInstallTarget,
   QueryOptions,
+  SettingsSetResult,
+  QueryCompleteData,
 } from '../../shared/types';
 
 // 导出常量
@@ -43,7 +46,6 @@ import type {
   Session,
   Settings,
   Message,
-  SDKUsage,
   ToolPermissionRequest,
   PermissionResult,
   AskUserQuestionRequest,
@@ -51,6 +53,8 @@ import type {
   RecommendedSkill,
   SkillInstallTarget,
   QueryOptions,
+  SettingsSetResult,
+  QueryCompleteData,
 } from '../../shared/types';
 
 export interface ElectronAPI {
@@ -61,8 +65,8 @@ export interface ElectronAPI {
     offMessagesUpdated: (callback: (data: { sessionId: string; messages: Message[] }) => void) => void;
     onQueryState: (callback: (data: { sessionId: string; isLoading: boolean }) => void) => void;
     offQueryState: (callback: (data: { sessionId: string; isLoading: boolean }) => void) => void;
-    onQueryComplete: (callback: (data: { sessionId: string; success: boolean; result?: string; cost?: number; duration?: number; usage?: SDKUsage; errors?: string[] }) => void) => void;
-    offQueryComplete: (callback: (data: { sessionId: string; success: boolean; result?: string; cost?: number; duration?: number; usage?: SDKUsage; errors?: string[] }) => void) => void;
+    onQueryComplete: (callback: (data: QueryCompleteData) => void) => void;
+    offQueryComplete: (callback: (data: QueryCompleteData) => void) => void;
     onQueryError: (callback: (data: { sessionId: string; error: string }) => void) => void;
     offQueryError: (callback: (data: { sessionId: string; error: string }) => void) => void;
   };
@@ -85,7 +89,7 @@ export interface ElectronAPI {
   };
   settings: {
     get: () => Promise<Settings>;
-    set: (settings: Partial<Settings>) => Promise<{ success: boolean; data?: Settings; errors?: { field: string; message: string }[] }>;
+    set: (settings: Partial<Settings>) => Promise<SettingsSetResult>;
     onChange: (callback: (settings: Settings) => void) => void;
     offChange: (callback: (settings: Settings) => void) => void;
   };

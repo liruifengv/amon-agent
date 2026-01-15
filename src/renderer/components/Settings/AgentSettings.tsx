@@ -2,7 +2,7 @@ import React from 'react';
 import { useSettingsStore } from '../../store/settingsStore';
 import SystemPromptEditor from './SystemPromptEditor';
 import type { PermissionMode } from '../../types';
-import { Shield, FileEdit, XCircle, ShieldOff, Key, Globe, Cpu } from 'lucide-react';
+import { Shield, FileEdit, XCircle, ShieldOff, Terminal } from 'lucide-react';
 
 const PERMISSION_MODES: { value: PermissionMode; label: string; description: string; icon: React.ReactNode }[] = [
   { value: 'default', label: '默认', description: '工具调用需要审批', icon: <Shield className="w-6 h-6" /> },
@@ -11,86 +11,36 @@ const PERMISSION_MODES: { value: PermissionMode; label: string; description: str
   { value: 'bypassPermissions', label: '绕过权限', description: '绕过所有权限检查', icon: <ShieldOff className="w-6 h-6" /> },
 ];
 
-const AgentSettings: React.FC = () => {
+interface AgentSettingsProps {
+  onNavigateToProvider?: () => void;
+}
+
+const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) => {
   const { formData, setAgentFormData, clearSaveError } = useSettingsStore();
+
+  // 获取当前激活的 Provider
+  const providers = formData.agent.providers || [];
+  const activeProvider = providers.find(p => p.id === formData.agent.activeProviderId);
 
   return (
     <div className="space-y-6">
-      {/* API 配置 */}
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">API 配置</h3>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            如果你已安装 Claude Code，会自动使用其配置，以下字段可留空。仅在未安装 Claude Code 时需要手动配置。
-          </p>
+      {/* 当前 Provider */}
+      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+        <div className="flex items-center gap-2">
+          <span>当前 Provider：</span>
+          {activeProvider ? (
+            <span className="text-primary-600 dark:text-primary-400 font-medium">{activeProvider.name}</span>
+          ) : (
+            <span className="text-amber-600 dark:text-amber-400">未配置</span>
+          )}
         </div>
-
-        {/* API Key */}
-        <div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <Key className="w-4 h-4" />
-            API Key
-          </label>
-          <input
-            type="password"
-            value={formData.agent.apiKey || ''}
-            onChange={(e) => {
-              clearSaveError();
-              setAgentFormData({ apiKey: e.target.value });
-            }}
-            placeholder="sk-ant-..."
-            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Anthropic API Key，留空则使用环境变量 ANTHROPIC_API_KEY
-          </p>
-        </div>
-
-        {/* Base URL */}
-        <div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <Globe className="w-4 h-4" />
-            API URL
-          </label>
-          <input
-            type="text"
-            value={formData.agent.baseUrl || ''}
-            onChange={(e) => {
-              clearSaveError();
-              setAgentFormData({ baseUrl: e.target.value });
-            }}
-            placeholder="https://api.anthropic.com"
-            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            自定义 API 端点，留空则使用默认端点
-          </p>
-        </div>
-
-        {/* Model */}
-        <div>
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-2">
-            <Cpu className="w-4 h-4" />
-            模型
-          </label>
-          <input
-            type="text"
-            value={formData.agent.model || ''}
-            onChange={(e) => {
-              clearSaveError();
-              setAgentFormData({ model: e.target.value });
-            }}
-            placeholder="claude-sonnet-4-20250514"
-            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-          />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            Claude 模型名称，留空则使用默认模型
-          </p>
-        </div>
+        <button
+          onClick={onNavigateToProvider}
+          className="text-xs text-primary-500 hover:text-primary-600 dark:hover:text-primary-400"
+        >
+          更改
+        </button>
       </div>
-
-      {/* 分隔线 */}
-      <hr className="border-gray-200 dark:border-gray-700" />
 
       {/* 权限模式 */}
       <div>
@@ -123,6 +73,38 @@ const AgentSettings: React.FC = () => {
 
       {/* System Prompt */}
       <SystemPromptEditor />
+
+      {/* Claude Code 模式 */}
+      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div className="flex items-center gap-3">
+          <Terminal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-200">Claude Code 模式</h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              开启后继承 Claude Code 配置和系统提示词
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            clearSaveError();
+            setAgentFormData({ claudeCodeMode: !formData.agent.claudeCodeMode });
+          }}
+          className={`
+            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+            ${formData.agent.claudeCodeMode
+              ? 'bg-primary-500'
+              : 'bg-gray-300 dark:bg-gray-600'}
+          `}
+        >
+          <span
+            className={`
+              inline-block h-4 w-4 transform rounded-full bg-white transition-transform
+              ${formData.agent.claudeCodeMode ? 'translate-x-6' : 'translate-x-1'}
+            `}
+          />
+        </button>
+      </div>
     </div>
   );
 };

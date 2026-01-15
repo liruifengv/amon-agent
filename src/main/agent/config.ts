@@ -2,6 +2,25 @@ import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { app } from 'electron';
 import type { Settings } from '../../shared/schemas';
+import { createRequire } from 'node:module';
+
+const requireModule = createRequire(import.meta.url);
+
+/**
+ * 解析 Claude Code CLI 路径
+ * 支持打包后和开发环境
+ */
+export function resolveClaudeCodeCli(): string {
+  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
+  if (cliPath.includes('app.asar')) {
+    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
+    if (existsSync(unpackedPath)) {
+      return unpackedPath;
+    }
+  }
+  return cliPath;
+}
+
 
 /**
  * 获取打包的 bun 可执行文件路径
@@ -214,17 +233,18 @@ export function buildClaudeSessionEnv(workspaceDir?: string, settings?: Settings
     PATH: enhancedPath,
   };
 
-  // 如果设置中配置了 API 相关字段，设置环境变量
-  if (settings?.agent) {
-    const { apiKey, baseUrl, model } = settings.agent;
-    if (apiKey) {
-      env.ANTHROPIC_API_KEY = apiKey;
-    }
-    if (baseUrl) {
-      env.ANTHROPIC_BASE_URL = baseUrl;
-    }
-    if (model) {
-      env.ANTHROPIC_MODEL = model;
+  // 只有关闭 Claude Code 模式时才传递 API 配置（让 SDK 使用自己的配置）
+  if (settings?.agent && !settings.agent.claudeCodeMode) {
+    // 从 Provider 列表中获取当前激活的 Provider
+    const { providers, activeProviderId } = settings.agent;
+    const activeProvider = providers?.find(p => p.id === activeProviderId);
+
+    console.log('Active Provider for Claude Session Env:', activeProvider);
+
+    if (activeProvider) {
+      env.ANTHROPIC_API_KEY = activeProvider.apiKey;
+      env.ANTHROPIC_BASE_URL = activeProvider.apiUrl;
+      env.ANTHROPIC_MODEL = activeProvider.model;
     }
   }
 

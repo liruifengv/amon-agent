@@ -10,6 +10,8 @@ export interface ContentBlockRendererProps {
   block: MessageContentBlock;
   isStreaming?: boolean;
   isLastBlock?: boolean;
+  /** Whether collapsible blocks should be collapsed by default (for historical messages) */
+  defaultCollapsed?: boolean;
 }
 
 /**
@@ -19,6 +21,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
   block,
   isStreaming,
   isLastBlock,
+  defaultCollapsed = false,
 }) => {
   switch (block.type) {
     case 'text':
@@ -34,6 +37,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
         <ThinkingBlock
           content={block.content}
           isStreaming={isStreaming}
+          defaultCollapsed={defaultCollapsed}
         />
       );
 

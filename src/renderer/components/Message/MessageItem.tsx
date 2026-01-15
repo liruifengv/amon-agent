@@ -7,12 +7,14 @@ import TokenUsage from './TokenUsage';
 
 export interface MessageItemProps {
   message: Message;
+  /** Whether this is the last message in the list (used for collapse state) */
+  isLastMessage?: boolean;
 }
 
 /**
  * 消息项组件 - 根据角色分发渲染
  */
-const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+const MessageItem: React.FC<MessageItemProps> = ({ message, isLastMessage = false }) => {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
 
@@ -21,6 +23,10 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
     return <SystemMessage message={message} />;
   }
 
+  // 历史消息：不是最后一条消息，或者是最后一条但已经完成（不在流式输出中）
+  // 只有最后一条且正在流式输出的消息才展开
+  const isHistorical = !isLastMessage || !message.isStreaming;
+
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
       {/* 消息内容 */}
@@ -28,7 +34,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
         {isUser ? (
           <UserMessage message={message} />
         ) : (
-          <AssistantMessage message={message} />
+          <AssistantMessage message={message} defaultCollapsed={isHistorical} />
         )}
 
         {/* 底部信息 */}
