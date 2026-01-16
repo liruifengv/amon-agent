@@ -11,7 +11,6 @@ import { DEFAULT_WORKSPACE } from '../store/persistence';
 import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from './messageHandler';
 import { permissionManager } from './permissionManager';
 import { createLogger } from '../store/logger';
-import { shouldUpdateTitle, generateTitle } from './titleService';
 import { buildClaudeSessionEnv, getBundledBunPath, resolveClaudeCodeCli } from './config';
 
 const log = createLogger('AgentService');
@@ -153,6 +152,18 @@ function buildQueryOptions(
 // ==================== 消息管理 ====================
 
 /**
+ * 设置会话标题（使用第一条用户消息）
+ */
+function setTitleFromFirstMessage(sessionId: string, prompt: string): void {
+  const session = sessionStore.getSession(sessionId);
+  if (!session || session.messages.filter(m => m.role === 'user').length > 1) return;
+
+  // 截断到合理长度（50字符）
+  const title = prompt.length > 50 ? prompt.substring(0, 50) + '...' : prompt;
+  sessionStore.renameSession(sessionId, title);
+}
+
+/**
  * 初始化查询消息
  * 创建用户消息和助手消息占位符
  */
@@ -165,6 +176,9 @@ function initializeMessages(sessionId: string, prompt: string): string {
     timestamp: new Date().toISOString(),
   };
   sessionStore.addMessage(sessionId, userMessage);
+
+  // 设置会话标题
+  setTitleFromFirstMessage(sessionId, prompt);
 
   // 创建助手消息占位符
   const assistantMessageId = uuidv4();
@@ -227,7 +241,7 @@ async function processStream(
 
     // 处理完成结果
     if (result.type === 'complete' && result.data) {
-      await handleQueryComplete(ctx.sessionId, result.data, ctx.workspace, ctx.settings);
+      await handleQueryComplete(ctx.sessionId, result.data);
     }
   }
 }
@@ -237,9 +251,7 @@ async function processStream(
  */
 async function handleQueryComplete(
   sessionId: string,
-  data: ResultData,
-  workspace: string,
-  settings: Settings
+  data: ResultData
 ): Promise<void> {
   log.info('Query complete', { success: data.success, cost: data.cost, duration: data.duration }, sessionId);
 
@@ -248,14 +260,6 @@ async function handleQueryComplete(
 
   // 发送完成事件
   sessionStore.emit('query:complete', sessionId, data);
-
-  // 异步更新标题（不阻塞主流程）
-  if (shouldUpdateTitle(sessionId)) {
-    log.debug('Triggering title generation', undefined, sessionId);
-    generateTitle(sessionId, workspace, settings).catch(err => {
-      log.error('Failed to generate title', err instanceof Error ? { message: err.message } : err, sessionId);
-    });
-  }
 }
 
 // ==================== 主入口 ====================
