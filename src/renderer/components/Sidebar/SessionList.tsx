@@ -92,8 +92,8 @@ const SessionList: React.FC = () => {
             transition-colors duration-150
             ${
               session.id === currentSessionId
-                ? 'bg-[var(--sidebar-hover)] text-gray-900 dark:text-gray-100'
-                : 'hover:bg-[var(--sidebar-hover)] text-gray-700 dark:text-gray-300'
+                ? 'bg-sidebar-hover dark:bg-dark-sidebar-hover text-gray-900 dark:text-gray-100'
+                : 'hover:bg-sidebar-hover dark:hover:bg-dark-sidebar-hover text-gray-700 dark:text-gray-300'
             }
           `}
         >

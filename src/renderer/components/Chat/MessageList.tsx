@@ -135,7 +135,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
     <div 
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto bg-[var(--main-background)]"
+      className="flex-1 overflow-y-auto bg-main-background dark:bg-dark-main-background"
     >
       <div ref={contentRef}>
         {/* 消息列表 */}

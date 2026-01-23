@@ -96,7 +96,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex bg-[var(--sidebar-background)]">
+    <div className="h-screen flex bg-sidebar-background dark:bg-dark-sidebar-background">
       {/* 侧边栏 */}
       <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 

@@ -47,7 +47,7 @@ const InputArea: React.FC = () => {
   const canSend = !!(input.trim() && currentSessionId && !isLoading);
 
   return (
-    <div className="bg-[var(--main-background)] px-4 pb-4">
+    <div className="bg-main-background dark:bg-dark-main-background px-4 pb-4">
       <div className="max-w-3xl mx-auto">
         {/* 输入框容器 */}
         <div className="rounded-2xl border border-gray-200 dark:border-gray-700 shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
@@ -113,8 +113,8 @@ const InputArea: React.FC = () => {
                   w-9 h-9 flex items-center justify-center flex-shrink-0
                   rounded-full transition-colors border
                   ${canSend
-                    ? 'bg-[var(--primary-color)] hover:bg-[var(--primary-color)]/90 text-white border-[var(--primary-color)]'
-                    : 'bg-[var(--primary-color)]/10 text-[var(--primary-color)]/40 border-[var(--primary-color)]/20 cursor-not-allowed'
+                    ? 'bg-primary-500 hover:bg-primary-600 text-white border-primary-500'
+                    : 'bg-primary-500/10 text-primary-500/40 border-primary-500/20 cursor-not-allowed'
                   }
                 `}
                 title="发送消息"

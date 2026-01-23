@@ -17,7 +17,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   return (
     <div
       className={`
-        h-full bg-[var(--sidebar-background)]
+        h-full bg-sidebar-background dark:bg-dark-sidebar-background
         flex flex-col overflow-hidden transition-all duration-300 ease-in-out
         ${collapsed ? 'w-0' : 'w-56'}
       `}

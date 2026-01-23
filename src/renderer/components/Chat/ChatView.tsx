@@ -53,7 +53,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
 
   if (!currentSessionId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[var(--main-background)]">
+      <div className="flex-1 flex items-center justify-center bg-main-background dark:bg-dark-main-background">
         {/* 展开按钮 - 侧边栏收起时显示 */}
         {sidebarCollapsed && (
           <div className="absolute top-0 left-0 h-12 drag-region flex items-center gap-1 px-2 pl-20">
@@ -91,7 +91,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-[var(--main-background)] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-main-background dark:bg-dark-main-background overflow-hidden">
       {/* 会话标题和工作空间 */}
       <div className="h-14 drag-region flex items-center px-4">
         {/* 展开按钮 - 侧边栏收起时显示 */}
