@@ -1,5 +1,23 @@
 # amon-agent
 
+## 0.1.0
+
+### Minor Changes
+
+- [`834d756`](https://github.com/liruifengv/amon-agent/commit/834d756fd4a44488d015966508a82cdc0f16895f) Thanks [@liruifengv](https://github.com/liruifengv)! - Support upload image(click select/paste/drag)
+
+### Patch Changes
+
+- [`8e5b38d`](https://github.com/liruifengv/amon-agent/commit/8e5b38ded90bfe96b53ee4df9a1d7d5318b0345d) Thanks [@liruifengv](https://github.com/liruifengv)! - Input Auto focus
+
+- [`5689a1a`](https://github.com/liruifengv/amon-agent/commit/5689a1ae0646649414751ae7658a3941f385b26c) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix ScrollToBottom component display
+
+- [`cf9822a`](https://github.com/liruifengv/amon-agent/commit/cf9822a89b18a1924a054c2f5d37e1f51b4d1f60) Thanks [@liruifengv](https://github.com/liruifengv)! - Reasoning message markdown rendering
+
+- [`976329f`](https://github.com/liruifengv/amon-agent/commit/976329f49d6a16953d8c3d2d574f1f93e3b142f8) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix message block style
+
+- [`1a1fb28`](https://github.com/liruifengv/amon-agent/commit/1a1fb28c9da43d5504ef80cce76ed7ceafd9e6b6) Thanks [@liruifengv](https://github.com/liruifengv)! - fix auto scroll issue
+
 ## 0.0.1
 
 ### Patch Changes
