@@ -1,5 +1,13 @@
 # amon-agent
 
+## 0.1.1
+
+### Patch Changes
+
+- [`623a58a`](https://github.com/liruifengv/amon-agent/commit/623a58ad0e7fd4d2bfbb137bbe69132c17e9a97d) Thanks [@liruifengv](https://github.com/liruifengv)! - Add onboarding component for first use
+
+- [`168eeba`](https://github.com/liruifengv/amon-agent/commit/168eeba481f0b6f674b0b1b13c2a5cc3fc4bb167) Thanks [@liruifengv](https://github.com/liruifengv)! - feat: enhance streaming message UI with unified loading indicator
+
 ## 0.1.0
 
 ### Minor Changes
