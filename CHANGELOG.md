@@ -1,5 +1,13 @@
 # amon-agent
 
+## 0.1.2
+
+### Patch Changes
+
+- [`1930e72`](https://github.com/liruifengv/amon-agent/commit/1930e7285b1313b327cf168a3aaaf21be5067dca) Thanks [@liruifengv](https://github.com/liruifengv)! - Add some preset provider
+
+- [`457fc81`](https://github.com/liruifengv/amon-agent/commit/457fc8156496dc15c256ea2ee5cef06fbbc886ee) Thanks [@liruifengv](https://github.com/liruifengv)! - Add tip for unsaved settings change
+
 ## 0.1.1
 
 ### Patch Changes
