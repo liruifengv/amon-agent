@@ -115,6 +115,8 @@ function truncateFilePath(filePath: string, workspace?: string): string {
 
 export interface ToolCallBlockProps {
   toolCall: ToolCall;
+  /** 是否为嵌套显示（Subagent 内） */
+  isNested?: boolean;
 }
 
 // 工具图标映射
@@ -311,7 +313,22 @@ const DefaultInputContent: React.FC<{ input: Record<string, unknown> }> = ({ inp
   </div>
 );
 
-const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall }) => {
+/**
+ * 流式输入内容展示（正在接收输入时）
+ */
+const StreamingInputContent: React.FC<{ inputBuffer: string }> = ({ inputBuffer }) => (
+  <div className="px-3 py-2">
+    <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-2">
+      <Loader2 className="w-3 h-3 animate-spin" />
+      Receiving input...
+    </div>
+    <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
+      <CodeBlockContent code={inputBuffer || '{}'} language="json" showLineNumbers={false} />
+    </div>
+  </div>
+);
+
+const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = false }) => {
   // Write 和 Edit 工具始终展开
   const isStandaloneTool = toolCall.name === 'Write' || toolCall.name === 'Edit';
   const [isExpanded, setIsExpanded] = useState(isStandaloneTool);
@@ -331,6 +348,14 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall }) => {
 
   // 根据工具类型渲染不同的输入内容
   const renderInputContent = () => {
+    // 如果有流式输入缓冲且输入还未完成，显示流式输入
+    const hasInputBuffer = toolCall.inputBuffer && toolCall.inputBuffer.length > 0;
+    const inputIsEmpty = !toolCall.input || Object.keys(toolCall.input).length === 0;
+
+    if (hasInputBuffer && inputIsEmpty) {
+      return <StreamingInputContent inputBuffer={toolCall.inputBuffer!} />;
+    }
+
     switch (toolCall.name) {
       case 'Write':
         return <WriteInputContent input={toolCall.input} />;
@@ -342,7 +367,13 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall }) => {
   };
 
   return (
-    <div className={`rounded-lg border overflow-hidden ${toolCall.isError ? 'border-red-500/30 bg-red-500/5' : 'border-border bg-muted'}`}>
+    <div className={`rounded-lg border overflow-hidden ${
+      toolCall.isError
+        ? 'border-red-500/30 bg-red-500/5'
+        : isNested
+          ? 'border-border/50 bg-muted/50'
+          : 'border-border bg-muted'
+    }`}>
       {/* 头部 - 可点击折叠 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}

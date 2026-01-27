@@ -1,6 +1,7 @@
-import { SDKMessage, ContentBlock, StreamEvent, ToolCall } from '../../shared/types';
+import { SDKMessage, ContentBlock, StreamEvent, ToolCall, TextContentBlock, ThinkingContentBlock } from '../../shared/types';
 import { sessionStore } from '../store/sessionStore';
 import { createLogger } from '../store/logger';
+import { StreamState, generateBlockId } from './streamState';
 
 const log = createLogger('MessageHandler');
 
@@ -10,6 +11,7 @@ const log = createLogger('MessageHandler');
 export interface MessageContext {
   sessionId: string;
   messageId: string;
+  streamState: StreamState;
 }
 
 /**
@@ -35,23 +37,34 @@ export interface ResultData {
 }
 
 /**
+ * 从 SDK 消息中提取 parent_tool_use_id
+ */
+function extractParentToolUseId(sdkMessage: SDKMessage): string | null {
+  return sdkMessage.parent_tool_use_id ?? null;
+}
+
+/**
  * 处理 SDK 消息的主入口
  */
 export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): HandleResult {
   const { sessionId } = ctx;
+
+  // 提取 parent_tool_use_id
+  const parentToolUseId = extractParentToolUseId(sdkMessage);
 
   // 调试：记录所有消息类型
   log.debug('SDK message received', {
     type: sdkMessage.type,
     hasMessage: !!sdkMessage.message,
     hasContent: !!sdkMessage.message?.content,
-    contentLength: sdkMessage.message?.content?.length
+    contentLength: sdkMessage.message?.content?.length,
+    parentToolUseId,
   }, sessionId);
 
   switch (sdkMessage.type) {
     case 'assistant':
       log.debug('Received assistant message', undefined, sessionId);
-      return handleAssistantMessage(sdkMessage, ctx);
+      return handleAssistantMessage(sdkMessage, ctx, parentToolUseId);
 
     case 'user':
       log.debug('Received user message', {
@@ -60,7 +73,7 @@ export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): Hand
       return handleUserMessage(sdkMessage, ctx);
 
     case 'stream_event':
-      return handleStreamEvent(sdkMessage, ctx);
+      return handleStreamEvent(sdkMessage, ctx, parentToolUseId);
 
     case 'system':
       return handleSystemMessage(sdkMessage, ctx);
@@ -68,6 +81,9 @@ export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): Hand
     case 'result':
       log.debug('Received result message', { subtype: sdkMessage.subtype }, sessionId);
       return handleResultMessage(sdkMessage, ctx);
+
+    case 'tool_progress':
+      return handleToolProgressMessage(sdkMessage, ctx);
 
     default:
       log.warn('Unknown SDKMessage type', { type: (sdkMessage as { type: string }).type }, sessionId);
@@ -77,34 +93,30 @@ export function handleMessage(sdkMessage: SDKMessage, ctx: MessageContext): Hand
 
 /**
  * 处理 assistant 消息
- * 包含完整的消息内容，用于补全流式传输可能遗漏的部分
+ * 包含完整的消息内容，用于确保工具调用被正确添加
+ * 文本和思考内容主要通过 stream_event 处理
  */
-function handleAssistantMessage(sdkMessage: SDKMessage, ctx: MessageContext): HandleResult {
-  const { sessionId, messageId } = ctx;
+function handleAssistantMessage(
+  sdkMessage: SDKMessage,
+  ctx: MessageContext,
+  parentToolUseId: string | null
+): HandleResult {
+  const { sessionId, messageId, streamState } = ctx;
 
   if (!sdkMessage.message?.content) {
     return { type: 'continue' };
   }
 
   const content = sdkMessage.message.content as ContentBlock[];
-  const currentMessages = sessionStore.getMessages(sessionId);
-  const currentMessage = currentMessages.find(m => m.id === messageId);
 
   // 获取已存在的工具调用 ID（用于去重）
   const existingToolIds = new Set(
-    currentMessage?.contentBlocks
+    sessionStore.getMessages(sessionId)
+      .find(m => m.id === messageId)
+      ?.contentBlocks
       ?.filter(b => b.type === 'tool_call')
       .map(b => b.toolCall.id) || []
   );
-
-  // 计算当前已有的文本和思考内容长度（用于补全）
-  const existingTextLength = currentMessage?.contentBlocks
-    ?.filter(b => b.type === 'text')
-    .reduce((sum, b) => sum + b.content.length, 0) || 0;
-
-  const existingThinkingLength = currentMessage?.contentBlocks
-    ?.filter(b => b.type === 'thinking')
-    .reduce((sum, b) => sum + b.content.length, 0) || 0;
 
   // 处理各内容块
   for (const block of content) {
@@ -117,29 +129,42 @@ function handleAssistantMessage(sdkMessage: SDKMessage, ctx: MessageContext): Ha
             name: block.name,
             input: block.input,
             status: 'running',
+            parentToolUseId,
           };
-          log.info('Tool call received', { toolName: block.name, toolId: block.id }, sessionId);
+          log.info('Tool call received', { toolName: block.name, toolId: block.id, parentToolUseId }, sessionId);
           sessionStore.addToolCallToMessage(sessionId, messageId, toolCall);
+        } else {
+          // 工具已存在，更新其输入（可能之前只有部分输入）
+          sessionStore.updateToolCallInput(sessionId, block.id, block.input);
+          sessionStore.updateToolCallStatus(sessionId, messageId, block.id, 'running');
         }
         break;
 
       case 'text':
-        // 补全流式传输遗漏的文本
-        if (block.text && existingTextLength < block.text.length) {
-          const missingText = block.text.slice(existingTextLength);
-          if (missingText) {
-            sessionStore.appendToMessage(sessionId, messageId, 'text', missingText);
-          }
+        // 如果没有通过 stream_event 处理（非流式场景），则在这里处理
+        if (!streamState.hasActiveStep() && block.text) {
+          const blockId = generateBlockId();
+          const textBlock: TextContentBlock = {
+            type: 'text',
+            id: blockId,
+            content: block.text,
+            isComplete: true,
+          };
+          sessionStore.addContentBlock(sessionId, messageId, textBlock);
         }
         break;
 
       case 'thinking':
-        // 补全流式传输遗漏的思考内容
-        if (block.thinking && existingThinkingLength < block.thinking.length) {
-          const missingThinking = block.thinking.slice(existingThinkingLength);
-          if (missingThinking) {
-            sessionStore.appendToMessage(sessionId, messageId, 'thinking', missingThinking);
-          }
+        // 如果没有通过 stream_event 处理（非流式场景），则在这里处理
+        if (!streamState.hasActiveStep() && block.thinking) {
+          const blockId = generateBlockId();
+          const thinkingBlock: ThinkingContentBlock = {
+            type: 'thinking',
+            id: blockId,
+            content: block.thinking,
+            isComplete: true,
+          };
+          sessionStore.addContentBlock(sessionId, messageId, thinkingBlock);
         }
         break;
     }
@@ -193,52 +218,228 @@ function handleUserMessage(sdkMessage: SDKMessage, ctx: MessageContext): HandleR
 
 /**
  * 处理流式事件
- * 实时更新消息内容（文本/思考增量）
+ * 实时更新消息内容（文本/思考/工具输入增量）
  */
-function handleStreamEvent(sdkMessage: SDKMessage, ctx: MessageContext): HandleResult {
-  const { sessionId, messageId } = ctx;
+function handleStreamEvent(
+  sdkMessage: SDKMessage,
+  ctx: MessageContext,
+  parentToolUseId: string | null
+): HandleResult {
+  const { sessionId, streamState } = ctx;
   const event = sdkMessage.event;
 
   if (!event) {
     return { type: 'continue' };
   }
 
-  // 处理内容块增量
-  if (event.type === 'content_block_delta' && event.delta) {
-    handleContentBlockDelta(sessionId, messageId, event);
-  }
+  switch (event.type) {
+    case 'message_start':
+      streamState.beginStep();
+      break;
 
-  // 可扩展：处理其他流式事件类型
-  // if (event.type === 'content_block_start') { ... }
-  // if (event.type === 'content_block_stop') { ... }
+    case 'content_block_start':
+      handleContentBlockStart(event, ctx, parentToolUseId);
+      break;
+
+    case 'content_block_delta':
+      handleContentBlockDelta(event, ctx);
+      break;
+
+    case 'content_block_stop':
+      handleContentBlockStop(event, ctx);
+      break;
+
+    case 'message_delta':
+      // 暂存 usage 和 stop_reason
+      if (event.usage?.output_tokens !== undefined) {
+        streamState.setPendingUsage(event.usage.output_tokens);
+      }
+      if (event.delta?.stop_reason) {
+        streamState.setPendingUsage(undefined, event.delta.stop_reason);
+      }
+      break;
+
+    case 'message_stop':
+      streamState.resetStep();
+      break;
+
+    default:
+      log.debug('Unhandled stream event type', { type: event.type }, sessionId);
+      break;
+  }
 
   return { type: 'continue' };
 }
 
 /**
- * 处理内容块增量
+ * 处理 content_block_start 事件
  */
-function handleContentBlockDelta(sessionId: string, messageId: string, event: StreamEvent): void {
-  const delta = event.delta;
-  if (!delta) return;
+function handleContentBlockStart(
+  event: StreamEvent,
+  ctx: MessageContext,
+  parentToolUseId: string | null
+): void {
+  const { sessionId, messageId, streamState } = ctx;
+  const { index, content_block } = event;
+
+  if (index === undefined || !content_block) {
+    log.warn('content_block_start missing index or content_block', { event }, sessionId);
+    return;
+  }
+
+  const blockId = generateBlockId();
+
+  switch (content_block.type) {
+    case 'text': {
+      const initialContent = content_block.text || '';
+      streamState.openTextBlock(index, blockId, initialContent);
+
+      const textBlock: TextContentBlock = {
+        type: 'text',
+        id: blockId,
+        content: initialContent,
+        isComplete: false,
+      };
+      sessionStore.addContentBlock(sessionId, messageId, textBlock);
+      break;
+    }
+
+    case 'thinking': {
+      streamState.openThinkingBlock(index, blockId);
+
+      const thinkingBlock: ThinkingContentBlock = {
+        type: 'thinking',
+        id: blockId,
+        content: '',
+        isComplete: false,
+      };
+      sessionStore.addContentBlock(sessionId, messageId, thinkingBlock);
+      break;
+    }
+
+    case 'tool_use': {
+      if (!content_block.id || !content_block.name) {
+        log.warn('tool_use block missing id or name', { content_block }, sessionId);
+        return;
+      }
+
+      streamState.openToolBlock(index, {
+        id: blockId,
+        toolCallId: content_block.id,
+        toolName: content_block.name,
+      });
+
+      const toolCall: ToolCall = {
+        id: content_block.id,
+        name: content_block.name,
+        input: {},
+        inputBuffer: '',
+        status: 'pending',
+        parentToolUseId,
+      };
+      sessionStore.addToolCallToMessage(sessionId, messageId, toolCall);
+      log.info('Tool call started (streaming)', { toolName: content_block.name, toolId: content_block.id, parentToolUseId }, sessionId);
+      break;
+    }
+
+    default:
+      log.warn('Unknown content_block type', { type: content_block.type }, sessionId);
+      break;
+  }
+}
+
+/**
+ * 处理 content_block_delta 事件
+ */
+function handleContentBlockDelta(event: StreamEvent, ctx: MessageContext): void {
+  const { sessionId, messageId, streamState } = ctx;
+  const { index, delta } = event;
+
+  if (index === undefined || !delta) {
+    return;
+  }
 
   switch (delta.type) {
-    case 'text_delta':
+    case 'text_delta': {
       if (delta.text) {
-        sessionStore.appendToMessage(sessionId, messageId, 'text', delta.text);
+        const block = streamState.appendDelta(index, delta.text);
+        if (block && (block.kind === 'text' || block.kind === 'thinking')) {
+          sessionStore.updateContentBlock(sessionId, messageId, block.id, {
+            content: block.content,
+          });
+        }
       }
       break;
+    }
 
-    case 'thinking_delta':
+    case 'thinking_delta': {
       if (delta.thinking) {
-        sessionStore.appendToMessage(sessionId, messageId, 'thinking', delta.thinking);
+        const block = streamState.appendDelta(index, delta.thinking);
+        if (block && block.kind === 'thinking') {
+          sessionStore.updateContentBlock(sessionId, messageId, block.id, {
+            content: block.content,
+          });
+        }
       }
       break;
+    }
 
-    // 可扩展：处理其他增量类型
-    // case 'input_json_delta':
-    //   handleInputJsonDelta(delta);
-    //   break;
+    case 'input_json_delta': {
+      if (delta.partial_json) {
+        const block = streamState.appendToolInputDelta(index, delta.partial_json);
+        if (block) {
+          sessionStore.updateToolCallInputBuffer(sessionId, block.toolCallId, block.inputBuffer);
+        }
+      }
+      break;
+    }
+
+    default:
+      log.debug('Unhandled delta type', { type: delta.type }, sessionId);
+      break;
+  }
+}
+
+/**
+ * 处理 content_block_stop 事件
+ */
+function handleContentBlockStop(event: StreamEvent, ctx: MessageContext): void {
+  const { sessionId, messageId, streamState } = ctx;
+  const { index } = event;
+
+  if (index === undefined) {
+    return;
+  }
+
+  const block = streamState.closeBlock(index);
+  if (!block) {
+    return;
+  }
+
+  switch (block.kind) {
+    case 'text':
+    case 'thinking':
+      sessionStore.updateContentBlock(sessionId, messageId, block.id, {
+        isComplete: true,
+      });
+      break;
+
+    case 'tool':
+      // 解析累积的 JSON 输入
+      if (block.inputBuffer) {
+        try {
+          const input = JSON.parse(block.inputBuffer);
+          sessionStore.updateToolCallInput(sessionId, block.toolCallId, input);
+          log.debug('Tool input parsed', { toolCallId: block.toolCallId }, sessionId);
+        } catch (e) {
+          log.warn('Failed to parse tool input JSON', {
+            toolCallId: block.toolCallId,
+            error: String(e),
+            bufferLength: block.inputBuffer.length,
+          }, sessionId);
+        }
+      }
+      break;
   }
 }
 
@@ -250,6 +451,24 @@ function handleSystemMessage(sdkMessage: SDKMessage, _ctx: MessageContext): Hand
   // 系统消息通常用于日志或调试
   void _ctx;
   log.debug('System message received', sdkMessage);
+  return { type: 'continue' };
+}
+
+/**
+ * 处理 tool_progress 消息
+ * 工具执行进度更新
+ */
+function handleToolProgressMessage(sdkMessage: SDKMessage, ctx: MessageContext): HandleResult {
+  const { sessionId } = ctx;
+
+  if (sdkMessage.tool_use_id && sdkMessage.tool_name) {
+    log.debug('Tool progress', {
+      toolId: sdkMessage.tool_use_id,
+      toolName: sdkMessage.tool_name,
+      elapsed: sdkMessage.elapsed_time_seconds,
+    }, sessionId);
+  }
+
   return { type: 'continue' };
 }
 

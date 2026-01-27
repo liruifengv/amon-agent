@@ -48,14 +48,76 @@ export interface PermissionRecord {
   timestamp: string;
 }
 
-// 消息内容块类型
+// ==================== 消息内容块类型 ====================
+
+/**
+ * 内容块基础字段（用于流式追踪）
+ */
+interface ContentBlockBase {
+  /** 内容块唯一标识 */
+  id: string;
+  /** 是否已完成流式传输 */
+  isComplete?: boolean;
+}
+
+/**
+ * 文本内容块
+ */
+export interface TextContentBlock extends ContentBlockBase {
+  type: 'text';
+  content: string;
+}
+
+/**
+ * 思考内容块
+ */
+export interface ThinkingContentBlock extends ContentBlockBase {
+  type: 'thinking';
+  content: string;
+}
+
+/**
+ * 工具调用内容块
+ */
+export interface ToolCallContentBlock {
+  type: 'tool_call';
+  toolCall: ToolCall;
+}
+
+/**
+ * 权限记录内容块
+ */
+export interface PermissionContentBlock {
+  type: 'permission';
+  permission: PermissionRecord;
+}
+
+/**
+ * 用户问题内容块
+ */
+export interface UserQuestionContentBlock {
+  type: 'user_question';
+  userQuestion: UserQuestionRecord;
+}
+
+/**
+ * 计划审批内容块
+ */
+export interface PlanApprovalContentBlock {
+  type: 'plan_approval';
+  planApproval: PlanApprovalRecord;
+}
+
+/**
+ * 消息内容块联合类型
+ */
 export type MessageContentBlock =
-  | { type: 'thinking'; content: string }
-  | { type: 'text'; content: string }
-  | { type: 'tool_call'; toolCall: ToolCall }
-  | { type: 'permission'; permission: PermissionRecord }
-  | { type: 'user_question'; userQuestion: UserQuestionRecord }
-  | { type: 'plan_approval'; planApproval: PlanApprovalRecord };
+  | TextContentBlock
+  | ThinkingContentBlock
+  | ToolCallContentBlock
+  | PermissionContentBlock
+  | UserQuestionContentBlock
+  | PlanApprovalContentBlock;
 
 // Token 用量信息
 export interface TokenUsage {
@@ -80,13 +142,26 @@ export interface Message {
 
 export type ToolCallStatus = 'pending' | 'running' | 'completed' | 'error';
 
+/**
+ * 工具调用
+ */
 export interface ToolCall {
+  /** 工具调用 ID（来自 SDK） */
   id: string;
+  /** 工具名称 */
   name: string;
+  /** 工具输入参数 */
   input: Record<string, unknown>;
+  /** 流式输入缓冲（用于渐进显示大型输入） */
+  inputBuffer?: string;
+  /** 工具输出结果 */
   output?: string;
+  /** 执行状态 */
   status: ToolCallStatus;
+  /** 是否执行出错 */
   isError?: boolean;
+  /** 父工具调用 ID（Subagent 场景） */
+  parentToolUseId?: string | null;
 }
 
 // ==================== SDK 消息类型 ====================
@@ -96,7 +171,8 @@ export type SDKMessageType =
   | 'user'
   | 'assistant'
   | 'result'
-  | 'stream_event';
+  | 'stream_event'
+  | 'tool_progress';
 
 // SDK Usage 类型
 export interface SDKUsage {
@@ -114,6 +190,8 @@ export interface SDKMessage {
   message?: {
     role: string;
     content: ContentBlock[];
+    stop_reason?: string;
+    usage?: SDKUsage;
   };
   result?: string;
   total_cost_usd?: number;
@@ -122,24 +200,57 @@ export interface SDKMessage {
   errors?: string[];
   // 流式事件字段
   event?: StreamEvent;
+  // 父工具调用 ID（Subagent 场景）
   parent_tool_use_id?: string | null;
+  // tool_progress 专用字段
+  tool_use_id?: string;
+  tool_name?: string;
+  elapsed_time_seconds?: number;
 }
 
 // 流式事件类型
+export type StreamEventType =
+  | 'message_start'
+  | 'content_block_start'
+  | 'content_block_delta'
+  | 'content_block_stop'
+  | 'message_delta'
+  | 'message_stop';
+
+/**
+ * 流式事件
+ */
 export interface StreamEvent {
-  type: string;
+  type: StreamEventType | string;
   index?: number;
-  delta?: {
-    type: string;
-    text?: string;
-    partial_json?: string;
-    thinking?: string;
-  };
+
+  // content_block_start 时的内容块信息
   content_block?: {
-    type: string;
-    id?: string;
-    name?: string;
+    type: 'text' | 'thinking' | 'tool_use';
+    id?: string;      // tool_use 时有
+    name?: string;    // tool_use 时有
+    text?: string;    // text 时可能有初始内容
+  };
+
+  // content_block_delta 时的增量数据
+  delta?: {
+    type: 'text_delta' | 'thinking_delta' | 'input_json_delta' | string;
     text?: string;
+    thinking?: string;
+    partial_json?: string;
+    stop_reason?: string;
+  };
+
+  // message_delta 时的用量数据
+  usage?: {
+    output_tokens?: number;
+  };
+
+  // message 信息（message_start 时）
+  message?: {
+    id?: string;
+    model?: string;
+    role?: string;
   };
 }
 

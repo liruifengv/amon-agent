@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { Message, MessageContentBlock } from '../../types';
+import { Message, MessageContentBlock, ToolCall } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 import ToolGroup from './ToolGroup';
+import SubagentToolGroup from './SubagentToolGroup';
 import TodoList, { TodoItem } from './TodoList';
-import { Shimmer } from '../ai-elements/shimmer';
 
 export interface AssistantMessageProps {
   message: Message;
@@ -12,14 +12,60 @@ export interface AssistantMessageProps {
 }
 
 /**
+ * 工具调用树节点
+ */
+interface ToolCallNode {
+  toolCall: ToolCall;
+  children: ToolCallNode[];
+}
+
+/**
  * 分组后的内容块类型
  */
 type GroupedBlock =
   | { type: 'single'; block: MessageContentBlock; index: number }
-  | { type: 'tool_group'; blocks: MessageContentBlock[] };
+  | { type: 'tool_group'; blocks: MessageContentBlock[] }
+  | { type: 'subagent_group'; parentTool: ToolCall; childTools: ToolCall[] };
 
 /**
- * 将内容块分组：连续的 tool_call 归为一组（Write/Edit 除外）
+ * 构建工具调用树
+ */
+function buildToolCallTree(toolCalls: ToolCall[]): {
+  roots: ToolCallNode[];
+  childrenMap: Map<string, ToolCall[]>;
+} {
+  const nodeMap = new Map<string, ToolCallNode>();
+  const childrenMap = new Map<string, ToolCall[]>();
+  const roots: ToolCallNode[] = [];
+
+  // 创建所有节点
+  for (const tc of toolCalls) {
+    nodeMap.set(tc.id, { toolCall: tc, children: [] });
+  }
+
+  // 建立父子关系
+  for (const tc of toolCalls) {
+    const node = nodeMap.get(tc.id)!;
+    if (tc.parentToolUseId && nodeMap.has(tc.parentToolUseId)) {
+      nodeMap.get(tc.parentToolUseId)!.children.push(node);
+
+      // 记录到 childrenMap
+      const existing = childrenMap.get(tc.parentToolUseId) || [];
+      existing.push(tc);
+      childrenMap.set(tc.parentToolUseId, existing);
+    } else if (!tc.parentToolUseId) {
+      roots.push(node);
+    }
+  }
+
+  return { roots, childrenMap };
+}
+
+/**
+ * 将内容块分组：
+ * - 连续的 tool_call 归为一组（Write/Edit/Task 除外）
+ * - Task 工具（有子工具）作为 SubagentGroup
+ * - Write/Edit 单独展示
  */
 function groupContentBlocks(blocks: MessageContentBlock[]): GroupedBlock[] {
   const groups: GroupedBlock[] = [];
@@ -27,6 +73,24 @@ function groupContentBlocks(blocks: MessageContentBlock[]): GroupedBlock[] {
 
   // 需要单独展示的工具
   const standaloneTools = ['TodoWrite', 'Write', 'Edit'];
+
+  // 提取所有工具调用
+  const allToolCalls = blocks
+    .filter((b): b is { type: 'tool_call'; toolCall: ToolCall } => b.type === 'tool_call')
+    .map(b => b.toolCall);
+
+  // 构建工具树
+  const { childrenMap } = buildToolCallTree(allToolCalls);
+
+  // 记录已处理的工具 ID（子工具不单独显示）
+  const processedToolIds = new Set<string>();
+
+  // 标记所有子工具
+  for (const children of childrenMap.values()) {
+    for (const child of children) {
+      processedToolIds.add(child.id);
+    }
+  }
 
   blocks.forEach((block, index) => {
     // 跳过需要单独展示的工具
@@ -44,8 +108,34 @@ function groupContentBlocks(blocks: MessageContentBlock[]): GroupedBlock[] {
     }
 
     if (block.type === 'tool_call') {
+      const toolCall = block.toolCall;
+
+      // 跳过子工具（它们会在父工具的 SubagentGroup 中显示）
+      if (processedToolIds.has(toolCall.id)) {
+        return;
+      }
+
+      // 检查是否是 Task 工具且有子工具
+      const children = childrenMap.get(toolCall.id);
+      if (toolCall.name === 'Task' && children && children.length > 0) {
+        // 先处理累积的工具组
+        if (currentToolGroup.length > 0) {
+          groups.push({ type: 'tool_group', blocks: [...currentToolGroup] });
+          currentToolGroup = [];
+        }
+        // 作为 SubagentGroup
+        groups.push({
+          type: 'subagent_group',
+          parentTool: toolCall,
+          childTools: children,
+        });
+        return;
+      }
+
+      // 普通工具，加入当前工具组
       currentToolGroup.push(block);
     } else {
+      // 非工具块
       // 如果有累积的工具调用组，先添加
       if (currentToolGroup.length > 0) {
         groups.push({ type: 'tool_group', blocks: [...currentToolGroup] });
@@ -110,6 +200,18 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, defaultCol
                 blocks={group.blocks}
                 isStreaming={isStreaming}
                 defaultCollapsed={defaultCollapsed}
+              />
+            );
+          }
+
+          if (group.type === 'subagent_group') {
+            return (
+              <SubagentToolGroup
+                key={`subagent-${group.parentTool.id}`}
+                parentTool={group.parentTool}
+                childTools={group.childTools}
+                isStreaming={isStreaming}
+                defaultCollapsed={true}
               />
             );
           }

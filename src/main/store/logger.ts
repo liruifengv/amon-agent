@@ -132,10 +132,12 @@ class Logger {
       console[consoleMethod](prefix, message);
     }
 
-    // 异步写入文件
-    this.write(entry).catch(err => {
-      console.error('Failed to write log:', err);
-    });
+    // 只有 info 及以上级别才写入文件（debug 仅控制台输出）
+    if (level !== 'debug') {
+      this.write(entry).catch(err => {
+        console.error('Failed to write log:', err);
+      });
+    }
   }
 
   /**

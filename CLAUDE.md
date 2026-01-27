@@ -32,6 +32,7 @@ Main Process (src/main/)
 ├── agent/
 │   ├── agentService.ts         - Claude SDK query execution
 │   ├── messageHandler.ts       - SDK message type dispatching
+│   ├── streamState.ts          - Stream event state machine (block lifecycle)
 │   ├── permissionManager.ts    - Tool permission requests (60s timeout)
 │   └── titleService.ts         - Auto-generate session titles
 └── store/
@@ -77,17 +78,28 @@ SessionStore emits events that IPC handlers forward to renderer:
 
 ### Message Handling (Main Process)
 
-`messageHandler.ts` dispatches SDK messages by type:
+`messageHandler.ts` dispatches SDK messages by type, with `streamState.ts` tracking block lifecycle:
 
 ```typescript
+// Message types
 switch (sdkMessage.type) {
   case 'assistant':    // Complete message with ContentBlocks
-  case 'stream_event': // Incremental deltas (text_delta, thinking_delta)
+  case 'stream_event': // Stream events (see below)
   case 'result':       // Query complete with usage stats
   case 'user':         // Ignored (added by client)
   case 'system':       // Logging only
 }
+
+// Stream event lifecycle
+message_start → content_block_start → content_block_delta → content_block_stop → message_delta → message_stop
+
+// StreamState tracks blocks by index
+streamState.openTextBlock(index, id)    // content_block_start
+streamState.appendDelta(index, content) // content_block_delta
+streamState.closeBlock(index)           // content_block_stop
 ```
+
+Tool calls support hierarchy via `parentToolUseId` for Subagent scenarios (Task tool spawning child tools).
 
 ### Message Display (Renderer)
 
@@ -100,18 +112,22 @@ MessageItem
     ├── ContentBlockRenderer (switch dispatch)
     │   ├── TextBlock       - Markdown via Streamdown
     │   ├── ThinkingBlock   - Collapsible thinking
-    │   └── ToolCallBlock   - Tool execution display
+    │   └── ToolCallBlock   - Tool execution display (supports nested via isNested prop)
     ├── ToolGroup           - Collapsible tool container
+    ├── SubagentToolGroup   - Hierarchical Subagent tools (default collapsed)
     └── TodoList            - Task progress display
 ```
 
+Tool calls with `parentToolUseId` are grouped under their parent Task tool in `SubagentToolGroup`.
+
 ### Key Files
 
-- `src/shared/types.ts` - Shared TypeScript interfaces
+- `src/shared/types.ts` - Shared TypeScript interfaces (ContentBlock with id/isComplete, ToolCall with parentToolUseId)
 - `src/shared/ipc.ts` - IPC channel constants (including push channels)
 - `src/shared/schemas.ts` - Zod schemas for settings validation
 - `src/main/store/sessionStore.ts` - Central state with EventEmitter
 - `src/main/agent/messageHandler.ts` - SDK message type handlers
+- `src/main/agent/streamState.ts` - Stream state machine for block lifecycle tracking
 
 ### Skills System
 
@@ -126,6 +142,241 @@ SKILL.md requires YAML frontmatter with `name` and `description` fields.
 
 - Sessions: `~/.amon/sessions/*.json`
 - Settings: `~/.amon/settings.json`
+
+## Detailed Architecture
+
+### 整体架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Amon Desktop App                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        Main Process (Node.js)                        │    │
+│  │                                                                       │    │
+│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐  │    │
+│  │  │   Agent     │    │   Store     │    │      IPC Handlers       │  │    │
+│  │  │  Service    │───▶│  (Session   │───▶│  (Request/Response +    │  │    │
+│  │  │             │    │   Store)    │    │   Push Events)          │  │    │
+│  │  └──────┬──────┘    └─────────────┘    └───────────┬─────────────┘  │    │
+│  │         │                                          │                 │    │
+│  │         ▼                                          │                 │    │
+│  │  ┌─────────────┐                                   │                 │    │
+│  │  │   Claude    │                                   │                 │    │
+│  │  │  Agent SDK  │                                   │                 │    │
+│  │  └─────────────┘                                   │                 │    │
+│  └────────────────────────────────────────────────────┼─────────────────┘    │
+│                                                       │                      │
+│                              IPC Bridge (contextBridge)                      │
+│                                                       │                      │
+│  ┌────────────────────────────────────────────────────┼─────────────────┐    │
+│  │                     Renderer Process (React)       │                 │    │
+│  │                                                    ▼                 │    │
+│  │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────────┐  │    │
+│  │  │    Zustand  │◀───│   IPC       │◀───│      Components         │  │    │
+│  │  │    Stores   │    │  Listeners  │    │  (Chat, Message, etc.)  │  │    │
+│  │  └─────────────┘    └─────────────┘    └─────────────────────────┘  │    │
+│  └──────────────────────────────────────────────────────────────────────┘    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 进程间通信 (IPC) 详解
+
+Electron 应用分为 Main Process 和 Renderer Process，通过 IPC 通信：
+
+```
+┌──────────────────┐                              ┌──────────────────┐
+│  Renderer        │                              │  Main Process    │
+│  (React UI)      │                              │  (Node.js)       │
+├──────────────────┤                              ├──────────────────┤
+│                  │   ──── Request/Response ──▶  │                  │
+│  electronAPI.    │   agent:sendMessage          │  ipcMain.handle  │
+│  agent.send()    │   session:create             │  ('channel',     │
+│                  │   settings:get               │   handler)       │
+│                  │                              │                  │
+│                  │   ◀──── Push Events ────     │                  │
+│  electronAPI.    │   messages:updated           │  mainWindow.     │
+│  agent.on()      │   query:state                │  webContents.    │
+│                  │   permission:request         │  send('channel') │
+└──────────────────┘                              └──────────────────┘
+```
+
+**IPC 通道定义** (`src/shared/ipc.ts`):
+- Request channels: `agent:*`, `session:*`, `settings:*`, `permission:*`
+- Push channels: `messages:updated`, `query:state`, `query:complete`, `permission:request`
+
+### 消息处理流程详解
+
+用户发送消息到 AI 响应的完整流程：
+
+```
+┌─────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│  User   │    │  Renderer   │    │    Main     │    │   Claude    │
+│  Input  │    │  Process    │    │   Process   │    │  Agent SDK  │
+└────┬────┘    └──────┬──────┘    └──────┬──────┘    └──────┬──────┘
+     │                │                   │                  │
+     │  Type message  │                   │                  │
+     ├───────────────▶│                   │                  │
+     │                │  IPC: sendMessage │                  │
+     │                ├──────────────────▶│                  │
+     │                │                   │  query(prompt)   │
+     │                │                   ├─────────────────▶│
+     │                │                   │                  │
+     │                │                   │  Stream Events   │
+     │                │                   │◀─────────────────┤
+     │                │                   │  message_start   │
+     │                │                   │  content_block_* │
+     │                │                   │  message_stop    │
+     │                │                   │                  │
+     │                │  Push: messages   │                  │
+     │                │◀──────────────────┤  (per event)     │
+     │                │  :updated         │                  │
+     │  UI Update     │                   │                  │
+     │◀───────────────┤                   │                  │
+     │                │                   │                  │
+```
+
+### 流式事件状态机 (StreamState)
+
+Claude Agent SDK 返回的流式事件需要通过状态机管理：
+
+```
+                    ┌─────────────────────────────────────────────┐
+                    │              StreamState                     │
+                    │  blocksByIndex: Map<number, BlockState>     │
+                    └─────────────────────────────────────────────┘
+                                         │
+     ┌───────────────────────────────────┼───────────────────────────────────┐
+     │                                   │                                   │
+     ▼                                   ▼                                   ▼
+┌─────────────┐                   ┌─────────────┐                   ┌─────────────┐
+│ TextBlock   │                   │ThinkingBlock│                   │  ToolBlock  │
+│ State       │                   │   State     │                   │   State     │
+├─────────────┤                   ├─────────────┤                   ├─────────────┤
+│ id          │                   │ id          │                   │ id          │
+│ index       │                   │ index       │                   │ index       │
+│ content     │                   │ thinking    │                   │ name        │
+│ kind: text  │                   │ kind:       │                   │ inputBuffer │
+└─────────────┘                   │  thinking   │                   │ kind: tool  │
+                                  └─────────────┘                   └─────────────┘
+
+Event Flow:
+┌──────────────┐   ┌───────────────────┐   ┌───────────────────┐   ┌──────────────┐
+│message_start │──▶│content_block_start│──▶│content_block_delta│──▶│content_block │
+│              │   │  openXxxBlock()   │   │  appendDelta()    │   │    _stop     │
+│ beginStep()  │   │                   │   │                   │   │ closeBlock() │
+└──────────────┘   └───────────────────┘   └───────────────────┘   └──────────────┘
+                                                                          │
+                                                                          ▼
+                                                                   ┌──────────────┐
+                                                                   │ message_stop │
+                                                                   │  resetStep() │
+                                                                   └──────────────┘
+```
+
+### 工具调用与 Subagent 层级
+
+当 AI 调用 Task 工具（Subagent）时，会产生嵌套的工具调用：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Tool Call Hierarchy                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Task Tool (parentToolUseId: null)                              │    │
+│  │  id: "tool_123"                                                 │    │
+│  │  name: "Task"                                                   │    │
+│  │  input: { prompt: "Search for files...", subagent_type: "..." }│    │
+│  │                                                                  │    │
+│  │  ┌─────────────────────────────────────────────────────────┐    │    │
+│  │  │  Child Tool 1 (parentToolUseId: "tool_123")             │    │    │
+│  │  │  id: "tool_456"                                         │    │    │
+│  │  │  name: "Glob"                                           │    │    │
+│  │  │  input: { pattern: "**/*.ts" }                          │    │    │
+│  │  └─────────────────────────────────────────────────────────┘    │    │
+│  │                                                                  │    │
+│  │  ┌─────────────────────────────────────────────────────────┐    │    │
+│  │  │  Child Tool 2 (parentToolUseId: "tool_123")             │    │    │
+│  │  │  id: "tool_789"                                         │    │    │
+│  │  │  name: "Read"                                           │    │    │
+│  │  │  input: { file_path: "/path/to/file.ts" }               │    │    │
+│  │  └─────────────────────────────────────────────────────────┘    │    │
+│  │                                                                  │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+UI Rendering:
+┌─────────────────────────────────────────────────────────────────────────┐
+│ ▼ Task: Search for files...                              [Running]      │
+│   ├── Glob: **/*.ts                                      [Completed]    │
+│   └── Read: /path/to/file.ts                             [Completed]    │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 状态管理架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         State Management                                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Main Process (Single Source of Truth)                                  │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  SessionStore (EventEmitter)                                     │    │
+│  │  ├── sessions: Map<sessionId, Session>                          │    │
+│  │  ├── messages: Map<sessionId, Message[]>                        │    │
+│  │  └── toolCalls: Map<sessionId, Map<toolId, ToolCall>>           │    │
+│  │                                                                  │    │
+│  │  Events: 'messages:updated', 'session:created', etc.            │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                              │                                           │
+│                              │ IPC Push                                  │
+│                              ▼                                           │
+│  Renderer Process (Cache)                                               │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Zustand Stores                                                  │    │
+│  │  ├── chatStore: { messages, toolCalls, ... }                    │    │
+│  │  ├── sessionStore: { sessions, currentSessionId, ... }          │    │
+│  │  ├── settingsStore: { settings, ... }                           │    │
+│  │  └── permissionStore: { pendingRequests, ... }                  │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 消息内容块类型
+
+```typescript
+// 消息包含多个内容块
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: MessageContentBlock[];
+  toolCalls?: ToolCall[];
+}
+
+// 内容块类型
+type MessageContentBlock =
+  | TextContentBlock      // 文本内容 (Markdown)
+  | ThinkingContentBlock  // 思考过程 (可折叠)
+  | ToolUseContentBlock;  // 工具调用引用
+
+// 工具调用
+interface ToolCall {
+  id: string;
+  name: string;              // 工具名称: Read, Write, Edit, Bash, Task, etc.
+  input: Record<string, unknown>;
+  inputBuffer?: string;      // 流式输入缓冲
+  output?: string;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  isError?: boolean;
+  parentToolUseId?: string;  // 父工具 ID (Subagent 场景)
+}
+```
 
 ## Environment Variables
 

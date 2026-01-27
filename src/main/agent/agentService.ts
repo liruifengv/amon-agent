@@ -9,6 +9,7 @@ import { getSettings } from '../store/configStore';
 import { sessionStore } from '../store/sessionStore';
 import { DEFAULT_WORKSPACE } from '../store/persistence';
 import { handleMessage, handleSdkSessionId, MessageContext, ResultData } from './messageHandler';
+import { StreamState } from './streamState';
 import { permissionManager } from './permissionManager';
 import { createLogger } from '../store/logger';
 import { buildClaudeSessionEnv, getBundledBunPath, resolveClaudeCodeCli } from './config';
@@ -314,7 +315,11 @@ export async function sendMessage(params: MessageParams): Promise<void> {
 
   // 初始化消息
   const messageId = initializeMessages(sessionId, prompt, images);
-  const ctx: SendMessageContext = { sessionId, messageId, abortController, workspace, settings };
+
+  // 创建流式状态管理器
+  const streamState = new StreamState(sessionId);
+
+  const ctx: SendMessageContext = { sessionId, messageId, streamState, abortController, workspace, settings };
 
   // 设置消息状态
   setupMessageState(ctx);
