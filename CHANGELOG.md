@@ -1,5 +1,21 @@
 # amon-agent
 
+## 0.2.0
+
+### Minor Changes
+
+- [`2829cd3`](https://github.com/liruifengv/amon-agent/commit/2829cd3ab7f155403df4d7cbbad0cffb4723af10) Thanks [@liruifengv](https://github.com/liruifengv)! - Support mention file use @
+
+- [`eb5b5ae`](https://github.com/liruifengv/amon-agent/commit/eb5b5ae596938341fee99e0982b3004f1decbdf3) Thanks [@liruifengv](https://github.com/liruifengv)! - Enhanced Plan Mode
+
+### Patch Changes
+
+- [`352b7d4`](https://github.com/liruifengv/amon-agent/commit/352b7d400f2e7b259db9d1b0e99001a02052e1d7) Thanks [@liruifengv](https://github.com/liruifengv)! - Improve Write/Edit tool UI
+
+- [#8](https://github.com/liruifengv/amon-agent/pull/8) [`212146f`](https://github.com/liruifengv/amon-agent/commit/212146f00dc674b3f223cf1667bef0c5b3cc08e2) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix textaream layout issue
+
+- [#7](https://github.com/liruifengv/amon-agent/pull/7) [`1ae6af2`](https://github.com/liruifengv/amon-agent/commit/1ae6af2325dd9bb0c0de0616d425710f3bf42de4) Thanks [@liruifengv](https://github.com/liruifengv)! - Refactor stream message system
+
 ## 0.1.2
 
 ### Patch Changes
