@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef, useCallback } from 'react';
 
 interface InputHighlightProps {
   text: string;
   mentionedPaths: string[];
   className?: string;
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
 }
 
 /**
@@ -68,14 +69,40 @@ const InputHighlight: React.FC<InputHighlightProps> = ({
   text,
   mentionedPaths,
   className,
+  textareaRef,
 }) => {
+  const highlightRef = useRef<HTMLDivElement>(null);
+
   const segments = useMemo(
     () => parseHighlights(text, mentionedPaths),
     [text, mentionedPaths]
   );
 
+  // 同步 textarea 的滚动位置
+  const syncScroll = useCallback(() => {
+    if (textareaRef?.current && highlightRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, [textareaRef]);
+
+  useEffect(() => {
+    const textarea = textareaRef?.current;
+    if (!textarea) return;
+
+    // 监听 textarea 的滚动事件
+    textarea.addEventListener('scroll', syncScroll);
+
+    // 初始同步
+    syncScroll();
+
+    return () => {
+      textarea.removeEventListener('scroll', syncScroll);
+    };
+  }, [textareaRef, syncScroll]);
+
   return (
     <div
+      ref={highlightRef}
       className={className}
       aria-hidden="true"
     >
@@ -88,7 +115,7 @@ const InputHighlight: React.FC<InputHighlightProps> = ({
             {segment.text}
           </span>
         ) : (
-          <span key={index} className="text-foreground">{segment.text}</span>
+          <span key={index}>{segment.text}</span>
         )
       )}
       {/* 保持与 textarea 一致的换行行为 */}

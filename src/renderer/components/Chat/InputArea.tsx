@@ -255,15 +255,17 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
 
           {/* 上半部分：输入区域 */}
           <div className="p-3 pb-2 relative">
-              {/* 高亮覆盖层 */}
+              {/* 高亮覆盖层 - 与 textarea 样式完全同步 */}
               {fileMention.mentionedPaths.length > 0 && (
                 <InputHighlight
                   text={input}
                   mentionedPaths={fileMention.mentionedPaths}
+                  textareaRef={textareaRef}
                   className="
-                    absolute inset-0 py-2 px-2 m-3 mb-2
+                    absolute top-3 left-3 right-3 bottom-2 py-2 px-2
                     pointer-events-none whitespace-pre-wrap break-words
-                    text-transparent
+                    overflow-hidden max-h-32
+                    text-sm leading-normal font-sans
                   "
                 />
               )}
@@ -282,7 +284,8 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                   placeholder:text-muted-foreground
                   focus:outline-none focus:ring-0
                   disabled:opacity-50 disabled:cursor-not-allowed
-                  max-h-32
+                  max-h-32 overflow-y-auto
+                  text-sm leading-normal font-sans
                   ${fileMention.mentionedPaths.length > 0
                     ? 'text-transparent caret-foreground'
                     : 'text-foreground'

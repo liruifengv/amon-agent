@@ -57,7 +57,7 @@ function renderHighlightedContent(
       result.push(
         <span
           key={keyIndex++}
-          className="bg-primary/20 text-primary rounded px-0.5"
+          className="bg-primary/30 text-primary-foreground dark:text-primary rounded px-1 py-0.5 font-medium"
         >
           @{earliestMatch.path}
         </span>
