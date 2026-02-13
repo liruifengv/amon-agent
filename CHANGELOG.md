@@ -1,5 +1,16 @@
 # amon-agent
 
+## 0.2.1
+
+### Patch Changes
+
+- [`c240587`](https://github.com/liruifengv/amon-agent/commit/c24058787cb0c5dd3a0625d2dac27ce8810468ae) Thanks [@liruifengv](https://github.com/liruifengv)! - 更新供应商模型配置：
+
+  - **GLM**: 新增 `glm-5` 模型
+  - **MiniMax**: 新增 `MiniMax-M2.5` 模型
+  - **Kimi**: 新增 Kimi 供应商，API 地址 `https://api.kimi.com/coding`，模型 `kimi-for-coding`
+  - **Claude 官方/自定义/OpenRouter**: 新增 `claude-opus-4-6` / `anthropic/claude-opus-4.6` 模型
+
 ## 0.2.0
 
 ### Minor Changes
