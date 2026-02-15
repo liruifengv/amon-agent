@@ -1,5 +1,18 @@
 # amon-agent
 
+## 0.2.2
+
+### Patch Changes
+
+- [#11](https://github.com/liruifengv/amon-agent/pull/11) [`c2fa99d`](https://github.com/liruifengv/amon-agent/commit/c2fa99d7c464340dd1dcaebf798e48a8f3bda875) Thanks [@liruifengv](https://github.com/liruifengv)! - feat: add i18n internationalization support for Chinese and English
+
+  - Add `i18next` + `react-i18next` for renderer process and main process
+  - Create translation files for 9 namespaces (common, chat, message, settings, sidebar, permission, onboarding, menu, validation)
+  - Add language selector in General Settings (English / 中文), default to English
+  - Replace all hardcoded UI strings (~200) across ~30 component files with `t()` calls
+  - Internationalize Electron menus and native dialogs
+  - Real-time language switching without app restart, synced across all windows
+
 ## 0.2.1
 
 ### Patch Changes
