@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronRight, Lightbulb } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
@@ -13,6 +14,7 @@ export interface ThinkingBlockProps {
 }
 
 const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ content, isStreaming, defaultCollapsed = false }) => {
+  const { t } = useTranslation('message');
   // Allow manual collapse/expand even during streaming
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
@@ -30,7 +32,7 @@ const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ content, isStreaming, def
         <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
         <span className="flex items-center gap-1.5">
           <Lightbulb className="w-4 h-4" />
-          Thinking
+          {t('thinking')}
           {isStreaming && (
             <span className="inline-flex">
               <span className="animate-pulse">...</span>

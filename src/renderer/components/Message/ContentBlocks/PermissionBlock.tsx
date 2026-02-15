@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { PermissionRecord } from '../../../types';
 import { getToolConfig, getToolInputSummary } from '../../../config/tools';
 
@@ -8,6 +9,7 @@ export interface PermissionBlockProps {
 }
 
 const PermissionBlock: React.FC<PermissionBlockProps> = ({ permission }) => {
+  const { t } = useTranslation('message');
   const isAllowed = permission.result === 'allow';
   const config = getToolConfig(permission.toolName);
   const summary = getToolInputSummary(permission.toolName, permission.input);
@@ -32,7 +34,7 @@ const PermissionBlock: React.FC<PermissionBlockProps> = ({ permission }) => {
             isAllowed ? 'text-success' : 'text-destructive'
           }`}
         >
-          {isAllowed ? '已允许' : '已拒绝'}
+          {isAllowed ? t('permission.allowed') : t('permission.denied')}
         </span>
       </div>
 
@@ -44,7 +46,7 @@ const PermissionBlock: React.FC<PermissionBlockProps> = ({ permission }) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-foreground">
-              {config.name}
+              {t(config.name)}
             </div>
             {summary && (
               <div className="mt-0.5 text-xs text-muted-foreground font-mono break-all line-clamp-2">

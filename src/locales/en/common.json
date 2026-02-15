@@ -1,0 +1,22 @@
+{
+  "loading": "Loading...",
+  "save": "Save",
+  "cancel": "Cancel",
+  "confirm": "Confirm",
+  "delete": "Delete",
+  "close": "Close",
+  "add": "Add",
+  "edit": "Edit",
+  "rename": "Rename",
+  "retry": "Retry",
+  "default": "Default",
+  "change": "Change",
+  "enable": "Enable",
+  "install": "Install",
+  "uninstall": "Uninstall",
+  "notConfigured": "Not Configured",
+  "notSet": "Not Set",
+  "saveFailed": "Save failed, please try again later.",
+  "confirmDelete": "Confirm Delete",
+  "unsavedChanges": "You have unsaved changes"
+}

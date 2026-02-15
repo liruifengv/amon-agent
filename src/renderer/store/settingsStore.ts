@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Settings, AgentSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
+import i18n from '../i18n';
 
 interface SettingsState {
   settings: Settings;
@@ -17,6 +18,7 @@ interface SettingsState {
   resetFormData: () => void;
   saveSettings: () => Promise<boolean>;
   saveTheme: (theme: 'light' | 'dark' | 'system') => Promise<boolean>;
+  saveLanguage: (language: 'en' | 'zh') => Promise<boolean>;
   loadSettings: () => Promise<void>;
   clearSaveError: () => void;
 }
@@ -89,7 +91,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } catch (error) {
       console.error('Failed to save settings:', error);
       set({
-        saveError: [{ field: '_global', message: '保存失败，请稍后重试' }],
+        saveError: [{ field: '_global', message: i18n.t('saveFailed') }],
         isSaving: false,
       });
       return false;
@@ -114,12 +116,32 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     }
   },
 
+  saveLanguage: async (language) => {
+    const { settings } = get();
+    const newSettings = { ...settings, language };
+
+    try {
+      const result = await window.electronAPI.settings.set(newSettings);
+
+      if (result.success && result.data) {
+        set({ settings: result.data, formData: { ...get().formData, language } });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to save language:', error);
+      return false;
+    }
+  },
+
   loadSettings: async () => {
     set({ isLoading: true });
     try {
       const settings = await window.electronAPI.settings.get();
       set({ settings, formData: settings, isLoading: false, hasChanges: false });
       applyTheme(settings.theme);
+      // 初始化渲染进程 i18n 语言
+      i18n.changeLanguage(settings.language);
     } catch (error) {
       console.error('Failed to load settings:', error);
       set({ isLoading: false });
@@ -159,6 +181,8 @@ export function initSettingsListeners(): () => void {
   const handleSettingsChange = (newSettings: Settings) => {
     useSettingsStore.getState().setSettings(newSettings);
     applyTheme(newSettings.theme);
+    // 同步渲染进程 i18n 语言
+    i18n.changeLanguage(newSettings.language);
   };
   window.electronAPI.settings.onChange(handleSettingsChange);
 

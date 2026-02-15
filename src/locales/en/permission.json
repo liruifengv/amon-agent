@@ -1,0 +1,15 @@
+{
+  "permissionRequest": "Permission Request",
+  "viewDetailParams": "View Detail Parameters",
+  "deny": "Deny",
+  "allow": "Allow",
+  "userDeniedOperation": "User denied this operation",
+  "askUserQuestion": {
+    "claudeNeedsInput": "Claude needs your input",
+    "questionProgress": "Question {{current}}/{{total}}",
+    "other": "Other",
+    "enterAnswer": "Enter your answer...",
+    "skip": "Skip",
+    "submit": "Submit"
+  }
+}

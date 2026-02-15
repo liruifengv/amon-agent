@@ -26,49 +26,49 @@ export interface ToolDisplayConfig {
 export const TOOL_DISPLAY_CONFIG: Record<string, ToolDisplayConfig> = {
   Read: {
     icon: React.createElement(FileText, { className: 'w-4 h-4' }),
-    name: '读取文件',
+    name: 'tool.readFile',
     color: 'text-info',
     bgColor: 'bg-info/10',
   },
   Write: {
     icon: React.createElement(Pencil, { className: 'w-4 h-4' }),
-    name: '写入文件',
+    name: 'tool.writeFile',
     color: 'text-warning',
     bgColor: 'bg-warning/10',
   },
   Edit: {
     icon: React.createElement(Edit, { className: 'w-4 h-4' }),
-    name: '编辑文件',
+    name: 'tool.editFile',
     color: 'text-warning',
     bgColor: 'bg-warning/10',
   },
   Bash: {
     icon: React.createElement(Terminal, { className: 'w-4 h-4' }),
-    name: '执行命令',
+    name: 'tool.runCommand',
     color: 'text-thinking',
     bgColor: 'bg-thinking/10',
   },
   Glob: {
     icon: React.createElement(Search, { className: 'w-4 h-4' }),
-    name: '搜索文件',
+    name: 'tool.findFiles',
     color: 'text-success',
     bgColor: 'bg-success/10',
   },
   Grep: {
     icon: React.createElement(SearchCode, { className: 'w-4 h-4' }),
-    name: '搜索内容',
+    name: 'tool.searchContent',
     color: 'text-success',
     bgColor: 'bg-success/10',
   },
   WebFetch: {
     icon: React.createElement(Globe, { className: 'w-4 h-4' }),
-    name: '获取网页',
+    name: 'tool.fetchUrl',
     color: 'text-info',
     bgColor: 'bg-info/10',
   },
   WebSearch: {
     icon: React.createElement(Search, { className: 'w-4 h-4' }),
-    name: '网络搜索',
+    name: 'tool.webSearch',
     color: 'text-info',
     bgColor: 'bg-info/10',
   },
@@ -76,7 +76,7 @@ export const TOOL_DISPLAY_CONFIG: Record<string, ToolDisplayConfig> = {
 
 export const DEFAULT_TOOL_CONFIG: ToolDisplayConfig = {
   icon: React.createElement(Settings, { className: 'w-4 h-4' }),
-  name: '未知工具',
+  name: 'tool.unknownTool',
   color: 'text-muted-foreground',
   bgColor: 'bg-muted',
 };

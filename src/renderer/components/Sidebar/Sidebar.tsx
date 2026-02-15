@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Settings, PanelLeftClose } from 'lucide-react';
 import { Button } from '../ui/button';
 import SessionList from './SessionList';
@@ -10,6 +11,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+  const { t } = useTranslation('sidebar');
   const handleOpenSettings = () => {
     window.electronAPI.window.openSettings();
   };
@@ -31,7 +33,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             size="icon"
             onClick={onToggle}
             className="no-drag h-8 w-8"
-            title="收起侧边栏"
+            title={t('collapseSidebar')}
           >
             <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
           </Button>
@@ -53,7 +55,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             className="w-full justify-start gap-2 text-foreground"
           >
             <Settings className="h-4 w-4" />
-            <span>设置</span>
+            <span>{t('settings')}</span>
           </Button>
         </div>
       </div>

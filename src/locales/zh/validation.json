@@ -1,0 +1,8 @@
+{
+  "workspaceNameRequired": "工作空间名称不能为空",
+  "workspacePathRequired": "工作空间路径不能为空",
+  "providerNameRequired": "Provider 名称不能为空",
+  "apiUrlRequired": "API URL 不能为空",
+  "apiKeyRequired": "API Key 不能为空",
+  "modelNameRequired": "模型名称不能为空"
+}

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronRight, Wrench } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { MessageContentBlock } from '../../types';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
@@ -14,6 +15,7 @@ export interface ToolGroupProps {
  * 工具调用组容器 - 支持折叠和自动滚动
  */
 const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false }) => {
+  const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +44,7 @@ const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultColla
         <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
         <span className="flex items-center gap-1.5">
           <Wrench className="w-4 h-4" />
-          <span>Tool Use</span>
+          <span>{t('tool.toolUse')}</span>
           {isStreaming && (
             <span className="inline-flex">
               <span className="animate-pulse">...</span>
@@ -50,7 +52,7 @@ const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultColla
           )}
         </span>
         <span className="text-xs opacity-60 ml-auto">
-          {toolCallBlocks.length} tool{toolCallBlocks.length > 1 ? 's' : ''}
+          {t('tool.toolCount', { count: toolCallBlocks.length })}
         </span>
       </button>
 

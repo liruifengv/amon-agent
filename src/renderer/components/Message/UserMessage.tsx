@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Message } from '../../types';
 import { useSessionStore } from '../../store/sessionStore';
 
@@ -77,6 +78,7 @@ function renderHighlightedContent(
  * 用户消息组件
  */
 const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
+  const { t } = useTranslation('message');
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [validPaths, setValidPaths] = useState<string[]>([]);
   const { currentSessionId } = useSessionStore();
@@ -153,7 +155,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
         >
           <img
             src={expandedImage}
-            alt="放大查看"
+            alt={t('enlargeImage')}
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg"
           />
         </div>

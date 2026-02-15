@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ToolCall } from '../../../types';
 import {
   FileText,
@@ -132,18 +133,18 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   Task: <ListTodo className="w-4 h-4" />,
 };
 
-// 工具显示名称
-const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  Read: 'Read File',
-  Write: 'Write File',
-  Edit: 'Edit File',
-  Bash: 'Run Command',
-  Glob: 'Find Files',
-  Grep: 'Search Content',
-  WebFetch: 'Fetch URL',
-  WebSearch: 'Web Search',
-  Task: 'Run Task',
-  TodoWrite: 'Update Todos',
+// 工具显示名称 i18n key 映射
+const TOOL_DISPLAY_NAME_KEYS: Record<string, string> = {
+  Read: 'tool.readFile',
+  Write: 'tool.writeFile',
+  Edit: 'tool.editFile',
+  Bash: 'tool.runCommand',
+  Glob: 'tool.findFiles',
+  Grep: 'tool.searchContent',
+  WebFetch: 'tool.fetchUrl',
+  WebSearch: 'tool.webSearch',
+  Task: 'tool.runTask',
+  TodoWrite: 'tool.updateTodos',
 };
 
 /**
@@ -304,37 +305,45 @@ const EditInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input 
 /**
  * 默认输入内容展示（JSON 格式）
  */
-const DefaultInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input }) => (
-  <div className="px-3 py-2">
-    <div className="text-xs font-medium text-muted-foreground mb-1">Input</div>
-    <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
-      <CodeBlockContent code={JSON.stringify(input, null, 2)} language="json" showLineNumbers={false} />
+const DefaultInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input }) => {
+  const { t } = useTranslation('message');
+  return (
+    <div className="px-3 py-2">
+      <div className="text-xs font-medium text-muted-foreground mb-1">{t('tool.input')}</div>
+      <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
+        <CodeBlockContent code={JSON.stringify(input, null, 2)} language="json" showLineNumbers={false} />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * 流式输入内容展示（正在接收输入时）
  */
-const StreamingInputContent: React.FC<{ inputBuffer: string }> = ({ inputBuffer }) => (
-  <div className="px-3 py-2">
-    <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-2">
-      <Loader2 className="w-3 h-3 animate-spin" />
-      Receiving input...
+const StreamingInputContent: React.FC<{ inputBuffer: string }> = ({ inputBuffer }) => {
+  const { t } = useTranslation('message');
+  return (
+    <div className="px-3 py-2">
+      <div className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-2">
+        <Loader2 className="w-3 h-3 animate-spin" />
+        {t('tool.receivingInput')}
+      </div>
+      <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
+        <CodeBlockContent code={inputBuffer || '{}'} language="json" showLineNumbers={false} />
+      </div>
     </div>
-    <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
-      <CodeBlockContent code={inputBuffer || '{}'} language="json" showLineNumbers={false} />
-    </div>
-  </div>
-);
+  );
+};
 
 const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = false }) => {
+  const { t } = useTranslation('message');
   // Write 和 Edit 工具始终展开
   const isStandaloneTool = toolCall.name === 'Write' || toolCall.name === 'Edit';
   const [isExpanded, setIsExpanded] = useState(isStandaloneTool);
 
   const icon = TOOL_ICONS[toolCall.name] || <Settings className="w-4 h-4" />;
-  const displayName = TOOL_DISPLAY_NAMES[toolCall.name] || toolCall.name;
+  const displayNameKey = TOOL_DISPLAY_NAME_KEYS[toolCall.name];
+  const displayName = displayNameKey ? t(displayNameKey) : toolCall.name;
   const inputSummary = getInputSummary(toolCall.name, toolCall.input);
   const status = toolCall.status || 'pending';
 
@@ -409,7 +418,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
           {toolCall.output && (!isStandaloneTool || toolCall.isError) && (
             <div className="px-3 py-2 border-t border-inherit">
               <div className={`text-xs font-medium mb-1 ${toolCall.isError ? 'text-red-500' : 'text-muted-foreground'}`}>
-                {toolCall.isError ? 'Error' : 'Output'}
+                {toolCall.isError ? t('tool.error') : t('tool.output')}
               </div>
               <pre className={`text-xs font-mono rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-60 overflow-y-auto ${
                 toolCall.isError
@@ -426,7 +435,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
             <div className="px-3 py-2 border-t border-inherit">
               <div className="text-xs text-muted-foreground flex items-center gap-2">
                 <Loader2 className="w-3 h-3 animate-spin" />
-                {status === 'running' ? 'Executing...' : 'Waiting...'}
+                {status === 'running' ? t('tool.executing') : t('tool.waiting')}
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   X,
@@ -16,6 +17,8 @@ interface PermissionRequestProps {
 }
 
 const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
+  const { t } = useTranslation('permission');
+  const { t: tMessage } = useTranslation('message');
   const { respondToRequest } = usePermissionStore();
   const [showDetails, setShowDetails] = useState(false);
   // 根据请求的 timestamp 计算剩余时间
@@ -31,9 +34,9 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
   const handleDeny = useCallback(async () => {
     await respondToRequest(request.id, {
       behavior: 'deny',
-      message: '用户拒绝了此操作',
+      message: t('userDeniedOperation'),
     });
-  }, [request.id, respondToRequest]);
+  }, [request.id, respondToRequest, t]);
 
   // 倒计时
   useEffect(() => {
@@ -81,7 +84,7 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
       {/* 头部 */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <Shield className="w-4 h-4 text-warning" />
-        <span className="text-sm font-medium text-foreground">权限请求</span>
+        <span className="text-sm font-medium text-foreground">{t('permissionRequest')}</span>
         <span className="text-xs text-muted-foreground ml-auto">{countdown}s</span>
       </div>
 
@@ -93,7 +96,7 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
           </div>
           <div className="flex-1 min-w-0">
             <div className={`text-sm font-medium ${config.color}`}>
-              {config.name}
+              {tMessage(config.name)}
             </div>
             {summary && (
               <div className="mt-1 text-sm text-muted-foreground font-mono break-all line-clamp-2">
@@ -110,7 +113,7 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             {showDetails ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            <span>查看详细参数</span>
+            <span>{t('viewDetailParams')}</span>
           </button>
 
           {showDetails && (
@@ -131,7 +134,7 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
             hover:bg-accent transition-colors"
         >
           <X className="w-4 h-4" />
-          拒绝
+          {t('deny')}
         </button>
         <button
           onClick={handleAllow}
@@ -140,7 +143,7 @@ const PermissionRequest: React.FC<PermissionRequestProps> = ({ request }) => {
             hover:bg-success/90 transition-colors"
         >
           <Check className="w-4 h-4" />
-          允许
+          {t('allow')}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Folder, Star, Trash2, Edit2, FolderOpen, Plus, Check, X, Home } from 'lucide-react';
 import type { Workspace } from '../../types';
@@ -7,6 +8,7 @@ import { formatPathWithTilde, getPathName } from '../../utils/path';
 
 const WorkspaceSettings: React.FC = () => {
   const { formData, setFormData } = useSettingsStore();
+  const { t } = useTranslation(['settings', 'common']);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
@@ -50,8 +52,8 @@ const WorkspaceSettings: React.FC = () => {
 
   const handleDeleteWorkspace = async (workspace: Workspace) => {
     const { confirmed } = await window.electronAPI.dialog.confirm({
-      title: '确认删除',
-      message: `确定要删除工作空间 "${workspace.name}" 吗？`,
+      title: t('common:confirmDelete'),
+      message: t('settings:workspace.confirmDeleteMessage', { name: workspace.name }),
     });
 
     if (!confirmed) return;
@@ -97,7 +99,7 @@ const WorkspaceSettings: React.FC = () => {
       {/* 系统默认工作空间 */}
       <div>
         <label className="text-sm font-medium text-foreground mb-3 block">
-          系统默认工作空间
+          {t('settings:workspace.systemDefault')}
         </label>
         <div className="flex items-center gap-3 p-3 bg-muted
                         rounded-lg border border-border">
@@ -107,14 +109,14 @@ const WorkspaceSettings: React.FC = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-medium text-foreground">
-                默认目录
+                {t('settings:workspace.defaultDirectory')}
               </span>
               {!hasUserDefault && (
                 <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs
                                bg-warning/20 text-warning
                                rounded">
                   <Star className="w-3 h-3" />
-                  默认
+                  {t('common:default')}
                 </span>
               )}
             </div>
@@ -130,7 +132,7 @@ const WorkspaceSettings: React.FC = () => {
                 className="p-1.5 text-muted-foreground hover:text-warning
                            hover:bg-warning/10 rounded
                            transition-colors"
-                title="设为默认"
+                title={t('settings:workspace.setAsDefault')}
               >
                 <Star className="w-4 h-4" />
               </button>
@@ -140,14 +142,14 @@ const WorkspaceSettings: React.FC = () => {
               className="p-1.5 text-muted-foreground hover:text-info
                          hover:bg-info/10 rounded
                          transition-colors"
-              title="打开目录"
+              title={t('settings:workspace.openDirectory')}
             >
               <Folder className="w-4 h-4" />
             </button>
           </div>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          如果没有设置默认工作空间，新建会话将使用此目录
+          {t('settings:workspace.defaultHint')}
         </p>
       </div>
 
@@ -155,7 +157,7 @@ const WorkspaceSettings: React.FC = () => {
       <div>
         <div className="flex items-center justify-between mb-3">
           <label className="text-sm font-medium text-foreground">
-            已保存的工作空间
+            {t('settings:workspace.savedWorkspaces')}
           </label>
           <button
             onClick={handleAddWorkspace}
@@ -164,15 +166,15 @@ const WorkspaceSettings: React.FC = () => {
                        hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            添加
+            {t('common:add')}
           </button>
         </div>
 
         {workspaces.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground bg-muted rounded-lg">
             <Folder className="w-10 h-10 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">暂无保存的工作空间</p>
-            <p className="text-xs mt-1">点击上方按钮添加</p>
+            <p className="text-sm">{t('settings:workspace.noSavedWorkspaces')}</p>
+            <p className="text-xs mt-1">{t('settings:workspace.clickToAdd')}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -228,7 +230,7 @@ const WorkspaceSettings: React.FC = () => {
                                          bg-warning/20 text-warning
                                          rounded">
                             <Star className="w-3 h-3" />
-                            默认
+                            {t('common:default')}
                           </span>
                         )}
                       </div>
@@ -248,7 +250,7 @@ const WorkspaceSettings: React.FC = () => {
                         className="p-1.5 text-muted-foreground hover:text-warning
                                    hover:bg-warning/10 rounded
                                    transition-colors"
-                        title="设为默认"
+                        title={t('settings:workspace.setAsDefault')}
                       >
                         <Star className="w-4 h-4" />
                       </button>
@@ -258,7 +260,7 @@ const WorkspaceSettings: React.FC = () => {
                       className="p-1.5 text-muted-foreground hover:text-info
                                  hover:bg-info/10 rounded
                                  transition-colors"
-                      title="打开目录"
+                      title={t('settings:workspace.openDirectory')}
                     >
                       <Folder className="w-4 h-4" />
                     </button>
@@ -267,7 +269,7 @@ const WorkspaceSettings: React.FC = () => {
                       className="p-1.5 text-muted-foreground hover:text-primary
                                  hover:bg-primary/10 rounded
                                  transition-colors"
-                      title="重命名"
+                      title={t('common:rename')}
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
@@ -276,7 +278,7 @@ const WorkspaceSettings: React.FC = () => {
                       className="p-1.5 text-muted-foreground hover:text-destructive
                                  hover:bg-destructive/10 rounded
                                  transition-colors"
-                      title="删除"
+                      title={t('common:delete')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -290,8 +292,8 @@ const WorkspaceSettings: React.FC = () => {
 
       {/* 说明文字 */}
       <div className="text-xs text-muted-foreground space-y-1">
-        <p>工作空间用于指定 Agent 执行命令时的工作目录。</p>
-        <p>新建会话时将使用默认工作空间。</p>
+        <p>{t('settings:workspace.workspaceHint1')}</p>
+        <p>{t('settings:workspace.workspaceHint2')}</p>
       </div>
     </div>
   );

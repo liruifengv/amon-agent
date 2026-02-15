@@ -1,21 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import { DEFAULT_SHORTCUTS, Shortcuts } from '../../types';
 import { RotateCcw } from 'lucide-react';
-
-// 快捷键配置项
-const SHORTCUT_ITEMS: { key: keyof Shortcuts; label: string; description: string }[] = [
-  {
-    key: 'newSession',
-    label: '新建会话',
-    description: '创建一个新的聊天会话',
-  },
-  {
-    key: 'openSettings',
-    label: '打开/关闭设置',
-    description: '切换设置窗口',
-  },
-];
 
 // 将 Electron 快捷键格式转换为显示格式
 function formatShortcut(shortcut: string): string {
@@ -24,11 +11,11 @@ function formatShortcut(shortcut: string): string {
   const isMac = navigator.platform.toLowerCase().includes('mac');
 
   return shortcut
-    .replace(/CmdOrCtrl/g, isMac ? '⌘' : 'Ctrl')
-    .replace(/Cmd/g, '⌘')
-    .replace(/Ctrl/g, isMac ? '⌃' : 'Ctrl')
-    .replace(/Alt/g, isMac ? '⌥' : 'Alt')
-    .replace(/Shift/g, isMac ? '⇧' : 'Shift')
+    .replace(/CmdOrCtrl/g, isMac ? '\u2318' : 'Ctrl')
+    .replace(/Cmd/g, '\u2318')
+    .replace(/Ctrl/g, isMac ? '\u2303' : 'Ctrl')
+    .replace(/Alt/g, isMac ? '\u2325' : 'Alt')
+    .replace(/Shift/g, isMac ? '\u21E7' : 'Shift')
     .replace(/\+/g, ' + ');
 }
 
@@ -78,9 +65,11 @@ interface ShortcutInputProps {
   onChange: (value: string) => void;
   onReset: () => void;
   defaultValue: string;
+  pressShortcutText: string;
+  restoreDefaultText: string;
 }
 
-const ShortcutInput: React.FC<ShortcutInputProps> = ({ value, onChange, onReset, defaultValue }) => {
+const ShortcutInput: React.FC<ShortcutInputProps> = ({ value, onChange, onReset, defaultValue, pressShortcutText, restoreDefaultText }) => {
   const [isRecording, setIsRecording] = useState(false);
   const inputRef = useRef<HTMLDivElement>(null);
 
@@ -136,7 +125,7 @@ const ShortcutInput: React.FC<ShortcutInputProps> = ({ value, onChange, onReset,
         `}
       >
         {isRecording ? (
-          <span className="text-primary">按下快捷键...</span>
+          <span className="text-primary">{pressShortcutText}</span>
         ) : (
           <span className="font-mono">{formatShortcut(value)}</span>
         )}
@@ -145,7 +134,7 @@ const ShortcutInput: React.FC<ShortcutInputProps> = ({ value, onChange, onReset,
         <button
           onClick={onReset}
           className="p-2 text-muted-foreground hover:text-foreground transition-colors"
-          title="恢复默认"
+          title={restoreDefaultText}
         >
           <RotateCcw className="w-4 h-4" />
         </button>
@@ -156,6 +145,21 @@ const ShortcutInput: React.FC<ShortcutInputProps> = ({ value, onChange, onReset,
 
 const ShortcutsSettings: React.FC = () => {
   const { formData, setFormData } = useSettingsStore();
+  const { t } = useTranslation('settings');
+
+  // 快捷键配置项
+  const SHORTCUT_ITEMS: { key: keyof Shortcuts; label: string; description: string }[] = [
+    {
+      key: 'newSession',
+      label: t('shortcuts.newSession'),
+      description: t('shortcuts.newSessionDesc'),
+    },
+    {
+      key: 'openSettings',
+      label: t('shortcuts.openCloseSettings'),
+      description: t('shortcuts.openCloseSettingsDesc'),
+    },
+  ];
 
   const handleShortcutChange = (key: keyof Shortcuts, value: string) => {
     setFormData({
@@ -185,13 +189,13 @@ const ShortcutsSettings: React.FC = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          点击快捷键区域，然后按下新的快捷键组合来更改
+          {t('shortcuts.clickShortcutArea')}
         </p>
         <button
           onClick={handleResetAll}
           className="text-sm text-primary hover:text-primary/80 transition-colors"
         >
-          全部恢复默认
+          {t('shortcuts.restoreAllDefaults')}
         </button>
       </div>
 
@@ -212,6 +216,8 @@ const ShortcutsSettings: React.FC = () => {
                 onChange={(value) => handleShortcutChange(item.key, value)}
                 onReset={() => handleReset(item.key)}
                 defaultValue={DEFAULT_SHORTCUTS[item.key]}
+                pressShortcutText={t('shortcuts.pressShortcut')}
+                restoreDefaultText={t('shortcuts.restoreDefault')}
               />
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore, initSettingsListeners } from '../../store/settingsStore';
 import GeneralSettings from './GeneralSettings';
 import AgentSettings from './AgentSettings';
@@ -13,6 +14,7 @@ type SettingsTab = 'general' | 'provider' | 'workspace' | 'agent' | 'shortcuts' 
 
 const SettingsWindow: React.FC = () => {
   const { saveSettings, saveError, isSaving, loadSettings, hasChanges } = useSettingsStore();
+  const { t } = useTranslation(['settings', 'common']);
 
   // 从 URL hash 读取初始 tab，如果没有则默认为 'general'
   const getInitialTab = (): SettingsTab => {
@@ -45,37 +47,37 @@ const SettingsWindow: React.FC = () => {
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     {
       id: 'general',
-      label: '通用',
+      label: t('settings:tabs.general'),
       icon: <Settings className="w-5 h-5" />,
     },
     {
       id: 'provider',
-      label: '供应商',
+      label: t('settings:tabs.provider'),
       icon: <Server className="w-5 h-5" />,
     },
     {
       id: 'agent',
-      label: '智能体',
+      label: t('settings:tabs.agent'),
       icon: <MessageCircle className="w-5 h-5" />,
     },
     {
       id: 'workspace',
-      label: '工作空间',
+      label: t('settings:tabs.workspace'),
       icon: <Folder className="w-5 h-5" />,
     },
     {
       id: 'skills',
-      label: '技能',
+      label: t('settings:tabs.skills'),
       icon: <Sparkles className="w-5 h-5" />,
     },
     {
       id: 'shortcuts',
-      label: '快捷键',
+      label: t('settings:tabs.shortcuts'),
       icon: <Keyboard className="w-5 h-5" />,
     },
     {
       id: 'about',
-      label: '关于',
+      label: t('settings:tabs.about'),
       icon: <Info className="w-5 h-5" />,
     },
   ];
@@ -106,7 +108,7 @@ const SettingsWindow: React.FC = () => {
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground">{t('common:loading')}</p>
         </div>
       </div>
     );
@@ -172,20 +174,20 @@ const SettingsWindow: React.FC = () => {
         {activeTab !== 'about' && activeTab !== 'skills' && activeTab !== 'provider' && (
           <div className="p-4 flex items-center justify-end gap-3">
             {hasChanges && (
-              <span className="text-sm text-destructive mr-2">有未保存的更改</span>
+              <span className="text-sm text-destructive mr-2">{t('common:unsavedChanges')}</span>
             )}
             <button
               onClick={handleClose}
               className="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-lg hover:bg-accent transition-colors"
             >
-              关闭
+              {t('common:close')}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !hasChanges}
               className="px-6 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              保存
+              {t('common:save')}
             </button>
           </div>
         )}

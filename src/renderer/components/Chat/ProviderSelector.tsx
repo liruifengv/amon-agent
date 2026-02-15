@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Server, ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 
 const ProviderSelector: React.FC = () => {
+  const { t } = useTranslation('chat');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -11,7 +13,7 @@ const ProviderSelector: React.FC = () => {
   const activeProvider = providers.find(p => p.id === activeProviderId);
   const displayName = claudeCodeMode
     ? 'Claude Code'
-    : (activeProvider?.name || '未配置');
+    : (activeProvider?.name || t('common:notConfigured'));
 
   const isDisabled = claudeCodeMode || providers.length === 0;
 
@@ -47,7 +49,7 @@ const ProviderSelector: React.FC = () => {
             : 'text-foreground border-border hover:bg-accent'
           }
         `}
-        title={claudeCodeMode ? 'Claude Code 模式' : (providers.length === 0 ? '请在设置中配置 Provider' : '切换 Provider')}
+        title={claudeCodeMode ? t('provider.claudeCodeMode') : (providers.length === 0 ? t('provider.pleaseConfigureProvider') : t('provider.switchProvider'))}
       >
         <Server className="w-4 h-4" />
         <span className="font-medium max-w-24 truncate">{displayName}</span>
@@ -60,7 +62,7 @@ const ProviderSelector: React.FC = () => {
       {open && !claudeCodeMode && providers.length > 0 && (
         <div className="absolute bottom-full left-0 mb-1 w-48 bg-popover rounded-lg shadow-lg border border-border py-1 z-50">
           <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-            选择 Provider
+            {t('provider.selectProvider')}
           </div>
           {providers.map((provider) => (
             <button

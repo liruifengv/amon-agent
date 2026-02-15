@@ -1,5 +1,6 @@
 import React from 'react';
 import { Circle, CheckCircle, ClipboardList } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export interface TodoItem {
   content: string;
@@ -38,6 +39,7 @@ const STATUS_CONFIG = {
  * TODO 列表显示组件
  */
 const TodoList: React.FC<TodoListProps> = ({ todos }) => {
+  const { t } = useTranslation('message');
   if (!todos || todos.length === 0) return null;
 
   const completedCount = todos.filter(t => t.status === 'completed').length;
@@ -50,7 +52,7 @@ const TodoList: React.FC<TodoListProps> = ({ todos }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-foreground">Tasks</span>
+            <span className="text-sm font-medium text-foreground">{t('tasks')}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">

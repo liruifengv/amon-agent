@@ -1,0 +1,9 @@
+{
+  "welcome": "欢迎使用 Amon",
+  "subtitle": "开始之前，请配置 AI 供应商或启用 Claude Code 模式",
+  "configureProvider": "配置供应商",
+  "enableClaudeCodeMode": "启用 Claude Code 模式",
+  "useLocalClaudeCode": "使用本地 Claude Code 配置和 API 密钥",
+  "startVibeCoding": "开启 VibeCoding~",
+  "enableFailed": "启用失败，请重试"
+}

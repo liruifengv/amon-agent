@@ -1,0 +1,13 @@
+{
+  "settings": "Settings...",
+  "file": "File",
+  "newSession": "New Session",
+  "edit": "Edit",
+  "view": "View",
+  "window": "Window",
+  "settingsWindowTitle": "Settings",
+  "selectWorkspaceDir": "Select Workspace Directory",
+  "selectImage": "Select Image",
+  "dialogCancel": "Cancel",
+  "dialogConfirm": "Confirm"
+}

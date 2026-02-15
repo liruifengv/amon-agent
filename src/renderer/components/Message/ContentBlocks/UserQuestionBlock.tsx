@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MessageCircleQuestion, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { UserQuestionRecord } from '../../../types';
 
 export interface UserQuestionBlockProps {
@@ -7,6 +8,7 @@ export interface UserQuestionBlockProps {
 }
 
 const UserQuestionBlock: React.FC<UserQuestionBlockProps> = ({ userQuestion }) => {
+  const { t } = useTranslation('message');
   const { questions, answers } = userQuestion;
   const hasAnswers = Object.keys(answers).length > 0;
   const [isExpanded, setIsExpanded] = useState(false);
@@ -19,7 +21,7 @@ const UserQuestionBlock: React.FC<UserQuestionBlockProps> = ({ userQuestion }) =
     if (answeredQuestions.length === 1) {
       return firstAnswer.length > 30 ? firstAnswer.slice(0, 30) + '...' : firstAnswer;
     }
-    return `${firstAnswer.length > 20 ? firstAnswer.slice(0, 20) + '...' : firstAnswer} 等 ${answeredQuestions.length} 个回答`;
+    return t('userQuestion.answerSummary', { answer: firstAnswer.length > 20 ? firstAnswer.slice(0, 20) + '...' : firstAnswer, count: answeredQuestions.length });
   };
 
   return (
@@ -55,7 +57,7 @@ const UserQuestionBlock: React.FC<UserQuestionBlockProps> = ({ userQuestion }) =
             hasAnswers ? 'text-info-muted-foreground' : 'text-muted-foreground'
           }`}
         >
-          {hasAnswers ? '已回答' : '已跳过'}
+          {hasAnswers ? t('userQuestion.answered') : t('userQuestion.skipped')}
         </span>
 
         {/* 折叠时显示答案摘要 */}
@@ -90,7 +92,7 @@ const UserQuestionBlock: React.FC<UserQuestionBlockProps> = ({ userQuestion }) =
                 {answer ? (
                   <div className="flex items-start gap-2 p-2 bg-info-muted rounded-md">
                     <span className="text-xs font-medium text-info whitespace-nowrap">
-                      回答:
+                      {t('userQuestion.answer')}
                     </span>
                     <span className="text-sm text-info-muted-foreground">
                       {answer}
@@ -99,7 +101,7 @@ const UserQuestionBlock: React.FC<UserQuestionBlockProps> = ({ userQuestion }) =
                 ) : (
                   <div className="p-2 bg-muted rounded-md">
                     <span className="text-xs text-muted-foreground italic">
-                      未回答
+                      {t('userQuestion.notAnswered')}
                     </span>
                   </div>
                 )}

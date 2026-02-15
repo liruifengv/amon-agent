@@ -1,5 +1,6 @@
 import React from 'react';
 import { Paperclip, ArrowUp, Square } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../store/sessionStore';
 import PermissionModeSelector from './PermissionModeSelector';
 import ProviderSelector from './ProviderSelector';
@@ -12,6 +13,7 @@ interface InputToolbarProps {
 }
 
 const InputToolbar: React.FC<InputToolbarProps> = ({ isLoading, canSend, onSend, onStop }) => {
+  const { t } = useTranslation('chat');
   const { currentSessionId } = useSessionStore();
 
   if (!currentSessionId) return null;
@@ -24,7 +26,7 @@ const InputToolbar: React.FC<InputToolbarProps> = ({ isLoading, canSend, onSend,
         <button
           disabled
           className="p-2 rounded-lg text-muted-foreground opacity-50 cursor-not-allowed"
-          title="附件 (开发中)"
+          title={t('attachment')}
         >
           <Paperclip className="w-4 h-4" />
         </button>
@@ -47,7 +49,7 @@ const InputToolbar: React.FC<InputToolbarProps> = ({ isLoading, canSend, onSend,
               text-background rounded-lg
               transition-colors
             "
-            title="停止生成"
+            title={t('stopGenerating')}
           >
             <Square className="h-4 w-4 fill-current" />
           </button>
@@ -63,7 +65,7 @@ const InputToolbar: React.FC<InputToolbarProps> = ({ isLoading, canSend, onSend,
                 : 'bg-muted text-muted-foreground cursor-not-allowed'
               }
             `}
-            title="发送消息"
+            title={t('sendMessage')}
           >
             <ArrowUp className="h-4 w-4" />
           </button>

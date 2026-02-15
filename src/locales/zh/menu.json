@@ -1,0 +1,13 @@
+{
+  "settings": "设置...",
+  "file": "文件",
+  "newSession": "新建会话",
+  "edit": "编辑",
+  "view": "视图",
+  "window": "窗口",
+  "settingsWindowTitle": "设置",
+  "selectWorkspaceDir": "选择工作空间目录",
+  "selectImage": "选择图片",
+  "dialogCancel": "取消",
+  "dialogConfirm": "确认"
+}

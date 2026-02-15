@@ -1,0 +1,9 @@
+{
+  "collapseSidebar": "Collapse Sidebar",
+  "settings": "Settings",
+  "newSession": "New Session",
+  "noSessions": "No Sessions",
+  "yesterday": "Yesterday",
+  "confirmDeleteSession": "Are you sure you want to delete session \"{{name}}\"?",
+  "deleteSession": "Delete Session"
+}

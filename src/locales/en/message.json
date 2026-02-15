@@ -1,0 +1,58 @@
+{
+  "tool": {
+    "readFile": "Read File",
+    "writeFile": "Write File",
+    "editFile": "Edit File",
+    "runCommand": "Run Command",
+    "findFiles": "Find Files",
+    "searchContent": "Search Content",
+    "fetchUrl": "Fetch URL",
+    "webSearch": "Web Search",
+    "runTask": "Run Task",
+    "updateTodos": "Update Todos",
+    "unknownTool": "Unknown Tool",
+    "input": "Input",
+    "output": "Output",
+    "error": "Error",
+    "receivingInput": "Receiving input...",
+    "executing": "Executing...",
+    "waiting": "Waiting...",
+    "toolUse": "Tool Use",
+    "toolCount_one": "{{count}} tool",
+    "toolCount_other": "{{count}} tools"
+  },
+  "thinking": "Thinking",
+  "working": "Working...",
+  "thinkingWithEllipsis": "Thinking...",
+  "enlargeImage": "Enlarge image",
+  "closeError": "Close error",
+  "permission": {
+    "allowed": "Allowed",
+    "denied": "Denied"
+  },
+  "userQuestion": {
+    "answered": "Answered",
+    "skipped": "Skipped",
+    "answer": "Answer:",
+    "notAnswered": "Not Answered",
+    "answerSummary": "{{answer}} and {{count}} more answers"
+  },
+  "planApproval": {
+    "waitingApproval": "Waiting for Approval",
+    "approved": "Approved",
+    "rejected": "Rejected",
+    "executePlan": "Execute Plan",
+    "reject": "Reject",
+    "approve": "Approve",
+    "feedback": "Feedback:",
+    "feedbackPlaceholder": "Enter feedback or rejection reason (optional)..."
+  },
+  "tokenUsage": {
+    "input": "Input",
+    "output": "Output",
+    "cache": "Cache"
+  },
+  "tasks": "Tasks",
+  "subagentWorking": "Subagent is working...",
+  "errors": "errors"
+}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FolderOpen, Plus, Check, AlertCircle, Home } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../store/sessionStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useChatStore } from '../../store/chatStore';
@@ -18,6 +19,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   currentWorkspace,
   onClose,
 }) => {
+  const { t } = useTranslation('chat');
   const { updateSessionWorkspace } = useSessionStore();
   const { settings, setFormData, saveSettings } = useSettingsStore();
   const sessionMessages = useChatStore((state) => state.sessionMessages);
@@ -94,7 +96,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                         border-b border-warning/30
                         flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-          <span>对话开始后无法更换工作空间</span>
+          <span>{t('workspace.cannotChangeAfterStart')}</span>
         </div>
       )}
 
@@ -122,7 +124,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                 ? 'text-primary'
                 : 'text-foreground'}`}
             >
-              默认目录
+              {t('workspace.defaultDirectory')}
             </div>
             <div className="text-xs text-muted-foreground truncate">
               {DEFAULT_WORKSPACE_PATH}
@@ -192,7 +194,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
                        transition-colors"
           >
             <Plus className="w-4 h-4" />
-            添加新工作空间
+            {t('workspace.addNewWorkspace')}
           </button>
         </div>
       </div>

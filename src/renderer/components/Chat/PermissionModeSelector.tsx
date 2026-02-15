@@ -6,16 +6,17 @@ import {
   ShieldOff,
   ChevronDown,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { PermissionMode } from '../../types';
 
 // 权限模式配置
-const PERMISSION_MODES: { value: PermissionMode; label: string; description: string; icon: React.ReactNode }[] = [
-  { value: 'default', label: '默认', description: '工具调用需要审批', icon: <Shield className="w-4 h-4" /> },
-  { value: 'acceptEdits', label: '自动编辑', description: '自动批准文件编辑', icon: <FileEdit className="w-4 h-4" /> },
-  { value: 'dontAsk', label: '不询问', description: '拒绝未允许的工具', icon: <XCircle className="w-4 h-4" /> },
-  { value: 'bypassPermissions', label: '绕过权限', description: '绕过所有权限检查', icon: <ShieldOff className="w-4 h-4" /> },
+const PERMISSION_MODES: { value: PermissionMode; labelKey: string; descriptionKey: string; icon: React.ReactNode }[] = [
+  { value: 'default', labelKey: 'permissionMode.default', descriptionKey: 'permissionMode.defaultDesc', icon: <Shield className="w-4 h-4" /> },
+  { value: 'acceptEdits', labelKey: 'permissionMode.acceptEdits', descriptionKey: 'permissionMode.acceptEditsDesc', icon: <FileEdit className="w-4 h-4" /> },
+  { value: 'dontAsk', labelKey: 'permissionMode.dontAsk', descriptionKey: 'permissionMode.dontAskDesc', icon: <XCircle className="w-4 h-4" /> },
+  { value: 'bypassPermissions', labelKey: 'permissionMode.bypassPermissions', descriptionKey: 'permissionMode.bypassPermissionsDesc', icon: <ShieldOff className="w-4 h-4" /> },
 ];
 
 interface PermissionModeSelectorProps {
@@ -23,6 +24,7 @@ interface PermissionModeSelectorProps {
 }
 
 const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({ sessionId }) => {
+  const { t } = useTranslation('chat');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -74,9 +76,9 @@ const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({ session
         `}
       >
         {currentModeConfig.icon}
-        <span className="font-medium">{currentModeConfig.label}</span>
+        <span className="font-medium">{t(currentModeConfig.labelKey)}</span>
         {isOverridden && (
-          <span className="text-[10px] opacity-70">(临时)</span>
+          <span className="text-[10px] opacity-70">{t('permissionMode.temporary')}</span>
         )}
         <ChevronDown className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -85,7 +87,7 @@ const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({ session
       {open && (
         <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover rounded-lg shadow-lg border border-border py-1 z-50">
           <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
-            当前会话权限模式
+            {t('permissionMode.currentSessionMode')}
           </div>
           {PERMISSION_MODES.map((mode) => (
             <button
@@ -108,13 +110,13 @@ const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({ session
                   text-sm font-medium
                   ${currentMode === mode.value ? 'text-primary' : 'text-foreground'}
                 `}>
-                  {mode.label}
+                  {t(mode.labelKey)}
                   {mode.value === settings.agent.permissionMode && (
-                    <span className="ml-1.5 text-[10px] text-muted-foreground">(全局)</span>
+                    <span className="ml-1.5 text-[10px] text-muted-foreground">{t('permissionMode.global')}</span>
                   )}
                 </div>
                 <div className="text-xs text-muted-foreground truncate">
-                  {mode.description}
+                  {t(mode.descriptionKey)}
                 </div>
               </div>
             </button>
@@ -126,7 +128,7 @@ const PermissionModeSelector: React.FC<PermissionModeSelectorProps> = ({ session
                 onClick={handleReset}
                 className="w-full px-3 py-2 text-left text-xs text-muted-foreground hover:bg-accent"
               >
-                重置为全局设置
+                {t('permissionMode.resetToGlobal')}
               </button>
             </>
           )}

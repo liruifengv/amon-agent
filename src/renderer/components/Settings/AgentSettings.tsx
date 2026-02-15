@@ -1,15 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import SystemPromptEditor from './SystemPromptEditor';
 import type { PermissionMode } from '../../types';
 import { Shield, FileEdit, XCircle, ShieldOff, Terminal } from 'lucide-react';
-
-const PERMISSION_MODES: { value: PermissionMode; label: string; description: string; icon: React.ReactNode }[] = [
-  { value: 'default', label: '默认', description: '工具调用需要审批', icon: <Shield className="w-6 h-6" /> },
-  { value: 'acceptEdits', label: '自动编辑', description: '自动批准文件编辑', icon: <FileEdit className="w-6 h-6" /> },
-  { value: 'dontAsk', label: '不询问', description: '拒绝未允许的工具', icon: <XCircle className="w-6 h-6" /> },
-  { value: 'bypassPermissions', label: '绕过权限', description: '绕过所有权限检查', icon: <ShieldOff className="w-6 h-6" /> },
-];
 
 interface AgentSettingsProps {
   onNavigateToProvider?: () => void;
@@ -17,6 +11,14 @@ interface AgentSettingsProps {
 
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) => {
   const { formData, setAgentFormData, clearSaveError } = useSettingsStore();
+  const { t } = useTranslation(['settings', 'common']);
+
+  const PERMISSION_MODES: { value: PermissionMode; label: string; description: string; icon: React.ReactNode }[] = [
+    { value: 'default', label: t('settings:agent.default'), description: t('settings:agent.defaultDesc'), icon: <Shield className="w-6 h-6" /> },
+    { value: 'acceptEdits', label: t('settings:agent.acceptEdits'), description: t('settings:agent.acceptEditsDesc'), icon: <FileEdit className="w-6 h-6" /> },
+    { value: 'dontAsk', label: t('settings:agent.dontAsk'), description: t('settings:agent.dontAskDesc'), icon: <XCircle className="w-6 h-6" /> },
+    { value: 'bypassPermissions', label: t('settings:agent.bypassPermissions'), description: t('settings:agent.bypassPermissionsDesc'), icon: <ShieldOff className="w-6 h-6" /> },
+  ];
 
   // 获取当前激活的 Provider
   const providers = formData.agent.providers || [];
@@ -27,25 +29,25 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
       {/* 当前供应商 */}
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
-          <span>当前供应商：</span>
+          <span>{t('settings:agent.currentProvider')}:</span>
           {activeProvider ? (
             <span className="text-primary font-medium">{activeProvider.name}</span>
           ) : (
-            <span className="text-warning">未配置</span>
+            <span className="text-warning">{t('common:notConfigured')}</span>
           )}
         </div>
         <button
           onClick={onNavigateToProvider}
           className="text-xs text-primary hover:text-primary/80"
         >
-          更改
+          {t('common:change')}
         </button>
       </div>
 
       {/* 权限模式 */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-3">
-          权限模式
+          {t('settings:agent.permissionMode')}
         </label>
         <div className="grid grid-cols-4 gap-3">
           {PERMISSION_MODES.map((mode) => (
@@ -79,9 +81,9 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         <div className="flex items-center gap-3">
           <Terminal className="w-5 h-5 text-muted-foreground" />
           <div>
-            <h3 className="text-sm font-medium text-foreground">Claude Code 模式</h3>
+            <h3 className="text-sm font-medium text-foreground">{t('settings:agent.claudeCodeMode')}</h3>
             <p className="text-xs text-muted-foreground">
-              开启后继承 Claude Code 配置和系统提示词
+              {t('settings:agent.claudeCodeModeDesc')}
             </p>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FileInfo } from '../../../types';
 import { FileText, Loader2 } from 'lucide-react';
 import { cn } from '@/renderer/lib/utils';
@@ -22,6 +23,7 @@ const FileMentionPopover: React.FC<FileMentionPopoverProps> = ({
   onSelect,
   onClose,
 }) => {
+  const { t } = useTranslation('chat');
   const listRef = useRef<HTMLDivElement>(null);
 
   // 自动滚动到选中项
@@ -63,7 +65,7 @@ const FileMentionPopover: React.FC<FileMentionPopoverProps> = ({
       }}
     >
       <div className="p-1.5 text-xs text-muted-foreground border-b border-border">
-        选择文件
+        {t('fileMention.selectFile')}
       </div>
       <div
         ref={listRef}
@@ -72,11 +74,11 @@ const FileMentionPopover: React.FC<FileMentionPopoverProps> = ({
         {isLoading ? (
           <div className="flex items-center justify-center py-4 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            <span className="text-sm">搜索中...</span>
+            <span className="text-sm">{t('fileMention.searching')}</span>
           </div>
         ) : files.length === 0 ? (
           <div className="py-4 text-center text-sm text-muted-foreground">
-            未找到文件
+            {t('fileMention.noFilesFound')}
           </div>
         ) : (
           files.map((file, index) => (
@@ -99,9 +101,9 @@ const FileMentionPopover: React.FC<FileMentionPopoverProps> = ({
         )}
       </div>
       <div className="p-1.5 text-xs text-muted-foreground border-t border-border flex gap-2">
-        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↑↓</kbd> 选择</span>
-        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> 确认</span>
-        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> 取消</span>
+        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">↑↓</kbd> {t('fileMention.select')}</span>
+        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> {t('fileMention.confirm')}</span>
+        <span><kbd className="px-1 py-0.5 bg-muted rounded text-[10px]">Esc</kbd> {t('fileMention.cancel')}</span>
       </div>
     </div>
   );

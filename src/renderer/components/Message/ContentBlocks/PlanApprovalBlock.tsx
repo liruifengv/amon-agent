@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ClipboardList, CheckCircle2, XCircle, ChevronDown, ChevronRight, Send } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Streamdown } from 'streamdown';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
@@ -19,6 +20,7 @@ export interface PlanApprovalBlockProps {
  * 用于显示 Claude 的执行计划并让用户审批
  */
 const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pendingRequest }) => {
+  const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(true);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +67,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
         border: 'border-primary/50',
         bg: 'bg-primary/5',
         icon: <ClipboardList className="w-4 h-4 text-primary" />,
-        text: '等待审批',
+        text: t('planApproval.waitingApproval'),
         textColor: 'text-primary',
       };
     }
@@ -74,7 +76,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
         border: 'border-success/30',
         bg: 'bg-success/5',
         icon: <CheckCircle2 className="w-4 h-4 text-success" />,
-        text: '已批准',
+        text: t('planApproval.approved'),
         textColor: 'text-success',
       };
     }
@@ -82,7 +84,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
       border: 'border-destructive/30',
       bg: 'bg-destructive/5',
       icon: <XCircle className="w-4 h-4 text-destructive" />,
-      text: '已拒绝',
+      text: t('planApproval.rejected'),
       textColor: 'text-destructive',
     };
   };
@@ -108,7 +110,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
 
         {/* 标题 */}
         <span className={`text-sm font-medium ${styles.textColor}`}>
-          执行计划
+          {t('planApproval.executePlan')}
         </span>
 
         {/* 状态标签 */}
@@ -136,7 +138,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
                   <textarea
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
-                    placeholder="输入反馈或拒绝原因（可选）..."
+                    placeholder={t('planApproval.feedbackPlaceholder')}
                     className="w-full px-3 py-2 pr-10 text-sm rounded-md border border-border bg-background text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
                     rows={2}
                     disabled={isSubmitting}
@@ -151,7 +153,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
                   disabled={isSubmitting}
                   className="px-3 py-1.5 text-sm font-medium rounded-md border border-destructive/50 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  拒绝
+                  {t('planApproval.reject')}
                 </button>
                 <button
                   onClick={handleApprove}
@@ -159,7 +161,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
                   className="px-3 py-1.5 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  批准执行
+                  {t('planApproval.approve')}
                 </button>
               </div>
             </>
@@ -169,7 +171,7 @@ const PlanApprovalBlock: React.FC<PlanApprovalBlockProps> = ({ planApproval, pen
           {!isPending && responseMessage && (
             <div className={`p-2 rounded-md ${isApproved ? 'bg-success/10' : 'bg-destructive/10'}`}>
               <span className={`text-xs font-medium ${isApproved ? 'text-success' : 'text-destructive'}`}>
-                反馈:
+                {t('planApproval.feedback')}
               </span>
               <span className="text-sm ml-2 text-foreground">
                 {responseMessage}

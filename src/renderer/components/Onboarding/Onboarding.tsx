@@ -1,10 +1,12 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Server, Terminal } from 'lucide-react';
 import LogoImage from '@/renderer/assets/images/Logo.png';
 import { useSettingsStore } from '@/renderer/store/settingsStore';
 import { toast } from 'sonner';
 
 const Onboarding: React.FC = () => {
+  const { t } = useTranslation('onboarding');
   const { settings } = useSettingsStore();
 
   const handleConfigureProvider = async () => {
@@ -14,7 +16,7 @@ const Onboarding: React.FC = () => {
 
   const handleEnableClaudeCode = async () => {
     // 先显示成功通知
-    toast.success('开启 VibeCoding~');
+    toast.success(t('startVibeCoding'));
 
     // 延迟更新设置，让 Toast 有时间显示
     setTimeout(async () => {
@@ -32,7 +34,7 @@ const Onboarding: React.FC = () => {
 
       if (!result.success) {
         console.error('Failed to enable Claude Code mode:', result.errors);
-        toast.error('启用失败，请重试');
+        toast.error(t('enableFailed'));
       }
     }, 1500); // 延迟 1.5 秒，让用户看到 Toast
   };
@@ -47,9 +49,9 @@ const Onboarding: React.FC = () => {
 
         {/* 欢迎语 */}
         <div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">欢迎使用 Amon</h1>
+          <h1 className="text-2xl font-semibold text-foreground mb-2">{t('welcome')}</h1>
           <p className="text-muted-foreground">
-            开始之前，请配置 AI 供应商或启用 Claude Code 模式
+            {t('subtitle')}
           </p>
         </div>
 
@@ -60,7 +62,7 @@ const Onboarding: React.FC = () => {
             className="flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             <Server className="w-5 h-5" />
-            配置供应商
+            {t('configureProvider')}
           </button>
 
           <button
@@ -69,10 +71,10 @@ const Onboarding: React.FC = () => {
           >
             <div className="flex items-center gap-2 text-foreground">
               <Terminal className="w-5 h-5" />
-              <span>启用 Claude Code 模式</span>
+              <span>{t('enableClaudeCodeMode')}</span>
             </div>
             <span className="text-xs text-muted-foreground">
-              使用本地 Claude Code 配置和 API 密钥
+              {t('useLocalClaudeCode')}
             </span>
           </button>
         </div>

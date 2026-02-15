@@ -1,0 +1,47 @@
+{
+  "expandSidebar": "展开侧边栏",
+  "newSession": "新建会话",
+  "startNewChat": "开始新对话",
+  "selectOrCreateSession": "选择一个会话或创建新会话开始对话",
+  "scrollToBottom": "回到底部",
+  "askAmon": "向 Amon 提问...（@ 提及文件）",
+  "selectOrCreateFirst": "请先选择或创建会话",
+  "removeImage": "移除图片",
+  "stopGenerating": "停止生成",
+  "sendMessage": "发送消息",
+  "addImage": "添加图片",
+  "attachment": "附件 (开发中)",
+  "permissionMode": {
+    "default": "默认",
+    "acceptEdits": "自动编辑",
+    "dontAsk": "不询问",
+    "bypassPermissions": "绕过权限",
+    "defaultDesc": "执行工具前询问",
+    "acceptEditsDesc": "文件编辑不询问",
+    "dontAskDesc": "所有操作均不询问",
+    "bypassPermissionsDesc": "跳过所有权限检查",
+    "temporary": "(临时)",
+    "global": "(全局)",
+    "currentSessionMode": "当前会话权限模式",
+    "resetToGlobal": "重置为全局设置"
+  },
+  "provider": {
+    "claudeCodeMode": "Claude Code 模式",
+    "pleaseConfigureProvider": "请在设置中配置 Provider",
+    "switchProvider": "切换 Provider",
+    "selectProvider": "选择 Provider"
+  },
+  "workspace": {
+    "cannotChangeAfterStart": "对话开始后无法更换工作空间",
+    "defaultDirectory": "默认目录",
+    "addNewWorkspace": "添加新工作空间"
+  },
+  "fileMention": {
+    "selectFile": "选择文件",
+    "searching": "搜索中...",
+    "noFilesFound": "未找到文件",
+    "select": "选择",
+    "confirm": "确认",
+    "cancel": "取消"
+  }
+}

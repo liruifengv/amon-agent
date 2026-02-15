@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Trash2 } from 'lucide-react';
+import i18n from '../../i18n';
 import { useSessionStore } from '../../store/sessionStore';
 import { useChatStore } from '../../store/chatStore';
 import { Button } from '../ui/button';
@@ -8,24 +10,26 @@ import { Input } from '../ui/input';
 /**
  * 格式化时间显示
  * - 今天: 显示时间 (如 14:30)
- * - 昨天: 显示 "昨天"
+ * - 昨天: 显示 "Yesterday" / "昨天"
  * - 今年内: 显示月日 (如 3/15)
  * - 更早: 显示年月日 (如 2024/3/15)
  */
-function formatTime(timestamp: string): string {
+function formatTime(timestamp: string, yesterdayLabel: string): string {
   const date = new Date(timestamp);
   const now = new Date();
-  
+
   const isToday = date.toDateString() === now.toDateString();
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   const isYesterday = date.toDateString() === yesterday.toDateString();
   const isThisYear = date.getFullYear() === now.getFullYear();
 
+  const locale = i18n.language === 'zh' ? 'zh-CN' : 'en-US';
+
   if (isToday) {
-    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false });
   } else if (isYesterday) {
-    return '昨天';
+    return yesterdayLabel;
   } else if (isThisYear) {
     return `${date.getMonth() + 1}/${date.getDate()}`;
   } else {
@@ -34,6 +38,7 @@ function formatTime(timestamp: string): string {
 }
 
 const SessionList: React.FC = () => {
+  const { t } = useTranslation('sidebar');
   const { sessions, currentSessionId, setCurrentSessionId, deleteSession, renameSession } =
     useSessionStore();
   const { loadMessages, clearSessionCache } = useChatStore();
@@ -63,8 +68,8 @@ const SessionList: React.FC = () => {
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
     const { confirmed } = await window.electronAPI.dialog.confirm({
-      title: '确认删除',
-      message: `确定要删除会话 "${name}" 吗？`,
+      title: t('deleteSession'),
+      message: t('confirmDeleteSession', { name }),
     });
     if (confirmed) {
       await deleteSession(id);
@@ -76,7 +81,7 @@ const SessionList: React.FC = () => {
   if (sessions.length === 0) {
     return (
       <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        暂无会话
+        {t('noSessions')}
       </div>
     );
   }
@@ -121,7 +126,7 @@ const SessionList: React.FC = () => {
                   {session.name}
                 </span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
-                  {formatTime(session.updatedAt)}
+                  {formatTime(session.updatedAt, t('yesterday'))}
                 </span>
               </div>
               <Button
@@ -129,7 +134,7 @@ const SessionList: React.FC = () => {
                 size="icon"
                 onClick={(e) => handleDelete(e, session.id, session.name)}
                 className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
-                title="删除会话"
+                title={t('deleteSession')}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

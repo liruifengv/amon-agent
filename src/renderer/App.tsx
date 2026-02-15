@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSettingsStore, initSettingsListeners } from './store/settingsStore';
 import { useSessionStore } from './store/sessionStore';
 import { useChatStore } from './store/chatStore';
@@ -8,6 +9,7 @@ import Onboarding from './components/Onboarding/Onboarding';
 import { Toaster } from './components/ui/sonner';
 
 const App: React.FC = () => {
+  const { t } = useTranslation();
   const { loadSettings, isLoading: settingsLoading, settings } = useSettingsStore();
   const { loadSessions, isLoading: sessionsLoading, currentSessionId } = useSessionStore();
   const { loadMessages, setLoadingStates } = useChatStore();
@@ -91,7 +93,7 @@ const App: React.FC = () => {
       <div className="h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground">加载中...</p>
+          <p className="text-sm text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );

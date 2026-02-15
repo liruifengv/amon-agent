@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { PanelLeft, SquarePen, MessageSquare, ArrowDown, Folder, ChevronDown, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useSessionStore } from '../../store/sessionStore';
 import { useChatStore } from '../../store/chatStore';
 import { Button } from '../ui/button';
@@ -15,6 +16,7 @@ interface ChatViewProps {
 }
 
 const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }) => {
+  const { t } = useTranslation('chat');
   const { currentSessionId, sessions, createSession } = useSessionStore();
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   
@@ -67,7 +69,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
               size="icon"
               onClick={onToggleSidebar}
               className="no-drag h-8 w-8"
-              title="展开侧边栏"
+              title={t('expandSidebar')}
             >
               <PanelLeft className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -76,7 +78,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
               size="icon"
               onClick={handleCreateSession}
               className="no-drag h-8 w-8"
-              title="新建会话"
+              title={t('newSession')}
             >
               <SquarePen className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -85,10 +87,10 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
         <div className="text-center">
           <MessageSquare className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
           <h2 className="text-xl font-medium text-muted-foreground mb-2">
-            开始新对话
+            {t('startNewChat')}
           </h2>
           <p className="text-muted-foreground">
-            选择一个会话或创建新会话开始对话
+            {t('selectOrCreateSession')}
           </p>
         </div>
       </div>
@@ -107,7 +109,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
               size="icon"
               onClick={onToggleSidebar}
               className="no-drag h-8 w-8 ml-16"
-              title="展开侧边栏"
+              title={t('expandSidebar')}
             >
               <PanelLeft className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -116,7 +118,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
               size="icon"
               onClick={handleCreateSession}
               className="no-drag h-8 w-8"
-              title="新建会话"
+              title={t('newSession')}
             >
               <SquarePen className="h-4 w-4 text-muted-foreground" />
             </Button>
@@ -124,7 +126,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
         )}
         <div className="flex-1 flex flex-col items-center justify-center relative">
           <h2 className="text-sm font-medium text-foreground truncate">
-            {currentSession?.name || '新会话'}
+            {currentSession?.name || t('newSession')}
           </h2>
           {/* 工作空间指示器 */}
           <button
@@ -133,7 +135,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
                        ${hasMessages
                          ? 'text-muted-foreground'
                          : 'text-muted-foreground hover:text-foreground'}`}
-            title={hasMessages ? '对话开始后无法更换工作空间' : '点击更换工作空间'}
+            title={hasMessages ? t('workspace.cannotChangeAfterStart') : undefined}
           >
             <Folder className="h-3 w-3" />
             <span className="truncate max-w-[200px]">{workspaceDisplay}</span>
@@ -171,7 +173,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
                        transition-all duration-200"
           >
             <ArrowDown className="w-3.5 h-3.5" />
-            回到底部
+            {t('scrollToBottom')}
           </button>
         </div>
       )}

@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect, useImperativeHandle } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { usePermissionStore } from '../../store/permissionStore';
@@ -17,6 +18,7 @@ interface MessageListProps {
 }
 
 const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNearBottom }, ref) => {
+  const { t } = useTranslation('message');
   const { currentSessionId } = useSessionStore();
   const { getMessages, getSessionError, clearSessionError } = useChatStore();
   const { getPendingRequest, getPendingQuestionRequest, getPendingPlanApprovalRequest } = usePermissionStore();
@@ -198,7 +200,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
               <button
                 onClick={() => currentSessionId && clearSessionError(currentSessionId)}
                 className="absolute top-2 right-2 p-1 text-destructive/70 hover:text-destructive rounded-md hover:bg-destructive/10 transition-colors"
-                aria-label="关闭错误提示"
+                aria-label={t('closeError')}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

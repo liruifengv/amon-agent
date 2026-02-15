@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FolderOpen, ExternalLink, Github, FileText } from 'lucide-react';
 import LogoImage from '@/renderer/assets/images/Logo.png';
 
 const AboutSettings: React.FC = () => {
   const [version, setVersion] = useState('0.0.0');
+  const { t } = useTranslation('settings');
 
   useEffect(() => {
     // 获取应用版本号
@@ -40,54 +42,54 @@ const AboutSettings: React.FC = () => {
           Amon
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          版本 {version}
+          {t('about.version')} {version}
         </p>
         <p className="text-sm text-muted-foreground mt-2">
-          你的桌面 AI 工作伙伴
+          {t('about.description')}
         </p>
       </div>
 
       <div className="p-4 bg-muted rounded-lg">
         <h3 className="text-sm font-medium text-foreground mb-3">
-          关于 Amon
+          {t('about.title')}
         </h3>
         <p className="text-sm text-muted-foreground leading-relaxed mb-3">
-          Amon 是运行在本地的智能 AI Coworker，基于 Claude Agent SDK 构建。它不仅能与你对话，还能真正帮你完成工作：编写代码、执行命令、搜索信息、管理文件。
+          {t('about.intro')}
         </p>
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-start gap-2">
-            <span className="text-primary">•</span>
-            <span><strong className="text-foreground">真正的工作伙伴</strong> — 能执行任务、操作文件、运行代码的智能助手，而非简单的对话机器人</span>
+            <span className="text-primary">&#8226;</span>
+            <span><strong className="text-foreground">{t('about.feature1Title')}</strong> &mdash; {t('about.feature1Desc')}</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-primary">•</span>
-            <span><strong className="text-foreground">本地优先</strong> — 数据存储在本地，保护隐私和安全</span>
+            <span className="text-primary">&#8226;</span>
+            <span><strong className="text-foreground">{t('about.feature2Title')}</strong> &mdash; {t('about.feature2Desc')}</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-primary">•</span>
-            <span><strong className="text-foreground">可扩展</strong> — 通过 Skills 系统扩展功能，适应不同工作场景</span>
+            <span className="text-primary">&#8226;</span>
+            <span><strong className="text-foreground">{t('about.feature3Title')}</strong> &mdash; {t('about.feature3Desc')}</span>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-primary">•</span>
-            <span><strong className="text-foreground">可视化界面</strong> — 为 Claude Code 提供友好的图形界面体验</span>
+            <span className="text-primary">&#8226;</span>
+            <span><strong className="text-foreground">{t('about.feature4Title')}</strong> &mdash; {t('about.feature4Desc')}</span>
           </div>
         </div>
       </div>
 
       <div className="p-4 bg-muted rounded-lg">
         <h3 className="text-sm font-medium text-foreground mb-3">
-          快捷键
+          {t('about.shortcutsTitle')}
         </h3>
         <ul className="text-sm text-muted-foreground space-y-1">
-          <li>• <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + ,</kbd> 打开设置</li>
-          <li>• <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + Enter</kbd> 发送消息</li>
-          <li>• <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + N</kbd> 新建会话</li>
+          <li>&#8226; <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + ,</kbd> {t('about.shortcutOpenSettings')}</li>
+          <li>&#8226; <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + Enter</kbd> {t('about.shortcutSendMessage')}</li>
+          <li>&#8226; <kbd className="px-1.5 py-0.5 bg-accent rounded text-xs">Cmd/Ctrl + N</kbd> {t('about.shortcutNewSession')}</li>
         </ul>
       </div>
 
       <div className="p-4 bg-muted rounded-lg">
         <h3 className="text-sm font-medium text-foreground mb-3">
-          链接
+          {t('about.links')}
         </h3>
         <div className="space-y-2">
           <button
@@ -96,7 +98,7 @@ const AboutSettings: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <Github className="w-4 h-4" />
-              GitHub 仓库
+              {t('about.githubRepo')}
             </span>
             <ExternalLink className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -106,7 +108,7 @@ const AboutSettings: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              使用文档
+              {t('about.documentation')}
             </span>
             <ExternalLink className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -116,7 +118,7 @@ const AboutSettings: React.FC = () => {
           >
             <span className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
-              开源协议 (AGPL-3.0)
+              {t('about.license')} (AGPL-3.0)
             </span>
             <ExternalLink className="w-4 h-4 text-muted-foreground" />
           </button>
@@ -125,17 +127,17 @@ const AboutSettings: React.FC = () => {
 
       <div className="p-4 bg-muted rounded-lg">
         <h3 className="text-sm font-medium text-foreground mb-3">
-          数据目录
+          {t('about.dataDirectory')}
         </h3>
         <p className="text-sm text-muted-foreground mb-3">
-          会话记录和设置文件存储在本地配置目录中。
+          {t('about.dataDirectoryDesc')}
         </p>
         <button
           onClick={handleOpenConfigDir}
           className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary hover:bg-primary/90 text-primary-foreground rounded-md transition-colors"
         >
           <FolderOpen className="w-4 h-4" />
-          打开配置目录
+          {t('about.openConfigDir')}
         </button>
       </div>
     </div>

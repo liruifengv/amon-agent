@@ -1,0 +1,8 @@
+{
+  "workspaceNameRequired": "Workspace name is required",
+  "workspacePathRequired": "Workspace path is required",
+  "providerNameRequired": "Provider name is required",
+  "apiUrlRequired": "API URL is required",
+  "apiKeyRequired": "API Key is required",
+  "modelNameRequired": "Model name is required"
+}

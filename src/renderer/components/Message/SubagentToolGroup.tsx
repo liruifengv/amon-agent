@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ToolCall } from '../../types';
 import { ChevronRight, Bot, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
 export interface SubagentToolGroupProps {
@@ -62,6 +63,7 @@ const SubagentToolGroup: React.FC<SubagentToolGroupProps> = ({
   childTools,
   defaultCollapsed = true,
 }) => {
+  const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
   const description = useMemo(() => getSubagentDescription(parentTool), [parentTool]);
@@ -105,7 +107,7 @@ const SubagentToolGroup: React.FC<SubagentToolGroupProps> = ({
           <span className="text-xs text-muted-foreground shrink-0">
             {stats.completed}/{stats.total}
             {stats.errors > 0 && (
-              <span className="text-red-500 ml-1">({stats.errors} errors)</span>
+              <span className="text-red-500 ml-1">({stats.errors} {t('errors')})</span>
             )}
           </span>
         )}
@@ -133,7 +135,7 @@ const SubagentToolGroup: React.FC<SubagentToolGroupProps> = ({
         <div className="border-t border-border px-3 py-2">
           <div className="ml-6 text-xs text-muted-foreground flex items-center gap-2">
             <Loader2 className="w-3 h-3 animate-spin" />
-            Subagent 正在工作...
+            {t('subagentWorking')}
           </div>
         </div>
       )}

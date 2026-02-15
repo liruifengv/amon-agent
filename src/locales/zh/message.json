@@ -1,0 +1,58 @@
+{
+  "tool": {
+    "readFile": "读取文件",
+    "writeFile": "写入文件",
+    "editFile": "编辑文件",
+    "runCommand": "执行命令",
+    "findFiles": "搜索文件",
+    "searchContent": "搜索内容",
+    "fetchUrl": "获取网页",
+    "webSearch": "网络搜索",
+    "runTask": "运行任务",
+    "updateTodos": "更新任务",
+    "unknownTool": "未知工具",
+    "input": "输入",
+    "output": "输出",
+    "error": "错误",
+    "receivingInput": "正在接收输入...",
+    "executing": "执行中...",
+    "waiting": "等待中...",
+    "toolUse": "工具调用",
+    "toolCount_one": "{{count}} 个工具",
+    "toolCount_other": "{{count}} 个工具"
+  },
+  "thinking": "思考中",
+  "working": "工作中...",
+  "thinkingWithEllipsis": "思考中...",
+  "enlargeImage": "放大查看",
+  "closeError": "关闭错误提示",
+  "permission": {
+    "allowed": "已允许",
+    "denied": "已拒绝"
+  },
+  "userQuestion": {
+    "answered": "已回答",
+    "skipped": "已跳过",
+    "answer": "回答:",
+    "notAnswered": "未回答",
+    "answerSummary": "{{answer}} 等 {{count}} 个回答"
+  },
+  "planApproval": {
+    "waitingApproval": "等待审批",
+    "approved": "已批准",
+    "rejected": "已拒绝",
+    "executePlan": "执行计划",
+    "reject": "拒绝",
+    "approve": "批准执行",
+    "feedback": "反馈:",
+    "feedbackPlaceholder": "输入反馈或拒绝原因（可选）..."
+  },
+  "tokenUsage": {
+    "input": "输入",
+    "output": "输出",
+    "cache": "缓存"
+  },
+  "tasks": "任务",
+  "subagentWorking": "Subagent 正在工作...",
+  "errors": "错误"
+}

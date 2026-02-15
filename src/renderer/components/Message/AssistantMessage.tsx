@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Message, MessageContentBlock, ToolCall } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 import ToolGroup from './ToolGroup';
@@ -172,6 +173,7 @@ function extractLatestTodos(blocks: MessageContentBlock[]): TodoItem[] | null {
  * 助手消息组件
  */
 const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, defaultCollapsed = false }) => {
+  const { t } = useTranslation('message');
   const { contentBlocks, isStreaming } = message;
 
   // 分组内容块
@@ -243,7 +245,7 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, defaultCol
         <div className="mt-3 flex items-center gap-2">
           <span className="inline-block w-2 h-2 bg-primary rounded-full animate-pulse" />
           <span className="text-sm font-medium text-primary/80 animate-pulse">
-            工作中...
+            {t('working')}
           </span>
         </div>
       )}
@@ -254,13 +256,16 @@ const AssistantMessage: React.FC<AssistantMessageProps> = ({ message, defaultCol
 /**
  * 加载动画组件 - 思考中状态
  */
-const LoadingIndicator: React.FC = () => (
-  <div className="flex items-center gap-2">
-    <span className="inline-block w-2 h-2 bg-thinking rounded-full animate-pulse" />
-    <span className="text-sm font-medium text-thinking-foreground animate-pulse">
-      思考中...
-    </span>
-  </div>
-);
+const LoadingIndicator: React.FC = () => {
+  const { t } = useTranslation('message');
+  return (
+    <div className="flex items-center gap-2">
+      <span className="inline-block w-2 h-2 bg-thinking rounded-full animate-pulse" />
+      <span className="text-sm font-medium text-thinking-foreground animate-pulse">
+        {t('thinkingWithEllipsis')}
+      </span>
+    </div>
+  );
+};
 
 export default AssistantMessage;

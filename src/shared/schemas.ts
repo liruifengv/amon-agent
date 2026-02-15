@@ -97,6 +97,9 @@ export const SettingsSchema = z.object({
   // 主题
   theme: z.enum(['light', 'dark', 'system']).default('system'),
 
+  // 语言
+  language: z.enum(['en', 'zh']).default('en'),
+
   // 快捷键配置
   shortcuts: ShortcutsSchema.default(DEFAULT_SHORTCUTS),
 
@@ -114,6 +117,7 @@ export type Settings = z.infer<typeof SettingsSchema>;
 // 默认设置
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
+  language: 'en',
   shortcuts: DEFAULT_SHORTCUTS,
   workspaces: [],
   agent: DEFAULT_AGENT_SETTINGS,

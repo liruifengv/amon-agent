@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Check,
   X,
@@ -30,6 +31,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
   customAnswer,
   onCustomAnswerChange,
 }) => {
+  const { t } = useTranslation('permission');
   const [showOther, setShowOther] = useState(false);
 
   const handleOptionClick = (label: string) => {
@@ -140,7 +142,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
               {showOther && <Check className="w-2.5 h-2.5 text-info-foreground" />}
             </div>
             <span className="text-sm font-medium text-foreground">
-              Other
+              {t('askUserQuestion.other')}
             </span>
           </div>
         </button>
@@ -157,7 +159,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
                   handleCustomSubmit();
                 }
               }}
-              placeholder="Enter your answer..."
+              placeholder={t('askUserQuestion.enterAnswer')}
               className="flex-1 px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-info"
               autoFocus
             />
@@ -169,6 +171,7 @@ const QuestionItem: React.FC<QuestionItemProps> = ({
 };
 
 const AskUserQuestionRequest: React.FC<AskUserQuestionRequestProps> = ({ request }) => {
+  const { t } = useTranslation('permission');
   const { respondToQuestionRequest } = usePermissionStore();
   // 根据请求的 timestamp 计算剩余时间
   const [countdown, setCountdown] = useState(() => calculateRemainingSeconds(request.timestamp));
@@ -248,7 +251,7 @@ const AskUserQuestionRequest: React.FC<AskUserQuestionRequestProps> = ({ request
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <MessageCircleQuestion className="w-4 h-4 text-info" />
         <span className="text-sm font-medium text-foreground">
-          Claude 需要您的输入
+          {t('askUserQuestion.claudeNeedsInput')}
         </span>
         <span className="text-xs text-muted-foreground ml-auto">{countdown}s</span>
       </div>
@@ -263,7 +266,7 @@ const AskUserQuestionRequest: React.FC<AskUserQuestionRequestProps> = ({ request
                 className="w-full flex items-center justify-between py-2 text-left"
               >
                 <span className="text-xs font-medium text-muted-foreground">
-                  问题 {index + 1}/{request.questions.length}
+                  {t('askUserQuestion.questionProgress', { current: index + 1, total: request.questions.length })}
                 </span>
                 {expandedQuestions.has(index) ? (
                   <ChevronUp className="w-4 h-4 text-muted-foreground" />
@@ -295,7 +298,7 @@ const AskUserQuestionRequest: React.FC<AskUserQuestionRequestProps> = ({ request
             hover:bg-accent transition-colors"
         >
           <X className="w-4 h-4" />
-          跳过
+          {t('askUserQuestion.skip')}
         </button>
         <button
           onClick={handleSubmit}
@@ -308,7 +311,7 @@ const AskUserQuestionRequest: React.FC<AskUserQuestionRequestProps> = ({ request
             }`}
         >
           <Check className="w-4 h-4" />
-          提交
+          {t('askUserQuestion.submit')}
         </button>
       </div>
     </div>

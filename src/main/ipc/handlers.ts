@@ -13,6 +13,7 @@ import * as skillsStore from '../store/skillsStore';
 import * as workspaceService from '../services/workspaceService';
 import { openSettingsWindow, closeSettingsWindow, registerShortcuts } from '../index';
 import { createLogger } from '../store/logger';
+import mainI18n from '../i18n';
 
 const log = createLogger('IpcHandlers');
 
@@ -222,6 +223,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       if (settings.shortcuts) {
         await registerShortcuts(newSettings.shortcuts);
       }
+      // 如果语言设置有变更，同步主进程 i18n（菜单重建由 languageChanged 事件自动触发）
+      if (settings.language) {
+        mainI18n.changeLanguage(newSettings.language);
+      }
       return { success: true, data: newSettings };
     } catch (error) {
       if (error instanceof configStore.SettingsValidationFailedError) {
@@ -386,7 +391,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     async (): Promise<{ success: boolean; path: string | null }> => {
       const result = await dialog.showOpenDialog({
         properties: ['openDirectory', 'createDirectory'],
-        title: '选择工作空间目录',
+        title: mainI18n.t('selectWorkspaceDir'),
       });
 
       if (result.canceled || result.filePaths.length === 0) {
@@ -403,7 +408,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     async (_event, options: { title: string; message: string; detail?: string }): Promise<{ confirmed: boolean }> => {
       const result = await dialog.showMessageBox({
         type: 'question',
-        buttons: ['取消', '确认'],
+        buttons: [mainI18n.t('dialogCancel'), mainI18n.t('dialogConfirm')],
         defaultId: 0,
         cancelId: 0,
         title: options.title,
@@ -424,7 +429,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         filters: [
           { name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }
         ],
-        title: '选择图片',
+        title: mainI18n.t('selectImage'),
       });
 
       if (result.canceled || result.filePaths.length === 0) {

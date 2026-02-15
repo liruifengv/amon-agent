@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { Square, ArrowUp, Paperclip, X } from 'lucide-react';
@@ -17,6 +18,7 @@ interface InputAreaProps {
 }
 
 const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
+  const { t } = useTranslation('chat');
   const [input, setInput] = useState('');
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -244,7 +246,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                       rounded-full opacity-0 group-hover:opacity-100
                       transition-opacity
                     "
-                    title="移除图片"
+                    title={t('removeImage')}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -275,7 +277,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder={currentSessionId ? '向 Amon 提问...（@ 提及文件）' : '请先选择或创建会话'}
+                placeholder={currentSessionId ? t('askAmon') : t('selectOrCreateFirst')}
                 disabled={!currentSessionId}
                 rows={1}
                 className={`
@@ -320,7 +322,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                       : 'text-muted-foreground opacity-50 cursor-not-allowed'
                     }
                   `}
-                  title={images.length >= MAX_IMAGES ? `最多上传 ${MAX_IMAGES} 张图片` : '添加图片'}
+                  title={images.length >= MAX_IMAGES ? `${t('addImage')} (max ${MAX_IMAGES})` : t('addImage')}
                 >
                   <Paperclip className="w-5 h-5" />
                 </button>
@@ -339,7 +341,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                     text-background rounded-full
                     transition-colors
                   "
-                  title="停止生成"
+                  title={t('stopGenerating')}
                 >
                   <Square className="w-4 h-4 fill-current" />
                 </button>
@@ -355,7 +357,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                       : 'bg-primary/10 text-primary/40 border-primary/20 cursor-not-allowed'
                     }
                   `}
-                  title="发送消息"
+                  title={t('sendMessage')}
                 >
                   <ArrowUp className="w-4 h-4" />
                 </button>

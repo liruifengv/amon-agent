@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Sparkles, FolderOpen, RefreshCw, ChevronDown, ChevronRight, AlertCircle, Home, Folder, Download, Check, X, Trash2 } from 'lucide-react';
 import type { SkillsLoadResult, Skill, WorkspaceSkills, RecommendedSkill, Workspace, SkillInstallTarget } from '../../types';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -15,6 +16,7 @@ interface InstallDialogProps {
 }
 
 const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInstall, onClose }) => {
+  const { t } = useTranslation(['settings', 'common']);
   const [selectedTarget, setSelectedTarget] = useState<'system' | string>('system');
 
   const handleInstall = () => {
@@ -34,7 +36,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
         {/* 头部 */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-base font-medium text-foreground">
-            安装 {skill.metadata.name}
+            {t('settings:skills.installSkill', { name: skill.metadata.name })}
           </h3>
           <button
             onClick={onClose}
@@ -47,7 +49,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
         {/* 内容 */}
         <div className="p-4">
           <label className="block text-sm font-medium text-foreground mb-2">
-            安装位置
+            {t('settings:skills.installLocation')}
           </label>
           <select
             value={selectedTarget}
@@ -57,7 +59,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
                        focus:ring-2 focus:ring-primary focus:border-primary
                        outline-none transition-colors"
           >
-            <option value="system">系统级 (~/.claude/skills)</option>
+            <option value="system">{t('settings:skills.systemLevel')} (~/.claude/skills)</option>
             {workspaces.map((ws) => (
               <option key={ws.id} value={ws.path}>
                 {ws.name}
@@ -66,8 +68,8 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
           </select>
           <p className="mt-2 text-xs text-muted-foreground">
             {selectedTarget === 'system'
-              ? '系统级 Skills 对所有会话可用'
-              : '工作空间 Skills 仅在该工作空间内可用'}
+              ? t('settings:skills.systemSkillsAvailable')
+              : t('settings:skills.workspaceSkillsAvailable')}
           </p>
         </div>
 
@@ -78,7 +80,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
             className="px-3 py-1.5 text-sm text-muted-foreground
                        hover:bg-accent rounded-lg transition-colors"
           >
-            取消
+            {t('common:cancel')}
           </button>
           <button
             onClick={handleInstall}
@@ -88,7 +90,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
                        flex items-center gap-1.5"
           >
             <Download className="w-3.5 h-3.5" />
-            安装
+            {t('common:install')}
           </button>
         </div>
       </div>
@@ -97,6 +99,7 @@ const InstallDialog: React.FC<InstallDialogProps> = ({ skill, workspaces, onInst
 };
 
 const SkillsSettings: React.FC = () => {
+  const { t } = useTranslation(['settings', 'common']);
   const [activeTab, setActiveTab] = useState<TabType>('installed');
   const [skillsData, setSkillsData] = useState<SkillsLoadResult | null>(null);
   const [recommendedSkills, setRecommendedSkills] = useState<RecommendedSkill[]>([]);
@@ -124,7 +127,7 @@ const SkillsSettings: React.FC = () => {
       });
       setExpandedSections(sections);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
+      setError(err instanceof Error ? err.message : t('settings:skills.loadFailed'));
     } finally {
       setIsLoadingInstalled(false);
     }
@@ -165,10 +168,10 @@ const SkillsSettings: React.FC = () => {
         // 重新加载列表
         await refreshAll();
       } else {
-        setError(result.error || '安装失败');
+        setError(result.error || t('settings:skills.installFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '安装失败');
+      setError(err instanceof Error ? err.message : t('settings:skills.installFailed'));
     } finally {
       setInstalling(null);
     }
@@ -177,9 +180,9 @@ const SkillsSettings: React.FC = () => {
   const handleUninstall = async (skill: Skill) => {
     // 确认卸载
     const confirmed = await window.electronAPI.dialog.confirm({
-      title: '卸载 Skill',
-      message: `确定要卸载 ${skill.metadata.name} 吗？`,
-      detail: '此操作将删除该 Skill 的所有文件。',
+      title: t('settings:skills.uninstallConfirmTitle'),
+      message: t('settings:skills.uninstallConfirmMessage', { name: skill.metadata.name }),
+      detail: t('settings:skills.uninstallConfirmDetail'),
     });
 
     if (!confirmed.confirmed) return;
@@ -190,10 +193,10 @@ const SkillsSettings: React.FC = () => {
       if (result.success) {
         await refreshAll();
       } else {
-        setError(result.error || '卸载失败');
+        setError(result.error || t('settings:skills.uninstallFailed'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '卸载失败');
+      setError(err instanceof Error ? err.message : t('settings:skills.uninstallFailed'));
     } finally {
       setUninstalling(null);
     }
@@ -241,7 +244,7 @@ const SkillsSettings: React.FC = () => {
           onClick={(e) => handleOpenSkillFolder(e, skill.path)}
           className="text-xs text-muted-foreground truncate flex items-center gap-1
                      hover:text-primary transition-colors"
-          title="打开文件夹"
+          title={t('settings:skills.openFolder')}
         >
           <FolderOpen className="w-3 h-3 flex-shrink-0" />
           <span className="truncate max-w-[120px]">{formatPathWithTilde(skill.path)}</span>
@@ -253,7 +256,7 @@ const SkillsSettings: React.FC = () => {
                      text-destructive hover:bg-destructive/10
                      rounded transition-colors
                      disabled:opacity-50 disabled:cursor-not-allowed"
-          title="卸载"
+          title={t('common:uninstall')}
         >
           {uninstalling === skill.id ? (
             <RefreshCw className="w-3 h-3 animate-spin" />
@@ -290,7 +293,9 @@ const SkillsSettings: React.FC = () => {
           <div className="flex items-center gap-2 text-xs text-success">
             <Check className="w-4 h-4" />
             <span>
-              已安装到{skill.installedAt === 'system' ? '系统' : skill.installedWorkspace}
+              {skill.installedAt === 'system'
+                ? t('settings:skills.installedToSystem')
+                : t('settings:skills.installedToWorkspace', { workspace: skill.installedWorkspace })}
             </span>
           </div>
         ) : (
@@ -305,12 +310,12 @@ const SkillsSettings: React.FC = () => {
             {installing === skill.id ? (
               <>
                 <RefreshCw className="w-3 h-3 animate-spin" />
-                安装中...
+                {t('settings:skills.installing')}
               </>
             ) : (
               <>
                 <Download className="w-3 h-3" />
-                安装
+                {t('common:install')}
               </>
             )}
           </button>
@@ -364,7 +369,7 @@ const SkillsSettings: React.FC = () => {
                   <span
                     onClick={handleOpenFolder}
                     className="inline-flex items-center text-muted-foreground hover:text-primary transition-colors"
-                    title="打开文件夹"
+                    title={t('settings:skills.openFolder')}
                   >
                     <Folder className="w-3 h-3" />
                   </span>
@@ -380,7 +385,7 @@ const SkillsSettings: React.FC = () => {
               <div className="text-center py-8 text-muted-foreground
                               bg-muted rounded-lg">
                 <Sparkles className="w-6 h-6 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">暂无 Skills</p>
+                <p className="text-sm">{t('settings:skills.noSkills')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -405,7 +410,7 @@ const SkillsSettings: React.FC = () => {
                      hover:bg-primary/90 transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
-          重试
+          {t('common:retry')}
         </button>
       </div>
     );
@@ -419,8 +424,7 @@ const SkillsSettings: React.FC = () => {
       {/* 说明 */}
       <div>
         <p className="text-xs text-muted-foreground">
-          Skills 是包含 SKILL.md 文件的文件夹，用于扩展 Claude 的能力。
-          系统级 Skills 位于 ~/.claude/skills，工作空间 Skills 位于各工作空间的 .claude/skills 目录。
+          {t('settings:skills.skillsDesc')}
         </p>
       </div>
 
@@ -435,7 +439,7 @@ const SkillsSettings: React.FC = () => {
             }`}
         >
           <FolderOpen className="w-4 h-4" />
-          已安装 ({totalInstalledSkills})
+          {t('settings:skills.installed')} ({totalInstalledSkills})
         </button>
         <button
           onClick={() => setActiveTab('recommended')}
@@ -446,7 +450,7 @@ const SkillsSettings: React.FC = () => {
             }`}
         >
           <Download className="w-4 h-4" />
-          推荐 ({recommendedSkills.length})
+          {t('settings:skills.recommended')} ({recommendedSkills.length})
         </button>
       </div>
 
@@ -457,12 +461,12 @@ const SkillsSettings: React.FC = () => {
           {isLoadingInstalled ? (
             <div className="flex flex-col items-center justify-center py-12">
               <RefreshCw className="w-6 h-6 text-primary animate-spin mb-3" />
-              <p className="text-sm text-muted-foreground">加载中...</p>
+              <p className="text-sm text-muted-foreground">{t('common:loading')}</p>
             </div>
           ) : (
             <div className="space-y-4">
             {renderSection(
-              '系统 Skills',
+              t('settings:skills.systemSkills'),
               'system',
               skillsData?.systemSkills || [],
               <Home className="w-5 h-5 text-muted-foreground" />,
@@ -490,20 +494,20 @@ const SkillsSettings: React.FC = () => {
         <div className="space-y-4">
           {/* 头部 */}
           <p className="text-sm text-muted-foreground">
-            官方推荐的 Skills，点击安装按钮添加到您的系统或工作空间
+            {t('settings:skills.recommendedDesc')}
           </p>
 
           {/* 推荐 Skills 网格 */}
           {isLoadingRecommended ? (
             <div className="flex flex-col items-center justify-center py-12">
               <RefreshCw className="w-6 h-6 text-primary animate-spin mb-3" />
-              <p className="text-sm text-muted-foreground">从网络加载中...</p>
+              <p className="text-sm text-muted-foreground">{t('settings:skills.loadingFromNetwork')}</p>
             </div>
           ) : recommendedSkills.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground
                             bg-muted rounded-lg">
               <Sparkles className="w-8 h-8 mx-auto mb-3 opacity-50" />
-              <p className="text-sm">暂无推荐的 Skills</p>
+              <p className="text-sm">{t('settings:skills.noRecommendedSkills')}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

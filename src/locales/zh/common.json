@@ -1,0 +1,22 @@
+{
+  "loading": "加载中...",
+  "save": "保存",
+  "cancel": "取消",
+  "confirm": "确认",
+  "delete": "删除",
+  "close": "关闭",
+  "add": "添加",
+  "edit": "编辑",
+  "rename": "重命名",
+  "retry": "重试",
+  "default": "默认",
+  "change": "更改",
+  "enable": "启用",
+  "install": "安装",
+  "uninstall": "卸载",
+  "notConfigured": "未配置",
+  "notSet": "未设置",
+  "saveFailed": "保存失败，请稍后重试",
+  "confirmDelete": "确认删除",
+  "unsavedChanges": "有未保存的更改"
+}

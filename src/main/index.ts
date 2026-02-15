@@ -8,6 +8,7 @@ import { getSettings } from './store/configStore';
 import { sessionStore } from './store/sessionStore';
 import { persistence } from './store/persistence';
 import type { Shortcuts } from '../shared/types';
+import mainI18n from './i18n';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -85,7 +86,7 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
         { role: 'about' as const },
         { type: 'separator' as const },
         {
-          label: '设置...',
+          label: mainI18n.t('settings'),
           accelerator: shortcutConfig.openSettings,
           click: () => toggleSettingsWindow(),
         },
@@ -102,10 +103,10 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
 
     // 文件菜单
     {
-      label: '文件',
+      label: mainI18n.t('file'),
       submenu: [
         {
-          label: '新建会话',
+          label: mainI18n.t('newSession'),
           accelerator: shortcutConfig.newSession,
           click: () => {
             if (mainWindow && !mainWindow.isDestroyed()) {
@@ -117,7 +118,7 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
         { type: 'separator' },
         ...(!isMac ? [
           {
-            label: '设置...',
+            label: mainI18n.t('settings'),
             accelerator: shortcutConfig.openSettings,
             click: () => toggleSettingsWindow(),
           },
@@ -129,7 +130,7 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
 
     // 编辑菜单
     {
-      label: '编辑',
+      label: mainI18n.t('edit'),
       submenu: [
         { role: 'undo' as const },
         { role: 'redo' as const },
@@ -151,7 +152,7 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
 
     // 视图菜单
     {
-      label: '视图',
+      label: mainI18n.t('view'),
       submenu: [
         { role: 'reload' as const },
         { role: 'forceReload' as const },
@@ -167,7 +168,7 @@ export async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
 
     // 窗口菜单
     {
-      label: '窗口',
+      label: mainI18n.t('window'),
       submenu: [
         { role: 'minimize' as const },
         { role: 'zoom' as const },
@@ -266,7 +267,7 @@ export function openSettingsWindow(tab?: string): void {
     resizable: true,
     show: false,
     backgroundColor: '#ffffff',
-    title: '设置',
+    title: mainI18n.t('settingsWindowTitle'),
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
     webPreferences: {
@@ -328,6 +329,15 @@ app.on('ready', async () => {
 
   // 确保默认工作空间目录存在
   await persistence.ensureDefaultWorkspace();
+
+  // 初始化主进程 i18n 语言（从已保存的设置中读取）
+  const savedSettings = await getSettings();
+  mainI18n.changeLanguage(savedSettings.language);
+
+  // 语言切换时自动重建菜单
+  mainI18n.on('languageChanged', () => {
+    createAppMenu();
+  });
 
   createWindow();
 

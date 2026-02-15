@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Message } from '../../types';
 import UserMessage from './UserMessage';
 import AssistantMessage from './AssistantMessage';
@@ -53,6 +54,8 @@ interface MessageFooterProps {
 }
 
 const MessageFooter: React.FC<MessageFooterProps> = ({ message, isUser }) => {
+  const { i18n } = useTranslation();
+  const locale = i18n.language === 'zh' ? 'zh-CN' : 'en-US';
   const showTokenUsage = !isUser && !message.isStreaming && message.tokenUsage;
 
   return (
@@ -62,7 +65,7 @@ const MessageFooter: React.FC<MessageFooterProps> = ({ message, isUser }) => {
 
       {/* 时间戳 */}
       <div className="text-[11px] text-muted-foreground">
-        {formatTimestamp(message.timestamp)}
+        {formatTimestamp(message.timestamp, locale)}
       </div>
     </div>
   );
@@ -71,8 +74,8 @@ const MessageFooter: React.FC<MessageFooterProps> = ({ message, isUser }) => {
 /**
  * 格式化时间戳
  */
-function formatTimestamp(timestamp: string): string {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+function formatTimestamp(timestamp: string, locale: string): string {
+  return new Date(timestamp).toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',
   });

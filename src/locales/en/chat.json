@@ -1,0 +1,47 @@
+{
+  "expandSidebar": "Expand Sidebar",
+  "newSession": "New Session",
+  "startNewChat": "Start a New Chat",
+  "selectOrCreateSession": "Select or create a session to start chatting",
+  "scrollToBottom": "Scroll to Bottom",
+  "askAmon": "Ask Amon... (@ to mention files)",
+  "selectOrCreateFirst": "Please select or create a session first",
+  "removeImage": "Remove Image",
+  "stopGenerating": "Stop Generating",
+  "sendMessage": "Send Message",
+  "addImage": "Add Image",
+  "attachment": "Attachment (WIP)",
+  "permissionMode": {
+    "default": "Default",
+    "acceptEdits": "Auto Edit",
+    "dontAsk": "Don't Ask",
+    "bypassPermissions": "Bypass Permissions",
+    "defaultDesc": "Ask before executing tools",
+    "acceptEditsDesc": "Allow file edits without asking",
+    "dontAskDesc": "Allow all operations without asking",
+    "bypassPermissionsDesc": "Skip all permission checks",
+    "temporary": "(Temporary)",
+    "global": "(Global)",
+    "currentSessionMode": "Current Session Permission Mode",
+    "resetToGlobal": "Reset to Global Setting"
+  },
+  "provider": {
+    "claudeCodeMode": "Claude Code Mode",
+    "pleaseConfigureProvider": "Please configure a Provider in Settings",
+    "switchProvider": "Switch Provider",
+    "selectProvider": "Select Provider"
+  },
+  "workspace": {
+    "cannotChangeAfterStart": "Cannot change workspace after the chat starts",
+    "defaultDirectory": "Default Directory",
+    "addNewWorkspace": "Add New Workspace"
+  },
+  "fileMention": {
+    "selectFile": "Select File",
+    "searching": "Searching...",
+    "noFilesFound": "No Files Found",
+    "select": "Select",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  }
+}

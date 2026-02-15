@@ -1,0 +1,15 @@
+{
+  "permissionRequest": "权限请求",
+  "viewDetailParams": "查看详细参数",
+  "deny": "拒绝",
+  "allow": "允许",
+  "userDeniedOperation": "用户拒绝了此操作",
+  "askUserQuestion": {
+    "claudeNeedsInput": "Claude 需要您的输入",
+    "questionProgress": "问题 {{current}}/{{total}}",
+    "other": "其他",
+    "enterAnswer": "输入回答...",
+    "skip": "跳过",
+    "submit": "提交"
+  }
+}
