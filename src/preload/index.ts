@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/ipc';
-import { Settings, Session, Message, ToolPermissionRequest, PermissionResult, AskUserQuestionRequest, PlanApprovalRequest, PlanApprovalResponse, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, MessageOptions, SettingsSetResult, MessageCompleteData, ImageAttachment, FileInfo } from '../shared/types';
+import { Settings, Session, Message, SkillsLoadResult, RecommendedSkill, SkillInstallTarget, SettingsSetResult, MessageCompleteData, ImageAttachment, FileInfo, ProviderInfo, ModelInfo } from '../shared/types';
 
 // 推送事件回调类型
 type MessagesUpdatedCallback = (data: { sessionId: string; messages: Message[] }) => void;
@@ -10,11 +10,7 @@ type MessageErrorCallback = (data: { sessionId: string; error: string }) => void
 type SessionCreatedCallback = (session: Session) => void;
 type SessionDeletedCallback = (data: { sessionId: string }) => void;
 type SessionUpdatedCallback = (session: Session) => void;
-type SdkSessionIdCallback = (data: { sessionId: string; sdkSessionId: string }) => void;
 type SettingsChangedCallback = (settings: Settings) => void;
-type PermissionRequestCallback = (request: ToolPermissionRequest) => void;
-type AskUserQuestionRequestCallback = (request: AskUserQuestionRequest) => void;
-type PlanApprovalRequestCallback = (request: PlanApprovalRequest) => void;
 
 // 回调列表
 const messagesUpdatedCallbacks: Set<MessagesUpdatedCallback> = new Set();
@@ -24,12 +20,8 @@ const messageErrorCallbacks: Set<MessageErrorCallback> = new Set();
 const sessionCreatedCallbacks: Set<SessionCreatedCallback> = new Set();
 const sessionDeletedCallbacks: Set<SessionDeletedCallback> = new Set();
 const sessionUpdatedCallbacks: Set<SessionUpdatedCallback> = new Set();
-const sdkSessionIdCallbacks: Set<SdkSessionIdCallback> = new Set();
 const settingsChangedCallbacks: Set<SettingsChangedCallback> = new Set();
 const newSessionShortcutCallbacks: Set<() => void> = new Set();
-const permissionRequestCallbacks: Set<PermissionRequestCallback> = new Set();
-const askUserQuestionRequestCallbacks: Set<AskUserQuestionRequestCallback> = new Set();
-const planApprovalRequestCallbacks: Set<PlanApprovalRequestCallback> = new Set();
 const cliSessionCreatedCallbacks: Set<(data: { sessionId: string }) => void> = new Set();
 
 // 监听主进程推送事件
@@ -61,28 +53,12 @@ ipcRenderer.on(IPC_CHANNELS.PUSH_SESSION_UPDATED, (_event, session) => {
   sessionUpdatedCallbacks.forEach(cb => cb(session));
 });
 
-ipcRenderer.on(IPC_CHANNELS.PUSH_SDK_SESSION_ID, (_event, data) => {
-  sdkSessionIdCallbacks.forEach(cb => cb(data));
-});
-
 ipcRenderer.on(IPC_CHANNELS.SETTINGS_CHANGED, (_event, settings) => {
   settingsChangedCallbacks.forEach(cb => cb(settings));
 });
 
 ipcRenderer.on(IPC_CHANNELS.SHORTCUT_NEW_SESSION, () => {
   newSessionShortcutCallbacks.forEach(cb => cb());
-});
-
-ipcRenderer.on(IPC_CHANNELS.PUSH_PERMISSION_REQUEST, (_event, request) => {
-  permissionRequestCallbacks.forEach(cb => cb(request));
-});
-
-ipcRenderer.on(IPC_CHANNELS.PUSH_ASK_USER_QUESTION_REQUEST, (_event, request) => {
-  askUserQuestionRequestCallbacks.forEach(cb => cb(request));
-});
-
-ipcRenderer.on(IPC_CHANNELS.PUSH_PLAN_APPROVAL_REQUEST, (_event, request) => {
-  planApprovalRequestCallbacks.forEach(cb => cb(request));
 });
 
 // CLI 会话创建事件
@@ -100,10 +76,9 @@ const electronAPI = {
     sendMessage: (
       prompt: string,
       sessionId: string,
-      options?: MessageOptions,
       images?: ImageAttachment[]
     ): Promise<{ success: boolean; error?: string }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.AGENT_SEND_MESSAGE, { prompt, sessionId, options, images });
+      return ipcRenderer.invoke(IPC_CHANNELS.AGENT_SEND_MESSAGE, { prompt, sessionId, images });
     },
 
     /**
@@ -111,6 +86,20 @@ const electronAPI = {
      */
     interrupt: (sessionId: string): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke(IPC_CHANNELS.AGENT_INTERRUPT, sessionId);
+    },
+
+    /**
+     * 获取可用 Provider 列表
+     */
+    getProviders: (): Promise<{ success: boolean; providers: ProviderInfo[] }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_PROVIDERS);
+    },
+
+    /**
+     * 获取指定 Provider 的模型列表
+     */
+    getModels: (provider: string): Promise<{ success: boolean; models: ModelInfo[] }> => {
+      return ipcRenderer.invoke(IPC_CHANNELS.AGENT_GET_MODELS, provider);
     },
 
     /**
@@ -262,20 +251,6 @@ const electronAPI = {
     offUpdated: (callback: SessionUpdatedCallback): void => {
       sessionUpdatedCallbacks.delete(callback);
     },
-
-    /**
-     * 监听 SDK session ID 更新
-     */
-    onSdkSessionId: (callback: SdkSessionIdCallback): void => {
-      sdkSessionIdCallbacks.add(callback);
-    },
-
-    /**
-     * 取消监听 SDK session ID 更新
-     */
-    offSdkSessionId: (callback: SdkSessionIdCallback): void => {
-      sdkSessionIdCallbacks.delete(callback);
-    },
   },
 
   // ========== Settings API ==========
@@ -388,78 +363,6 @@ const electronAPI = {
      */
     offNewSession: (callback: () => void): void => {
       newSessionShortcutCallbacks.delete(callback);
-    },
-  },
-
-  // ========== Permission API ==========
-  permission: {
-    /**
-     * 响应权限请求
-     */
-    respond: (requestId: string, result: PermissionResult): Promise<{ success: boolean }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.PERMISSION_RESPOND, { requestId, result });
-    },
-
-    /**
-     * 监听权限请求
-     */
-    onRequest: (callback: PermissionRequestCallback): void => {
-      permissionRequestCallbacks.add(callback);
-    },
-
-    /**
-     * 取消监听权限请求
-     */
-    offRequest: (callback: PermissionRequestCallback): void => {
-      permissionRequestCallbacks.delete(callback);
-    },
-  },
-
-  // ========== AskUserQuestion API ==========
-  askUserQuestion: {
-    /**
-     * 响应用户问题请求
-     */
-    respond: (requestId: string, answers: Record<string, string>): Promise<{ success: boolean }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.ASK_USER_QUESTION_RESPOND, { requestId, answers });
-    },
-
-    /**
-     * 监听用户问题请求
-     */
-    onRequest: (callback: AskUserQuestionRequestCallback): void => {
-      askUserQuestionRequestCallbacks.add(callback);
-    },
-
-    /**
-     * 取消监听用户问题请求
-     */
-    offRequest: (callback: AskUserQuestionRequestCallback): void => {
-      askUserQuestionRequestCallbacks.delete(callback);
-    },
-  },
-
-  // ========== Plan Approval API ==========
-  planApproval: {
-    /**
-     * 响应计划审批请求
-     */
-    respond: (requestId: string, response: PlanApprovalResponse): Promise<{ success: boolean }> => {
-      return ipcRenderer.invoke(IPC_CHANNELS.PLAN_APPROVAL_RESPOND, { requestId, response });
-    },
-
-    /**
-     * 监听计划审批请求
-     */
-    onRequest: (callback: PlanApprovalRequestCallback): void => {
-      planApprovalRequestCallbacks.add(callback);
-    },
-
-    /**
-     * 取消监听计划审批请求
-     */
-    offRequest: (callback: PlanApprovalRequestCallback): void => {
-      planApprovalRequestCallbacks.delete(callback);
     },
   },
 

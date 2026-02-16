@@ -18,5 +18,7 @@
   "notSet": "未设置",
   "saveFailed": "保存失败，请稍后重试",
   "confirmDelete": "确认删除",
-  "unsavedChanges": "有未保存的更改"
+  "unsavedChanges": "有未保存的更改",
+  "optional": "可选",
+  "defaultSessionName": "新会话 {{date}}"
 }

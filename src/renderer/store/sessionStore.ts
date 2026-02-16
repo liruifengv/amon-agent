@@ -15,8 +15,6 @@ interface SessionState {
   renameSession: (id: string, name: string) => Promise<void>;
   updateSessionWorkspace: (id: string, workspace: string) => Promise<void>;
   loadCurrentSession: () => Promise<Session | null>;
-  updateSdkSessionId: (sessionId: string, sdkSessionId: string) => Promise<void>;
-  getCurrentSdkSessionId: () => string | undefined;
   getCurrentWorkspace: () => string | undefined;
 }
 
@@ -118,22 +116,6 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const { currentSessionId, sessions } = get();
     if (!currentSessionId) return null;
     return sessions.find((s) => s.id === currentSessionId) ?? null;
-  },
-
-  updateSdkSessionId: async (sessionId: string, sdkSessionId: string) => {
-    // 更新 sessions 列表（主进程已经处理了持久化）
-    set((state) => ({
-      sessions: state.sessions.map((s) =>
-        s.id === sessionId ? { ...s, sdkSessionId } : s
-      ),
-    }));
-  },
-
-  getCurrentSdkSessionId: () => {
-    const { currentSessionId, sessions } = get();
-    if (!currentSessionId) return undefined;
-    const session = sessions.find((s) => s.id === currentSessionId);
-    return session?.sdkSessionId;
   },
 
   getCurrentWorkspace: () => {

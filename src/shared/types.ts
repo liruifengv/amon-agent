@@ -1,11 +1,23 @@
 // ==================== 设置相关类型 (从 schema 导入) ====================
 
 // 从 schemas.ts 导出设置相关类型
-export type { Settings, AgentSettings, Shortcuts, PermissionMode, Workspace, Provider } from './schemas';
+export type { Settings, AgentSettings, Shortcuts, Workspace, ProviderConfig } from './schemas';
 export { DEFAULT_SETTINGS, DEFAULT_SHORTCUTS, DEFAULT_AGENT_SETTINGS } from './schemas';
 
-// 导入 PermissionMode 用于本地类型定义
-import type { PermissionMode } from './schemas';
+// ==================== Provider/Model 信息类型 ====================
+
+/** getProviders() 返回的 provider 摘要信息 */
+export interface ProviderInfo {
+  id: string;
+  name: string;
+}
+
+/** getModels(provider) 返回的 model 摘要信息 */
+export interface ModelInfo {
+  id: string;
+  name: string;
+  reasoning: boolean;
+}
 
 // ==================== 图片附件类型 ====================
 
@@ -34,344 +46,123 @@ export interface Session {
   updatedAt: string;
   messages: Message[];
   systemPrompt?: string;
-  // SDK 返回的 session ID，用于连续对话
-  sdkSessionId?: string;
   // 工作空间路径（cwd）
   workspace?: string;
-}
-
-// 权限响应记录（用于消息内容块）
-export interface PermissionRecord {
-  toolName: string;
-  input: Record<string, unknown>;
-  result: 'allow' | 'deny';
-  timestamp: string;
+  // 数据格式版本号（用于区分新旧格式）
+  version?: number;
 }
 
 // ==================== 消息内容块类型 ====================
 
 /**
- * 内容块基础字段（用于流式追踪）
+ * 文本内容块
  */
-interface ContentBlockBase {
-  /** 内容块唯一标识 */
-  id: string;
+export interface TextContentBlock {
+  type: 'text';
+  text: string;
   /** 是否已完成流式传输 */
   isComplete?: boolean;
 }
 
 /**
- * 文本内容块
+ * 思考内容块
  */
-export interface TextContentBlock extends ContentBlockBase {
-  type: 'text';
-  content: string;
+export interface ThinkingContentBlock {
+  type: 'thinking';
+  thinking: string;
+  /** 是否已完成流式传输 */
+  isComplete?: boolean;
 }
 
 /**
- * 思考内容块
+ * 工具调用执行状态
  */
-export interface ThinkingContentBlock extends ContentBlockBase {
-  type: 'thinking';
-  content: string;
-}
+export type ToolCallStatus = 'pending' | 'running' | 'completed' | 'error';
 
 /**
  * 工具调用内容块
  */
 export interface ToolCallContentBlock {
-  type: 'tool_call';
-  toolCall: ToolCall;
-}
-
-/**
- * 权限记录内容块
- */
-export interface PermissionContentBlock {
-  type: 'permission';
-  permission: PermissionRecord;
-}
-
-/**
- * 用户问题内容块
- */
-export interface UserQuestionContentBlock {
-  type: 'user_question';
-  userQuestion: UserQuestionRecord;
-}
-
-/**
- * 计划审批内容块
- */
-export interface PlanApprovalContentBlock {
-  type: 'plan_approval';
-  planApproval: PlanApprovalRecord;
-}
-
-/**
- * 消息内容块联合类型
- */
-export type MessageContentBlock =
-  | TextContentBlock
-  | ThinkingContentBlock
-  | ToolCallContentBlock
-  | PermissionContentBlock
-  | UserQuestionContentBlock
-  | PlanApprovalContentBlock;
-
-// Token 用量信息
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadInputTokens?: number;
-  cacheCreationInputTokens?: number;
-  cost?: number; // 成本（美元）
-  duration?: number; // 耗时（毫秒）
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string; // 保留用于用户消息和向后兼容
-  contentBlocks?: MessageContentBlock[]; // 助手消息的有序内容块
-  images?: ImageAttachment[]; // 用户消息附带的图片
-  timestamp: string;
-  isStreaming?: boolean;
-  tokenUsage?: TokenUsage; // Token 用量信息
-}
-
-export type ToolCallStatus = 'pending' | 'running' | 'completed' | 'error';
-
-/**
- * 工具调用
- */
-export interface ToolCall {
-  /** 工具调用 ID（来自 SDK） */
+  type: 'toolCall';
+  /** 工具调用 ID（来自 LLM） */
   id: string;
   /** 工具名称 */
   name: string;
-  /** 工具输入参数 */
-  input: Record<string, unknown>;
-  /** 流式输入缓冲（用于渐进显示大型输入） */
-  inputBuffer?: string;
-  /** 工具输出结果 */
-  output?: string;
+  /** 工具参数 */
+  arguments: Record<string, any>;
   /** 执行状态 */
   status: ToolCallStatus;
+  /** 工具执行结果 */
+  output?: string;
+  /** 工具执行详情（pi AgentToolResult.details） */
+  outputDetails?: any;
   /** 是否执行出错 */
   isError?: boolean;
-  /** 父工具调用 ID（Subagent 场景） */
-  parentToolUseId?: string | null;
+  /** 流式输入缓冲（用于渐进显示大型输入） */
+  inputBuffer?: string;
 }
-
-// ==================== SDK 消息类型 ====================
-
-export type SDKMessageType =
-  | 'system'
-  | 'user'
-  | 'assistant'
-  | 'result'
-  | 'stream_event'
-  | 'tool_progress';
-
-// SDK Usage 类型
-export interface SDKUsage {
-  input_tokens: number;
-  output_tokens: number;
-  cache_read_input_tokens?: number;
-  cache_creation_input_tokens?: number;
-}
-
-export interface SDKMessage {
-  type: SDKMessageType;
-  subtype?: string;
-  session_id?: string;
-  uuid?: string;
-  message?: {
-    role: string;
-    content: ContentBlock[];
-    stop_reason?: string;
-    usage?: SDKUsage;
-  };
-  result?: string;
-  total_cost_usd?: number;
-  duration_ms?: number;
-  usage?: SDKUsage; // Token 用量
-  errors?: string[];
-  // 流式事件字段
-  event?: StreamEvent;
-  // 父工具调用 ID（Subagent 场景）
-  parent_tool_use_id?: string | null;
-  // tool_progress 专用字段
-  tool_use_id?: string;
-  tool_name?: string;
-  elapsed_time_seconds?: number;
-}
-
-// 流式事件类型
-export type StreamEventType =
-  | 'message_start'
-  | 'content_block_start'
-  | 'content_block_delta'
-  | 'content_block_stop'
-  | 'message_delta'
-  | 'message_stop';
 
 /**
- * 流式事件
+ * 助手消息内容块联合类型
  */
-export interface StreamEvent {
-  type: StreamEventType | string;
-  index?: number;
+export type AssistantContentBlock =
+  | TextContentBlock
+  | ThinkingContentBlock
+  | ToolCallContentBlock;
 
-  // content_block_start 时的内容块信息
-  content_block?: {
-    type: 'text' | 'thinking' | 'tool_use';
-    id?: string;      // tool_use 时有
-    name?: string;    // tool_use 时有
-    text?: string;    // text 时可能有初始内容
-  };
-
-  // content_block_delta 时的增量数据
-  delta?: {
-    type: 'text_delta' | 'thinking_delta' | 'input_json_delta' | string;
-    text?: string;
-    thinking?: string;
-    partial_json?: string;
-    stop_reason?: string;
-  };
-
-  // message_delta 时的用量数据
-  usage?: {
-    output_tokens?: number;
-  };
-
-  // message 信息（message_start 时）
-  message?: {
-    id?: string;
-    model?: string;
-    role?: string;
-  };
-}
-
-export type ContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool_use_id: string; content: string | unknown[]; is_error?: boolean }
-  | { type: 'thinking'; thinking: string };
-
-// ==================== 权限请求类型 ====================
+// ==================== 消息类型 ====================
 
 /**
- * 工具权限请求
+ * 用户消息
  */
-export interface ToolPermissionRequest {
+export interface UserMessage {
   id: string;
-  sessionId: string;
-  toolName: string;
-  input: Record<string, unknown>;
-  timestamp: string;
+  role: 'user';
+  content: string;
+  images?: ImageAttachment[];
+  timestamp: number;
 }
 
 /**
- * 权限响应 - 允许
+ * 助手消息
  */
-export interface PermissionResultAllow {
-  behavior: 'allow';
-  updatedInput: Record<string, unknown>;
-}
-
-/**
- * 权限响应 - 拒绝
- */
-export interface PermissionResultDeny {
-  behavior: 'deny';
-  message: string;
-}
-
-export type PermissionResult = PermissionResultAllow | PermissionResultDeny;
-
-/**
- * AskUserQuestion 问题选项
- */
-export interface AskUserQuestionOption {
-  label: string;
-  description: string;
-}
-
-/**
- * AskUserQuestion 问题
- */
-export interface AskUserQuestion {
-  question: string;
-  header: string;
-  options: AskUserQuestionOption[];
-  multiSelect: boolean;
-}
-
-/**
- * AskUserQuestion 输入
- */
-export interface AskUserQuestionInput {
-  questions: AskUserQuestion[];
-}
-
-/**
- * AskUserQuestion 响应
- */
-export interface AskUserQuestionResponse {
-  questions: AskUserQuestion[];
-  answers: Record<string, string>;
-}
-
-/**
- * AskUserQuestion 请求
- */
-export interface AskUserQuestionRequest {
+export interface AssistantMessage {
   id: string;
-  sessionId: string;
-  questions: AskUserQuestion[];
-  timestamp: string;
+  role: 'assistant';
+  contentBlocks: AssistantContentBlock[];
+  isStreaming?: boolean;
+  /** 来源 Provider */
+  provider?: string;
+  /** 来源模型 */
+  model?: string;
+  /** Token 用量 */
+  usage?: TokenUsage;
+  /** 停止原因 */
+  stopReason?: string;
+  /** 错误信息 */
+  errorMessage?: string;
+  timestamp: number;
 }
 
 /**
- * 用户问题记录（用于消息内容块）
+ * 消息联合类型（用于 UI 渲染）
  */
-export interface UserQuestionRecord {
-  questions: AskUserQuestion[];
-  answers: Record<string, string>;
-  timestamp: string;
-}
-
-// ==================== 计划审批相关类型 ====================
+export type Message = UserMessage | AssistantMessage;
 
 /**
- * 计划审批请求
+ * Token 用量
  */
-export interface PlanApprovalRequest {
-  id: string;
-  sessionId: string;
-  plan: string; // Markdown 格式的计划内容
-  timestamp: string;
-}
-
-/**
- * 计划审批响应
- */
-export interface PlanApprovalResponse {
-  approved: boolean;
-  message?: string; // 用户反馈或拒绝原因
-}
-
-/**
- * 计划审批记录（用于消息内容块）
- */
-export interface PlanApprovalRecord {
-  id: string;
-  plan: string;
-  approved?: boolean;
-  message?: string;
-  timestamp: string;
+export interface TokenUsage {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+  totalTokens: number;
+  cost: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
 
 // ==================== Skills 相关类型 ====================
@@ -470,19 +261,11 @@ export interface MessageCompleteData {
   result?: string;
   cost?: number;
   duration?: number;
-  usage?: SDKUsage;
+  usage?: TokenUsage;
   errors?: string[];
 }
 
-// ==================== 消息选项类型 ====================
-
-/**
- * 临时消息选项（覆盖全局设置）
- */
-export interface MessageOptions {
-  /** 临时权限模式（覆盖全局设置，仅对当前消息生效） */
-  permissionMode?: PermissionMode;
-}
+// ==================== 消息参数类型 ====================
 
 /**
  * Agent 消息参数
@@ -490,7 +273,5 @@ export interface MessageOptions {
 export interface MessageParams {
   prompt: string;
   sessionId: string;
-  sdkSessionId?: string;
-  options?: MessageOptions;
   images?: ImageAttachment[];
 }

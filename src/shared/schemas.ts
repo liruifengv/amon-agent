@@ -1,11 +1,5 @@
 import { z } from 'zod';
-import { DEFAULT_MAX_THINKING_TOKENS, DEFAULT_SYSTEM_PROMPT } from './constants';
-
-// ==================== 权限模式 Schema ====================
-
-export const PermissionModeSchema = z.enum(['default', 'acceptEdits', 'dontAsk', 'bypassPermissions']);
-
-export type PermissionMode = z.infer<typeof PermissionModeSchema>;
+import { DEFAULT_SYSTEM_PROMPT } from './constants';
 
 // ==================== 快捷键 Schema ====================
 
@@ -32,63 +26,53 @@ export const WorkspaceSchema = z.object({
 
 export type Workspace = z.infer<typeof WorkspaceSchema>;
 
-// ==================== Provider Schema ====================
+// ==================== Provider 配置 Schema ====================
 
-export const ProviderSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, 'Provider 名称不能为空'),
-  apiUrl: z.string().min(1, 'API URL 不能为空'),
-  apiKey: z.string().min(1, 'API Key 不能为空'),
-  model: z.string().min(1, '模型名称不能为空'),
+export const ProviderConfigSchema = z.object({
+  /** pi-ai 的 provider 标识，如 "anthropic", "openai", "google" 等 */
+  provider: z.string(),
+  /** 该 provider 的 API Key */
+  apiKey: z.string().default(''),
+  /** 自定义 base URL（可选，用于代理或私有部署） */
+  baseUrl: z.string().optional(),
 });
 
-export type Provider = z.infer<typeof ProviderSchema>;
+export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
 // ==================== Agent 配置 Schema ====================
 
 export const AgentSchema = z.object({
-  // Provider 列表
-  providers: z.array(ProviderSchema).default([]),
+  /** Provider 配置列表（API Key 等） */
+  providerConfigs: z.array(ProviderConfigSchema).default([]),
 
-  // 当前选中的 Provider ID
-  activeProviderId: z.string().nullable().default(null),
+  /** 当前选中的 provider（如 "anthropic"） */
+  activeProvider: z.string().default('anthropic'),
 
-  // 系统提示词（追加到 SDK 预设提示词后）
-  // 空字符串视为未设置，使用默认提示词
+  /** 当前选中的 model ID（如 "claude-sonnet-4-20250514"） */
+  activeModelId: z.string().default('claude-sonnet-4-20250514'),
+
+  /** thinking level */
+  thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('medium'),
+
+  /** 系统提示词（追加到默认提示词后） */
   systemPrompt: z.preprocess(
     (val) => (val === '' ? undefined : val),
     z.string().default(DEFAULT_SYSTEM_PROMPT)
   ),
 
-  // 权限模式
-  permissionMode: PermissionModeSchema.default('default'),
-
-  // 最大轮数（不暴露 UI）
+  /** 最大轮数 */
   maxTurns: z.number().default(50),
-
-  // 最大思考 token 数（不暴露 UI）
-  maxThinkingTokens: z.number().default(DEFAULT_MAX_THINKING_TOKENS),
-
-  // 可用的工具（不暴露 UI）
-  tools: z.array(z.string()).optional(),
-
-  // 允许的工具（不暴露 UI）
-  allowedTools: z.array(z.string()).optional(),
-
-  // Claude Code 模式：开启后继承 Claude Code 配置
-  claudeCodeMode: z.boolean().default(false),
 });
 
 export type AgentSettings = z.infer<typeof AgentSchema>;
 
 export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
-  providers: [],
-  activeProviderId: null,
+  providerConfigs: [],
+  activeProvider: 'anthropic',
+  activeModelId: 'claude-sonnet-4-20250514',
+  thinkingLevel: 'medium',
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
-  permissionMode: 'default',
-  maxTurns: 100,
-  maxThinkingTokens: DEFAULT_MAX_THINKING_TOKENS,
-  claudeCodeMode: false,
+  maxTurns: 50,
 };
 
 // ==================== 设置 Schema ====================

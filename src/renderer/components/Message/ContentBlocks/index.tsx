@@ -1,14 +1,11 @@
 import React from 'react';
-import { MessageContentBlock } from '../../../types';
+import { AssistantContentBlock } from '../../../types';
 import TextBlock from './TextBlock';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCallBlock from './ToolCallBlock';
-import PermissionBlock from './PermissionBlock';
-import UserQuestionBlock from './UserQuestionBlock';
-import PlanApprovalBlock from './PlanApprovalBlock';
 
 export interface ContentBlockRendererProps {
-  block: MessageContentBlock;
+  block: AssistantContentBlock;
   isStreaming?: boolean;
   isLastBlock?: boolean;
   /** Whether collapsible blocks should be collapsed by default (for historical messages) */
@@ -28,7 +25,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
     case 'text':
       return (
         <TextBlock
-          content={block.content}
+          content={block.text}
           isStreaming={isStreaming && isLastBlock}
         />
       );
@@ -36,23 +33,14 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
     case 'thinking':
       return (
         <ThinkingBlock
-          content={block.content}
+          content={block.thinking}
           isStreaming={isStreaming}
           defaultCollapsed={defaultCollapsed}
         />
       );
 
-    case 'tool_call':
-      return <ToolCallBlock toolCall={block.toolCall} />;
-
-    case 'permission':
-      return <PermissionBlock permission={block.permission} />;
-
-    case 'user_question':
-      return <UserQuestionBlock userQuestion={block.userQuestion} />;
-
-    case 'plan_approval':
-      return <PlanApprovalBlock planApproval={block.planApproval} />;
+    case 'toolCall':
+      return <ToolCallBlock toolCall={block} />;
 
     default:
       // 未知类型，静默忽略

@@ -1,33 +1,29 @@
 import { create } from 'zustand';
-import { Message, MessageOptions, PermissionMode, ImageAttachment } from '../types';
+import { Message, ImageAttachment } from '../types';
 
 interface ChatState {
   // 按会话缓存消息（来自主进程推送）
   sessionMessages: Record<string, Message[]>;
   // 各会话的加载状态
   sessionLoadingState: Record<string, boolean>;
-  // 各会话的临时权限模式（覆盖全局设置）
-  sessionPermissionMode: Record<string, PermissionMode | undefined>;
   // 各会话的错误信息
   sessionErrors: Record<string, string | null>;
 
   // Getters
   getMessages: (sessionId: string | null) => Message[];
   isSessionLoading: (sessionId: string | null) => boolean;
-  getSessionPermissionMode: (sessionId: string | null) => PermissionMode | undefined;
   getSessionError: (sessionId: string | null) => string | null;
 
   // Actions（仅用于更新本地缓存，实际数据由主进程管理）
   setMessages: (sessionId: string, messages: Message[]) => void;
   setLoadingState: (sessionId: string, isLoading: boolean) => void;
   setLoadingStates: (states: Record<string, boolean>) => void;
-  setSessionPermissionMode: (sessionId: string, mode: PermissionMode | undefined) => void;
   setSessionError: (sessionId: string, error: string | null) => void;
   clearSessionError: (sessionId: string) => void;
   clearSessionCache: (sessionId: string) => void;
 
   // 发送到主进程
-  sendMessage: (content: string, sessionId: string, options?: MessageOptions, images?: ImageAttachment[]) => Promise<void>;
+  sendMessage: (content: string, sessionId: string, images?: ImageAttachment[]) => Promise<void>;
   interruptMessage: (sessionId: string) => Promise<void>;
   loadMessages: (sessionId: string) => Promise<void>;
 }
@@ -35,7 +31,6 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   sessionMessages: {},
   sessionLoadingState: {},
-  sessionPermissionMode: {},
   sessionErrors: {},
 
   getMessages: (sessionId) => {
@@ -46,11 +41,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isSessionLoading: (sessionId) => {
     if (!sessionId) return false;
     return get().sessionLoadingState[sessionId] || false;
-  },
-
-  getSessionPermissionMode: (sessionId) => {
-    if (!sessionId) return undefined;
-    return get().sessionPermissionMode[sessionId];
   },
 
   getSessionError: (sessionId) => {
@@ -71,11 +61,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setLoadingStates: (states) =>
     set({ sessionLoadingState: states }),
 
-  setSessionPermissionMode: (sessionId, mode) =>
-    set((state) => ({
-      sessionPermissionMode: { ...state.sessionPermissionMode, [sessionId]: mode },
-    })),
-
   setSessionError: (sessionId, error) =>
     set((state) => ({
       sessionErrors: { ...state.sessionErrors, [sessionId]: error },
@@ -90,34 +75,25 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const { [sessionId]: _removedMessages, ...restMessages } = state.sessionMessages;
       const { [sessionId]: _removedState, ...restLoadingState } = state.sessionLoadingState;
-      const { [sessionId]: _removedMode, ...restPermissionMode } = state.sessionPermissionMode;
       const { [sessionId]: _removedError, ...restErrors } = state.sessionErrors;
       void _removedMessages;
       void _removedState;
-      void _removedMode;
       void _removedError;
       return {
         sessionMessages: restMessages,
         sessionLoadingState: restLoadingState,
-        sessionPermissionMode: restPermissionMode,
         sessionErrors: restErrors,
       };
     }),
 
-  sendMessage: async (content, sessionId, options, images) => {
+  sendMessage: async (content, sessionId, images) => {
     try {
       // 清除之前的错误
       set((state) => ({
         sessionErrors: { ...state.sessionErrors, [sessionId]: null },
       }));
 
-      // 如果有临时权限模式，合并到 options 中
-      const sessionMode = get().sessionPermissionMode[sessionId];
-      const mergedOptions: MessageOptions | undefined = sessionMode || options
-        ? { ...options, permissionMode: options?.permissionMode ?? sessionMode }
-        : undefined;
-
-      await window.electronAPI.agent.sendMessage(content, sessionId, mergedOptions, images);
+      await window.electronAPI.agent.sendMessage(content, sessionId, images);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set((state) => ({

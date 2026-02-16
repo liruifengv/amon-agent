@@ -1,13 +1,23 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
-import { Session, Message, MessageContentBlock, ToolCall, ToolCallStatus, TextContentBlock, ThinkingContentBlock } from '../../shared/types';
+import {
+  Session,
+  Message,
+  AssistantMessage,
+  AssistantContentBlock,
+  ToolCallContentBlock,
+  TokenUsage,
+} from '../../shared/types';
 import { AUTO_SAVE_INTERVAL_MS } from '../../shared/constants';
 import { persistence, DEFAULT_WORKSPACE } from './persistence';
 import * as configStore from './configStore';
 import { createLogger } from './logger';
-import { generateBlockId } from '../agent/streamState';
+import mainI18n from '../i18n';
 
 const log = createLogger('SessionStore');
+
+/** 当前会话数据格式版本 */
+const CURRENT_SESSION_VERSION = 2;
 
 interface MessageState {
   sessionId: string;
@@ -77,11 +87,12 @@ class SessionStore extends EventEmitter {
 
     const session: Session = {
       id: uuidv4(),
-      name: name || `新会话 ${new Date().toLocaleString('zh-CN')}`,
+      name: name || mainI18n.t('common:defaultSessionName', { date: new Date().toLocaleString() }),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       messages: [],
       workspace: resolvedWorkspace,
+      version: CURRENT_SESSION_VERSION,
     };
 
     log.info('Session created', { name: session.name, workspace: resolvedWorkspace }, session.id);
@@ -162,259 +173,76 @@ class SessionStore extends EventEmitter {
     this.emit('messages:updated', sessionId, session.messages);
   }
 
-  appendToMessage(
+  /**
+   * 替换助手消息的全部内容块（用于流式更新）
+   * eventAdapter 每次 message_update 时调用，将 pi-ai 的内容块整体同步到 SessionStore
+   */
+  replaceAssistantContentBlocks(
     sessionId: string,
     messageId: string,
-    blockType: 'text' | 'thinking',
-    content: string
+    contentBlocks: AssistantContentBlock[],
   ): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
     const message = session.messages.find(m => m.id === messageId);
-    if (!message) return;
+    if (!message || message.role !== 'assistant') return;
 
-    const blocks = message.contentBlocks || [];
-    const lastBlock = blocks[blocks.length - 1];
-
-    // 兼容旧逻辑：如果最后一个 block 是同类型且没有 id，则追加
-    if (lastBlock && lastBlock.type === blockType && (lastBlock.type === 'text' || lastBlock.type === 'thinking')) {
-      lastBlock.content += content;
-    } else {
-      // 创建新 block（带 ID）
-      const newBlock: MessageContentBlock = blockType === 'text'
-        ? { type: 'text', id: generateBlockId(), content, isComplete: false } as TextContentBlock
-        : { type: 'thinking', id: generateBlockId(), content, isComplete: false } as ThinkingContentBlock;
-      blocks.push(newBlock);
-      message.contentBlocks = blocks;
-    }
-
+    (message as AssistantMessage).contentBlocks = contentBlocks;
     this.markDirty(sessionId);
 
     // 节流发送更新（流式时高频更新）
     this.throttledEmit('messages:updated', sessionId, session.messages);
   }
 
-  addToolCallToMessage(sessionId: string, messageId: string, toolCall: ToolCall): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const message = session.messages.find(m => m.id === messageId);
-    if (!message) return;
-
-    const blocks = message.contentBlocks || [];
-    const newBlock: MessageContentBlock = { type: 'tool_call', toolCall };
-    blocks.push(newBlock);
-    message.contentBlocks = blocks;
-
-    this.markDirty(sessionId);
-    this.emit('messages:updated', sessionId, session.messages);
-  }
-
   /**
-   * 更新工具调用的状态
+   * 更新指定工具调用的执行结果
    */
-  updateToolCallStatus(sessionId: string, messageId: string, toolId: string, status: ToolCallStatus): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const message = session.messages.find(m => m.id === messageId);
-    if (!message || !message.contentBlocks) return;
-
-    const toolBlock = message.contentBlocks.find(
-      b => b.type === 'tool_call' && b.toolCall.id === toolId
-    );
-    if (!toolBlock || toolBlock.type !== 'tool_call') return;
-
-    toolBlock.toolCall.status = status;
-    this.markDirty(sessionId);
-    this.emit('messages:updated', sessionId, session.messages);
-  }
-
-  /**
-   * 更新工具调用的输出结果
-   */
-  updateToolCallResult(sessionId: string, toolId: string, output: string, isError?: boolean): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) {
-      log.warn('updateToolCallResult: session not found', { sessionId, toolId });
-      return;
-    }
-
-    // 遍历所有消息找到对应的工具调用
-    for (const message of session.messages) {
-      if (!message.contentBlocks) continue;
-
-      const toolBlock = message.contentBlocks.find(
-        b => b.type === 'tool_call' && b.toolCall.id === toolId
-      );
-      if (toolBlock && toolBlock.type === 'tool_call') {
-        log.info('Updating tool call result', { toolId, isError, outputLength: output.length }, sessionId);
-        toolBlock.toolCall.output = output;
-        toolBlock.toolCall.status = isError ? 'error' : 'completed';
-        toolBlock.toolCall.isError = isError;
-        this.markDirty(sessionId);
-        this.emit('messages:updated', sessionId, session.messages);
-        return;
-      }
-    }
-
-    // 如果没找到，记录警告
-    log.warn('updateToolCallResult: tool call not found', { sessionId, toolId });
-  }
-
-  /**
-   * 添加内容块到指定消息（带 ID）
-   */
-  addContentBlock(sessionId: string, messageId: string, block: MessageContentBlock): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const message = session.messages.find(m => m.id === messageId);
-    if (!message) return;
-
-    const blocks = message.contentBlocks || [];
-    blocks.push(block);
-    message.contentBlocks = blocks;
-
-    this.markDirty(sessionId);
-    this.throttledEmit('messages:updated', sessionId, session.messages);
-  }
-
-  /**
-   * 更新指定 ID 的内容块
-   */
-  updateContentBlock(
+  updateToolCallResult(
     sessionId: string,
     messageId: string,
-    blockId: string,
-    updates: Partial<{ content: string; isComplete: boolean }>
+    toolCallId: string,
+    updates: Partial<ToolCallContentBlock>,
   ): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
     const message = session.messages.find(m => m.id === messageId);
-    if (!message?.contentBlocks) return;
+    if (!message || message.role !== 'assistant') return;
 
-    const block = message.contentBlocks.find(
-      b => (b.type === 'text' || b.type === 'thinking') && b.id === blockId
+    const assistantMsg = message as AssistantMessage;
+    const toolBlock = assistantMsg.contentBlocks.find(
+      (b): b is ToolCallContentBlock => b.type === 'toolCall' && b.id === toolCallId
     );
-    if (!block || (block.type !== 'text' && block.type !== 'thinking')) return;
-
-    if (updates.content !== undefined) {
-      block.content = updates.content;
-    }
-    if (updates.isComplete !== undefined) {
-      block.isComplete = updates.isComplete;
+    if (!toolBlock) {
+      log.warn('updateToolCallResult: tool call not found', { messageId, toolCallId }, sessionId);
+      return;
     }
 
+    Object.assign(toolBlock, updates);
     this.markDirty(sessionId);
-    this.throttledEmit('messages:updated', sessionId, session.messages);
+    this.emit('messages:updated', sessionId, session.messages);
   }
 
   /**
-   * 更新工具调用的输入缓冲（流式输入）
+   * 更新助手消息的 usage 和完成状态
    */
-  updateToolCallInputBuffer(sessionId: string, toolId: string, inputBuffer: string): void {
+  completeAssistantMessage(
+    sessionId: string,
+    messageId: string,
+    usage: TokenUsage,
+    stopReason: string,
+  ): void {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
-    for (const message of session.messages) {
-      if (!message.contentBlocks) continue;
+    const message = session.messages.find(m => m.id === messageId);
+    if (!message || message.role !== 'assistant') return;
 
-      const toolBlock = message.contentBlocks.find(
-        b => b.type === 'tool_call' && b.toolCall.id === toolId
-      );
-      if (toolBlock && toolBlock.type === 'tool_call') {
-        toolBlock.toolCall.inputBuffer = inputBuffer;
-        this.markDirty(sessionId);
-        this.throttledEmit('messages:updated', sessionId, session.messages);
-        return;
-      }
-    }
-  }
-
-  /**
-   * 更新工具调用的完整输入
-   */
-  updateToolCallInput(sessionId: string, toolId: string, input: Record<string, unknown>): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    for (const message of session.messages) {
-      if (!message.contentBlocks) continue;
-
-      const toolBlock = message.contentBlocks.find(
-        b => b.type === 'tool_call' && b.toolCall.id === toolId
-      );
-      if (toolBlock && toolBlock.type === 'tool_call') {
-        toolBlock.toolCall.input = input;
-        // 清空输入缓冲
-        toolBlock.toolCall.inputBuffer = undefined;
-        this.markDirty(sessionId);
-        this.emit('messages:updated', sessionId, session.messages);
-        return;
-      }
-    }
-  }
-
-  /**
-   * 查找工具调用
-   */
-  findToolCall(sessionId: string, toolId: string): ToolCall | undefined {
-    const session = this.sessions.get(sessionId);
-    if (!session) return undefined;
-
-    for (const message of session.messages) {
-      if (!message.contentBlocks) continue;
-      for (const block of message.contentBlocks) {
-        if (block.type === 'tool_call' && block.toolCall.id === toolId) {
-          return block.toolCall;
-        }
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * 获取指定工具的子工具调用
-   */
-  getChildToolCalls(sessionId: string, parentToolId: string): ToolCall[] {
-    const session = this.sessions.get(sessionId);
-    if (!session) return [];
-
-    const children: ToolCall[] = [];
-    for (const message of session.messages) {
-      if (!message.contentBlocks) continue;
-      for (const block of message.contentBlocks) {
-        if (
-          block.type === 'tool_call' &&
-          block.toolCall.parentToolUseId === parentToolId
-        ) {
-          children.push(block.toolCall);
-        }
-      }
-    }
-    return children;
-  }
-
-  /**
-   * 添加内容块到当前活跃的 assistant 消息
-   * 用于在消息流中插入权限结果、用户问题回答等
-   */
-  addContentBlockToActiveMessage(sessionId: string, block: MessageContentBlock): void {
-    const messageState = this.activeMessages.get(sessionId);
-    if (!messageState) return;
-
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const message = session.messages.find(m => m.id === messageState.messageId);
-    if (!message) return;
-
-    const blocks = message.contentBlocks || [];
-    blocks.push(block);
-    message.contentBlocks = blocks;
+    const assistantMsg = message as AssistantMessage;
+    assistantMsg.usage = usage;
+    assistantMsg.stopReason = stopReason;
+    assistantMsg.isStreaming = false;
 
     this.markDirty(sessionId);
     this.emit('messages:updated', sessionId, session.messages);
@@ -447,21 +275,6 @@ class SessionStore extends EventEmitter {
       states[sessionId] = state.isStreaming;
     });
     return states;
-  }
-
-  // ============ SDK Session ID 管理 ============
-
-  updateSdkSessionId(sessionId: string, sdkSessionId: string): void {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    session.sdkSessionId = sdkSessionId;
-    this.markDirty(sessionId);
-    this.emit('session:sdkSessionId', sessionId, sdkSessionId);
-  }
-
-  getSdkSessionId(sessionId: string): string | undefined {
-    return this.sessions.get(sessionId)?.sdkSessionId;
   }
 
   // ============ 持久化 ============
@@ -507,9 +320,14 @@ class SessionStore extends EventEmitter {
   // 加载所有会话到内存
   async loadAllSessions(): Promise<Session[]> {
     const sessions = await persistence.loadAllSessions();
-    sessions.forEach(s => this.sessions.set(s.id, s));
-    log.info('All sessions loaded', { count: sessions.length });
-    return sessions;
+    for (const s of sessions) {
+      const valid = this.validateSession(s);
+      if (valid) {
+        this.sessions.set(s.id, valid);
+      }
+    }
+    log.info('All sessions loaded', { count: this.sessions.size });
+    return this.getAllSessions();
   }
 
   // 加载单个会话到内存（如果未加载）
@@ -518,11 +336,28 @@ class SessionStore extends EventEmitter {
     if (!session) {
       const loaded = await persistence.loadSession(sessionId);
       if (loaded) {
-        this.sessions.set(sessionId, loaded);
-        session = loaded;
+        const valid = this.validateSession(loaded);
+        if (valid) {
+          session = valid;
+          this.sessions.set(sessionId, session);
+        }
       }
     }
     return session;
+  }
+
+  /**
+   * 检查 session 版本是否兼容。
+   * 不兼容的旧版本直接丢弃（返回 null）。
+   */
+  private validateSession(session: Session): Session | null {
+    if (session.version === CURRENT_SESSION_VERSION) {
+      return session;
+    }
+    log.info('Discarding incompatible session', {
+      version: session.version,
+    }, session.id);
+    return null;
   }
 
   // 节流发送事件

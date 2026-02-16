@@ -31,7 +31,6 @@ const ShimmerComponent = ({
 
   return (
     <motion.div
-      component={Component}
       animate={{ backgroundPosition: "0% center" }}
       className={cn(
         "relative inline-block bg-[length:250%_100%,auto] bg-clip-text text-transparent",

@@ -1,9 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Message } from '../../types';
+import { Message, AssistantMessage as AssistantMessageType } from '../../types';
 import UserMessage from './UserMessage';
 import AssistantMessage from './AssistantMessage';
-import SystemMessage from './SystemMessage';
 import TokenUsage from './TokenUsage';
 
 export interface MessageItemProps {
@@ -17,16 +16,10 @@ export interface MessageItemProps {
  */
 const MessageItem: React.FC<MessageItemProps> = ({ message, isLastMessage = false }) => {
   const isUser = message.role === 'user';
-  const isSystem = message.role === 'system';
-
-  // 系统消息特殊处理
-  if (isSystem) {
-    return <SystemMessage message={message} />;
-  }
 
   // 历史消息：不是最后一条消息，或者是最后一条但已经完成（不在流式输出中）
   // 只有最后一条且正在流式输出的消息才展开
-  const isHistorical = !isLastMessage || !message.isStreaming;
+  const isHistorical = !isLastMessage || (message.role === 'assistant' && !message.isStreaming);
 
   return (
     <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
@@ -35,7 +28,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isLastMessage = fals
         {isUser ? (
           <UserMessage message={message} />
         ) : (
-          <AssistantMessage message={message} defaultCollapsed={isHistorical} />
+          <AssistantMessage message={message as AssistantMessageType} defaultCollapsed={isHistorical} />
         )}
 
         {/* 底部信息 */}
@@ -56,12 +49,14 @@ interface MessageFooterProps {
 const MessageFooter: React.FC<MessageFooterProps> = ({ message, isUser }) => {
   const { i18n } = useTranslation();
   const locale = i18n.language === 'zh' ? 'zh-CN' : 'en-US';
-  const showTokenUsage = !isUser && !message.isStreaming && message.tokenUsage;
+  const showTokenUsage = !isUser && message.role === 'assistant' && !message.isStreaming && message.usage;
 
   return (
     <div className={`flex flex-col gap-1 mt-1 ${isUser ? 'items-end pr-1' : 'items-start pl-1'}`}>
       {/* Token 用量（仅助手消息且非流式时显示） */}
-      {showTokenUsage && message.tokenUsage && <TokenUsage usage={message.tokenUsage} />}
+      {showTokenUsage && message.role === 'assistant' && message.usage && (
+        <TokenUsage usage={message.usage} />
+      )}
 
       {/* 时间戳 */}
       <div className="text-[11px] text-muted-foreground">
@@ -74,7 +69,7 @@ const MessageFooter: React.FC<MessageFooterProps> = ({ message, isUser }) => {
 /**
  * 格式化时间戳
  */
-function formatTimestamp(timestamp: string, locale: string): string {
+function formatTimestamp(timestamp: number, locale: string): string {
   return new Date(timestamp).toLocaleTimeString(locale, {
     hour: '2-digit',
     minute: '2-digit',

@@ -1,14 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { ToolCall } from '../../types';
+import { ToolCallContentBlock } from '../../types';
 import { ChevronRight, Bot, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
 export interface SubagentToolGroupProps {
   /** Task 工具调用（父工具） */
-  parentTool: ToolCall;
+  parentTool: ToolCallContentBlock;
   /** 子工具调用列表 */
-  childTools: ToolCall[];
+  childTools: ToolCallContentBlock[];
   /** 是否正在流式传输 */
   isStreaming?: boolean;
   /** 是否默认折叠 */
@@ -18,22 +18,22 @@ export interface SubagentToolGroupProps {
 /**
  * 获取 Subagent 描述
  */
-function getSubagentDescription(parentTool: ToolCall): string {
-  const input = parentTool.input as {
+function getSubagentDescription(parentTool: ToolCallContentBlock): string {
+  const args = parentTool.arguments as {
     description?: string;
     subagent_type?: string;
     prompt?: string;
   };
 
-  if (input.description) {
+  if (args.description) {
     // 截断过长的描述
-    return input.description.length > 60
-      ? input.description.slice(0, 60) + '...'
-      : input.description;
+    return args.description.length > 60
+      ? args.description.slice(0, 60) + '...'
+      : args.description;
   }
 
-  if (input.subagent_type) {
-    return `${input.subagent_type} agent`;
+  if (args.subagent_type) {
+    return `${args.subagent_type} agent`;
   }
 
   return 'Subagent';
@@ -42,7 +42,7 @@ function getSubagentDescription(parentTool: ToolCall): string {
 /**
  * 检查 Subagent 是否正在运行
  */
-function isSubagentRunning(parentTool: ToolCall, childTools: ToolCall[]): boolean {
+function isSubagentRunning(parentTool: ToolCallContentBlock, childTools: ToolCallContentBlock[]): boolean {
   // 如果父工具还在运行
   if (parentTool.status === 'running' || parentTool.status === 'pending') {
     return true;

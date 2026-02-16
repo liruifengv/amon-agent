@@ -18,5 +18,7 @@
   "notSet": "Not Set",
   "saveFailed": "Save failed, please try again later.",
   "confirmDelete": "Confirm Delete",
-  "unsavedChanges": "You have unsaved changes"
+  "unsavedChanges": "You have unsaved changes",
+  "optional": "optional",
+  "defaultSessionName": "New Session {{date}}"
 }

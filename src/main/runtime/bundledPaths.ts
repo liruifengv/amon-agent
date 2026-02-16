@@ -1,26 +1,6 @@
 import { existsSync } from 'fs';
 import { dirname, join, resolve } from 'path';
 import { app } from 'electron';
-import type { Settings } from '../../shared/schemas';
-import { createRequire } from 'node:module';
-
-const requireModule = createRequire(import.meta.url);
-
-/**
- * 解析 Claude Code CLI 路径
- * 支持打包后和开发环境
- */
-export function resolveClaudeCodeCli(): string {
-  const cliPath = requireModule.resolve('@anthropic-ai/claude-agent-sdk/cli.js');
-  if (cliPath.includes('app.asar')) {
-    const unpackedPath = cliPath.replace('app.asar', 'app.asar.unpacked');
-    if (existsSync(unpackedPath)) {
-      return unpackedPath;
-    }
-  }
-  return cliPath;
-}
-
 
 /**
  * 获取打包的 bun 可执行文件路径
@@ -211,59 +191,4 @@ export function buildEnhancedPath(): string {
 
   // 组合：打包的工具优先，然后是用户 PATH
   return [...bundledBinDirs, ...userPathEntries].join(pathSeparator);
-}
-
-/**
- * 构建 Claude Agent SDK 查询会话使用的完整环境变量对象
- *
- * 环境变量包括：
- * - 所有 process.env 变量
- * - PATH（增强后包含打包的工具）
- * - CLAUDE_CODE_GIT_BASH_PATH（仅 Windows，如果找到 bash.exe）
- * - MSYSTEM, MSYS2_PATH_TYPE, HOME（仅 Windows 且使用 MSYS2 bash 时）
- * - ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, CLAUDE_MODEL（如果设置中配置了）
- */
-export function buildClaudeSessionEnv(workspaceDir?: string, settings?: Settings): Record<string, string> {
-  const enhancedPath = buildEnhancedPath();
-
-  const env: Record<string, string> = {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(([, v]) => v !== undefined) as [string, string][]
-    ),
-    PATH: enhancedPath,
-  };
-
-  // 只有关闭 Claude Code 模式时才传递 API 配置（让 SDK 使用自己的配置）
-  if (settings?.agent && !settings.agent.claudeCodeMode) {
-    // 从 Provider 列表中获取当前激活的 Provider
-    const { providers, activeProviderId } = settings.agent;
-    const activeProvider = providers?.find(p => p.id === activeProviderId);
-
-    console.log('Active Provider for Claude Session Env:', activeProvider);
-
-    if (activeProvider) {
-      env.ANTHROPIC_API_KEY = activeProvider.apiKey;
-      env.ANTHROPIC_BASE_URL = activeProvider.apiUrl;
-      env.ANTHROPIC_MODEL = activeProvider.model;
-    }
-  }
-
-  // Windows 特定配置
-  if (process.platform === 'win32') {
-    const bashExePath = getBashExePath();
-    if (bashExePath) {
-      env.CLAUDE_CODE_GIT_BASH_PATH = bashExePath;
-
-      // MSYS2 bash 需要特殊环境变量才能正确继承 Windows 环境变量和 PATH
-      if (isMsys2Bash(bashExePath)) {
-        env.MSYSTEM = 'MSYS';
-        env.MSYS2_PATH_TYPE = 'inherit';
-        if (workspaceDir) {
-          env.HOME = resolve(workspaceDir);
-        }
-      }
-    }
-  }
-
-  return env;
 }

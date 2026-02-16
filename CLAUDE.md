@@ -28,18 +28,47 @@ bun run make     # Create platform installers (macOS ZIP, Linux DEB/RPM, Windows
 ```
 Main Process (src/main/)
 ├── index.ts                    - Window management, shortcuts
-├── ipc/handlers.ts             - IPC request handlers
+├── i18n.ts                     - Main process i18n
+├── ipc/
+│   ├── index.ts                - IPC registration/removal entry point
+│   ├── agentHandlers.ts        - agent:* handlers
+│   ├── sessionHandlers.ts      - session:* handlers
+│   ├── settingsHandlers.ts     - settings:* handlers
+│   ├── skillsHandlers.ts       - skills:* handlers
+│   ├── systemHandlers.ts       - window:* + shell:* + app:* handlers
+│   ├── workspaceHandlers.ts    - workspace:* handlers
+│   ├── dialogHandlers.ts       - dialog:* handlers
+│   └── pushBridge.ts           - SessionStore -> Renderer push events
 ├── agent/
-│   ├── agentService.ts         - Claude SDK query execution
-│   ├── messageHandler.ts       - SDK message type dispatching
-│   ├── streamState.ts          - Stream event state machine (block lifecycle)
-│   ├── permissionManager.ts    - Tool permission requests (60s timeout)
-│   └── titleService.ts         - Auto-generate session titles
+│   ├── agentService.ts         - sendMessage/interrupt orchestration
+│   ├── agentCache.ts           - Agent instance cache management
+│   ├── messageConverter.ts     - Amon <-> pi-ai message format conversion
+│   ├── eventAdapter.ts         - Agent event -> SessionStore adapter
+│   ├── modelManager.ts         - Model/provider management
+│   ├── systemPrompt.ts         - System prompt builder
+│   └── tools/
+│       ├── index.ts            - Tool registration
+│       ├── bashTool.ts         - Bash execution tool
+│       ├── readTool.ts         - File read tool
+│       ├── writeTool.ts        - File write tool
+│       ├── editTool.ts         - File edit tool
+│       ├── globTool.ts         - Glob search tool
+│       ├── grepTool.ts         - Grep search tool
+│       └── utils/
+│           ├── pathUtils.ts    - Path resolution utilities
+│           ├── truncate.ts     - Output truncation utilities
+│           ├── editDiff.ts     - Diff generation for edits
+│           └── glob.d.ts       - Glob type declarations
+├── runtime/
+│   └── bundledPaths.ts         - Bundled binary path management
+├── services/
+│   └── workspaceService.ts     - Workspace file operations
 └── store/
     ├── sessionStore.ts         - In-memory state (single source of truth)
     ├── persistence.ts          - File I/O layer (atomic writes)
     ├── configStore.ts          - Settings persistence (uses Zod validation)
-    └── skillsStore.ts          - Skills loading from system/workspace dirs
+    ├── skillsStore.ts          - Skills loading from system/workspace dirs
+    └── logger.ts               - Logger utility
          │
          │ IPC Channels (src/shared/ipc.ts)
          │ Push events: messages:updated, query:state, etc.
@@ -126,8 +155,13 @@ Tool calls with `parentToolUseId` are grouped under their parent Task tool in `S
 - `src/shared/ipc.ts` - IPC channel constants (including push channels)
 - `src/shared/schemas.ts` - Zod schemas for settings validation
 - `src/main/store/sessionStore.ts` - Central state with EventEmitter
-- `src/main/agent/messageHandler.ts` - SDK message type handlers
-- `src/main/agent/streamState.ts` - Stream state machine for block lifecycle tracking
+- `src/main/agent/agentService.ts` - Message send/interrupt orchestration
+- `src/main/agent/agentCache.ts` - Agent instance lifecycle management
+- `src/main/agent/messageConverter.ts` - Amon <-> pi-ai message format conversion
+- `src/main/agent/eventAdapter.ts` - Agent events -> SessionStore adapter
+- `src/main/ipc/index.ts` - IPC handler registration entry point
+- `src/main/ipc/pushBridge.ts` - SessionStore -> Renderer push events
+- `src/main/runtime/bundledPaths.ts` - Bundled binary path management
 
 ### Skills System
 

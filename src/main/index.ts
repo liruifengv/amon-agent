@@ -2,10 +2,11 @@ import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
-import { registerIpcHandlers, removeIpcHandlers } from './ipc/handlers';
+import { registerIpcHandlers, removeIpcHandlers } from './ipc';
 import { IPC_CHANNELS } from '../shared/ipc';
 import { getSettings } from './store/configStore';
 import { sessionStore } from './store/sessionStore';
+import { cleanupAllAgents } from './agent/agentService';
 import { persistence } from './store/persistence';
 import type { Shortcuts } from '../shared/types';
 import mainI18n from './i18n';
@@ -366,6 +367,7 @@ app.on('ready', async () => {
 app.on('window-all-closed', () => {
   removeIpcHandlers();
   unregisterShortcuts();
+  cleanupAllAgents();
   if (process.platform !== 'darwin') {
     app.quit();
   }

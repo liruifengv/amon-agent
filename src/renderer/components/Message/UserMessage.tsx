@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Message } from '../../types';
+import { UserMessage as UserMessageType } from '../../types';
 import { useSessionStore } from '../../store/sessionStore';
 
 export interface UserMessageProps {
-  message: Message;
+  message: UserMessageType;
 }
 
 /**

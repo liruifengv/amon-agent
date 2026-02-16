@@ -167,9 +167,14 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
     setImages(prev => prev.filter(img => img.id !== id));
   };
 
+  const submittingRef = useRef(false);
+
   const handleSubmit = async () => {
     // 允许只发送图片（无文本）
     if ((!input.trim() && images.length === 0) || !currentSessionId || isLoading) return;
+    // 防止双发（点击 + Enter 同时触发）
+    if (submittingRef.current) return;
+    submittingRef.current = true;
 
     const message = input.trim();
     const attachedImages = [...images];
@@ -183,7 +188,9 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
     // 发送前滚动到底部
     onMessageSent?.();
 
-    await sendMessage(message, currentSessionId, undefined, attachedImages.length > 0 ? attachedImages : undefined);
+    await sendMessage(message, currentSessionId, attachedImages.length > 0 ? attachedImages : undefined);
+
+    submittingRef.current = false;
 
     // 发送后重新聚焦
     textareaRef.current?.focus();
@@ -328,7 +335,6 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
                 </button>
 
                 <ProviderSelector />
-                {currentSessionId && <PermissionModeSelector sessionId={currentSessionId} />}
               </div>
 
               {/* 右侧：发送/停止按钮 */}
@@ -371,6 +377,5 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
 
 // 导入所需的组件
 import ProviderSelector from './ProviderSelector';
-import PermissionModeSelector from './PermissionModeSelector';
 
 export default InputArea;

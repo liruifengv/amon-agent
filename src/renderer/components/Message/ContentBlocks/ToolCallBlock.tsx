@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ToolCall } from '../../../types';
+import { ToolCallContentBlock } from '../../../types';
 import {
   FileText,
   Pencil,
@@ -115,7 +115,7 @@ function truncateFilePath(filePath: string, workspace?: string): string {
 }
 
 export interface ToolCallBlockProps {
-  toolCall: ToolCall;
+  toolCall: ToolCallContentBlock;
   /** 是否为嵌套显示（Subagent 内） */
   isNested?: boolean;
 }
@@ -150,25 +150,25 @@ const TOOL_DISPLAY_NAME_KEYS: Record<string, string> = {
 /**
  * 获取输入参数摘要
  */
-function getInputSummary(name: string, input: Record<string, unknown>): string {
+function getInputSummary(name: string, args: Record<string, any>): string {
   switch (name) {
     case 'Read':
     case 'Write':
     case 'Edit':
-      return String(input.file_path || '');
+      return String(args.file_path || '');
     case 'Bash': {
-      const cmd = String(input.command || '');
+      const cmd = String(args.command || '');
       return cmd.length > 50 ? cmd.slice(0, 50) + '...' : cmd;
     }
     case 'Glob':
     case 'Grep':
-      return String(input.pattern || '');
+      return String(args.pattern || '');
     case 'WebFetch':
-      return String(input.url || '');
+      return String(args.url || '');
     case 'WebSearch':
-      return String(input.query || '');
+      return String(args.query || '');
     case 'Task':
-      return String(input.description || '');
+      return String(args.description || '');
     default:
       return '';
   }
@@ -177,11 +177,11 @@ function getInputSummary(name: string, input: Record<string, unknown>): string {
 /**
  * 渲染 Write 工具的输入内容
  */
-const WriteInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input }) => {
+const WriteInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
   const workspace = useSessionStore((state) => state.getCurrentWorkspace());
-  const filePath = String(input.file_path || '');
+  const filePath = String(args.file_path || '');
   const displayPath = truncateFilePath(filePath, workspace);
-  const content = String(input.content || '');
+  const content = String(args.content || '');
   const language = useMemo(() => getLanguageFromPath(filePath), [filePath]);
 
   return (
@@ -278,12 +278,12 @@ const DiffView: React.FC<{ oldStr: string; newStr: string }> = ({ oldStr, newStr
 /**
  * 渲染 Edit 工具的输入内容
  */
-const EditInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input }) => {
+const EditInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
   const workspace = useSessionStore((state) => state.getCurrentWorkspace());
-  const filePath = String(input.file_path || '');
+  const filePath = String(args.file_path || '');
   const displayPath = truncateFilePath(filePath, workspace);
-  const oldString = String(input.old_string || '');
-  const newString = String(input.new_string || '');
+  const oldString = String(args.old_string || '');
+  const newString = String(args.new_string || '');
 
   return (
     <div className="p-3">
@@ -305,13 +305,13 @@ const EditInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input 
 /**
  * 默认输入内容展示（JSON 格式）
  */
-const DefaultInputContent: React.FC<{ input: Record<string, unknown> }> = ({ input }) => {
+const DefaultInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
   const { t } = useTranslation('message');
   return (
     <div className="px-3 py-2">
       <div className="text-xs font-medium text-muted-foreground mb-1">{t('tool.input')}</div>
       <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
-        <CodeBlockContent code={JSON.stringify(input, null, 2)} language="json" showLineNumbers={false} />
+        <CodeBlockContent code={JSON.stringify(args, null, 2)} language="json" showLineNumbers={false} />
       </div>
     </div>
   );
@@ -344,7 +344,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
   const icon = TOOL_ICONS[toolCall.name] || <Settings className="w-4 h-4" />;
   const displayNameKey = TOOL_DISPLAY_NAME_KEYS[toolCall.name];
   const displayName = displayNameKey ? t(displayNameKey) : toolCall.name;
-  const inputSummary = getInputSummary(toolCall.name, toolCall.input);
+  const inputSummary = getInputSummary(toolCall.name, toolCall.arguments);
   const status = toolCall.status || 'pending';
 
   // 状态图标和样式
@@ -359,19 +359,19 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
   const renderInputContent = () => {
     // 如果有流式输入缓冲且输入还未完成，显示流式输入
     const hasInputBuffer = toolCall.inputBuffer && toolCall.inputBuffer.length > 0;
-    const inputIsEmpty = !toolCall.input || Object.keys(toolCall.input).length === 0;
+    const argsIsEmpty = !toolCall.arguments || Object.keys(toolCall.arguments).length === 0;
 
-    if (hasInputBuffer && inputIsEmpty) {
+    if (hasInputBuffer && argsIsEmpty) {
       return <StreamingInputContent inputBuffer={toolCall.inputBuffer!} />;
     }
 
     switch (toolCall.name) {
       case 'Write':
-        return <WriteInputContent input={toolCall.input} />;
+        return <WriteInputContent args={toolCall.arguments} />;
       case 'Edit':
-        return <EditInputContent input={toolCall.input} />;
+        return <EditInputContent args={toolCall.arguments} />;
       default:
-        return <DefaultInputContent input={toolCall.input} />;
+        return <DefaultInputContent args={toolCall.arguments} />;
     }
   };
 

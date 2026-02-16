@@ -1,9 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import SystemPromptEditor from './SystemPromptEditor';
-import type { PermissionMode } from '../../types';
-import { Shield, FileEdit, XCircle, ShieldOff, Terminal } from 'lucide-react';
+import type { ModelInfo } from '../../types';
+
+/** 当前支持的 provider 显示名 */
+const PROVIDER_NAMES: Record<string, string> = {
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+  google: 'Google Gemini',
+};
+
+const THINKING_LEVELS = [
+  { value: 'off', label: 'Off' },
+  { value: 'minimal', label: 'Minimal' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+] as const;
 
 interface AgentSettingsProps {
   onNavigateToProvider?: () => void;
@@ -13,99 +27,211 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
   const { formData, setAgentFormData, clearSaveError } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
 
-  const PERMISSION_MODES: { value: PermissionMode; label: string; description: string; icon: React.ReactNode }[] = [
-    { value: 'default', label: t('settings:agent.default'), description: t('settings:agent.defaultDesc'), icon: <Shield className="w-6 h-6" /> },
-    { value: 'acceptEdits', label: t('settings:agent.acceptEdits'), description: t('settings:agent.acceptEditsDesc'), icon: <FileEdit className="w-6 h-6" /> },
-    { value: 'dontAsk', label: t('settings:agent.dontAsk'), description: t('settings:agent.dontAskDesc'), icon: <XCircle className="w-6 h-6" /> },
-    { value: 'bypassPermissions', label: t('settings:agent.bypassPermissions'), description: t('settings:agent.bypassPermissionsDesc'), icon: <ShieldOff className="w-6 h-6" /> },
-  ];
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
 
-  // 获取当前激活的 Provider
-  const providers = formData.agent.providers || [];
-  const activeProvider = providers.find(p => p.id === formData.agent.activeProviderId);
+  const { activeProvider, activeModelId, thinkingLevel, maxTurns, providerConfigs } = formData.agent;
+
+  // 已配置 API Key 的 provider 列表（用于 provider 选择下拉框）
+  const configuredProviders = (providerConfigs || [])
+    .filter(c => c.apiKey?.trim())
+    .map(c => ({
+      id: c.provider,
+      name: PROVIDER_NAMES[c.provider] || c.provider,
+    }));
+
+  // Load models when provider changes
+  useEffect(() => {
+    const loadModels = async () => {
+      if (!activeProvider) {
+        setModels([]);
+        return;
+      }
+
+      setIsLoadingModels(true);
+      try {
+        if (window.electronAPI.agent.getModels) {
+          const result = await window.electronAPI.agent.getModels(activeProvider);
+          if (result.success && result.models.length > 0) {
+            setModels(result.models);
+            setIsLoadingModels(false);
+            return;
+          }
+        }
+      } catch {
+        // fallback
+      }
+      setModels([]);
+      setIsLoadingModels(false);
+    };
+    loadModels();
+  }, [activeProvider]);
+
+  const handleProviderChange = (provider: string) => {
+    clearSaveError();
+    setAgentFormData({ activeProvider: provider, activeModelId: '' });
+  };
+
+  const handleModelChange = (modelId: string) => {
+    clearSaveError();
+    setAgentFormData({ activeModelId: modelId });
+  };
+
+  const handleThinkingLevelChange = (level: string) => {
+    clearSaveError();
+    setAgentFormData({ thinkingLevel: level as typeof thinkingLevel });
+  };
+
+  const handleMaxTurnsChange = (value: string) => {
+    clearSaveError();
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num > 0) {
+      setAgentFormData({ maxTurns: num });
+    }
+  };
+
+  const getProviderName = (providerId: string): string => {
+    return PROVIDER_NAMES[providerId] || providerId;
+  };
+
+  const hasNoProviders = configuredProviders.length === 0;
 
   return (
     <div className="space-y-6">
-      {/* 当前供应商 */}
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span>{t('settings:agent.currentProvider')}:</span>
-          {activeProvider ? (
-            <span className="text-primary font-medium">{activeProvider.name}</span>
-          ) : (
-            <span className="text-warning">{t('common:notConfigured')}</span>
-          )}
+      {/* No provider configured warning */}
+      {hasNoProviders && (
+        <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
+          <p className="text-sm text-warning">
+            {t('settings:agent.noProviderConfigured')}
+          </p>
+          <button
+            onClick={onNavigateToProvider}
+            className="mt-2 text-xs text-primary hover:text-primary/80"
+          >
+            {t('settings:agent.goToProviderSettings')}
+          </button>
         </div>
-        <button
-          onClick={onNavigateToProvider}
-          className="text-xs text-primary hover:text-primary/80"
+      )}
+
+      {/* Provider selection */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          {t('settings:agent.provider')}
+        </label>
+        <select
+          value={activeProvider}
+          onChange={(e) => handleProviderChange(e.target.value)}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-border
+                     bg-background text-foreground
+                     focus:ring-2 focus:ring-primary focus:border-primary
+                     outline-none transition-colors"
         >
-          {t('common:change')}
-        </button>
+          {configuredProviders.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
+          ))}
+          {/* Include current activeProvider if not in available list */}
+          {activeProvider && !configuredProviders.find(p => p.id === activeProvider) && (
+            <option value={activeProvider}>
+              {getProviderName(activeProvider)}
+            </option>
+          )}
+        </select>
       </div>
 
-      {/* 权限模式 */}
+      {/* Model selection */}
       <div>
-        <label className="block text-sm font-medium text-foreground mb-3">
-          {t('settings:agent.permissionMode')}
+        <label className="block text-sm font-medium text-foreground mb-2">
+          {t('settings:agent.model')}
         </label>
-        <div className="grid grid-cols-4 gap-3">
-          {PERMISSION_MODES.map((mode) => (
+        {isLoadingModels ? (
+          <div className="px-3 py-2 text-sm text-muted-foreground bg-muted rounded-lg">
+            {t('common:loading')}
+          </div>
+        ) : models.length > 0 ? (
+          <select
+            value={activeModelId}
+            onChange={(e) => handleModelChange(e.target.value)}
+            className="w-full px-3 py-2 text-sm rounded-lg border border-border
+                       bg-background text-foreground
+                       focus:ring-2 focus:ring-primary focus:border-primary
+                       outline-none transition-colors"
+          >
+            {!activeModelId && (
+              <option value="">{t('settings:agent.selectModel')}</option>
+            )}
+            {models.map((model) => (
+              <option key={model.id} value={model.id}>
+                {model.name}
+              </option>
+            ))}
+            {/* Include current activeModelId if not in list */}
+            {activeModelId && !models.find(m => m.id === activeModelId) && (
+              <option value={activeModelId}>{activeModelId}</option>
+            )}
+          </select>
+        ) : (
+          <input
+            type="text"
+            value={activeModelId}
+            onChange={(e) => handleModelChange(e.target.value)}
+            placeholder={t('settings:agent.modelPlaceholder')}
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg
+                       bg-background text-foreground
+                       placeholder-muted-foreground
+                       focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        )}
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('settings:agent.modelHint')}
+        </p>
+      </div>
+
+      {/* Thinking Level */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          {t('settings:agent.thinkingLevel')}
+        </label>
+        <div className="flex gap-2">
+          {THINKING_LEVELS.map((level) => (
             <button
-              key={mode.value}
-              onClick={() => {
-                clearSaveError();
-                setAgentFormData({ permissionMode: mode.value });
-              }}
+              key={level.value}
+              onClick={() => handleThinkingLevelChange(level.value)}
               className={`
-                flex flex-col items-center gap-2 p-4 rounded-xl cursor-pointer
-                border-2 transition-all duration-150
-                ${(formData.agent.permissionMode || 'default') === mode.value
-                  ? 'border-primary bg-primary/10 text-primary'
+                flex-1 px-3 py-2 text-sm rounded-lg border-2 transition-all duration-150
+                ${thinkingLevel === level.value
+                  ? 'border-primary bg-primary/10 text-primary font-medium'
                   : 'border-border text-muted-foreground hover:bg-accent'}
               `}
             >
-              {mode.icon}
-              <span className="text-sm font-medium">{mode.label}</span>
-              <span className="text-xs text-center opacity-70">{mode.description}</span>
+              {t(`settings:agent.thinking_${level.value}`)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 系统提示词 */}
+      {/* System Prompt */}
       <SystemPromptEditor />
 
-      {/* Claude Code 模式 */}
-      <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-        <div className="flex items-center gap-3">
-          <Terminal className="w-5 h-5 text-muted-foreground" />
-          <div>
-            <h3 className="text-sm font-medium text-foreground">{t('settings:agent.claudeCodeMode')}</h3>
-            <p className="text-xs text-muted-foreground">
-              {t('settings:agent.claudeCodeModeDesc')}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={() => {
-            clearSaveError();
-            setAgentFormData({ claudeCodeMode: !formData.agent.claudeCodeMode });
-          }}
-          className={`
-            relative inline-flex h-6 w-11 items-center rounded-full transition-colors
-            ${formData.agent.claudeCodeMode
-              ? 'bg-primary'
-              : 'bg-muted-foreground/30'}
-          `}
-        >
-          <span
-            className={`
-              inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-              ${formData.agent.claudeCodeMode ? 'translate-x-6' : 'translate-x-1'}
-            `}
-          />
-        </button>
+      {/* Max Turns */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          {t('settings:agent.maxTurns')}
+        </label>
+        <input
+          type="number"
+          value={maxTurns}
+          onChange={(e) => handleMaxTurnsChange(e.target.value)}
+          min={1}
+          max={200}
+          className="w-24 px-3 py-2 text-sm border border-border rounded-lg
+                     bg-background text-foreground
+                     focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('settings:agent.maxTurnsHint')}
+        </p>
       </div>
     </div>
   );

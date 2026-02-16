@@ -1,9 +1,9 @@
 import React from 'react';
-import { Message } from '../../types';
+import type { AssistantMessage } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 
 export interface SystemMessageProps {
-  message: Message;
+  message: AssistantMessage;
 }
 
 /**

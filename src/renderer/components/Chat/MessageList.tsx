@@ -2,11 +2,7 @@ import React, { useRef, useCallback, useEffect, useImperativeHandle } from 'reac
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
-import { usePermissionStore } from '../../store/permissionStore';
 import { MessageItem } from '../Message';
-import PermissionRequest from '../Permission/PermissionRequest';
-import AskUserQuestionRequest from '../Permission/AskUserQuestionRequest';
-import PlanApprovalBlock from '../Message/ContentBlocks/PlanApprovalBlock';
 
 export interface MessageListRef {
   scrollToBottom: () => void;
@@ -21,10 +17,9 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
   const { t } = useTranslation('message');
   const { currentSessionId } = useSessionStore();
   const { getMessages, getSessionError, clearSessionError } = useChatStore();
-  const { getPendingRequest, getPendingQuestionRequest, getPendingPlanApprovalRequest } = usePermissionStore();
   const messages = getMessages(currentSessionId);
   const error = getSessionError(currentSessionId);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const prevSessionIdRef = useRef<string | null>(null);
@@ -34,11 +29,6 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
   const lastScrollTopRef = useRef(0);
   // 标记是否是程序触发的滚动
   const isProgrammaticScrollRef = useRef(false);
-
-  // 获取待处理的请求
-  const pendingRequest = currentSessionId ? getPendingRequest(currentSessionId) : null;
-  const pendingQuestionRequest = currentSessionId ? getPendingQuestionRequest(currentSessionId) : null;
-  const pendingPlanApprovalRequest = currentSessionId ? getPendingPlanApprovalRequest(currentSessionId) : null;
 
   // 滚动到底部
   const scrollToBottom = useCallback((instant = false) => {
@@ -65,7 +55,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
   const checkNearBottom = useCallback(() => {
     const container = containerRef.current;
     if (!container) return true;
-    
+
     const threshold = 100;
     const isNear = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
     return isNear;
@@ -111,7 +101,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
     if (!content || !container) return;
 
     let rafId: number | null = null;
-    
+
     const doScroll = () => {
       if (shouldAutoScrollRef.current) {
         isProgrammaticScrollRef.current = true;
@@ -151,18 +141,8 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
     };
   }, [currentSessionId]);
 
-  // 当有权限请求或问题请求时滚动到底部
-  useEffect(() => {
-    if (pendingRequest || pendingQuestionRequest || pendingPlanApprovalRequest) {
-      shouldAutoScrollRef.current = true;
-      requestAnimationFrame(() => {
-        scrollToBottom(true);
-      });
-    }
-  }, [pendingRequest, pendingQuestionRequest, pendingPlanApprovalRequest, scrollToBottom]);
-
   return (
-    <div 
+    <div
       ref={containerRef}
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto bg-background"
@@ -177,23 +157,6 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
 
         {/* Footer 内容 */}
         <div className="max-w-3xl mx-auto px-4 pb-6">
-          {/* 权限请求 - 待处理 */}
-          {pendingRequest && (
-            <PermissionRequest request={pendingRequest} />
-          )}
-
-          {/* 用户问题请求 - 待处理 */}
-          {pendingQuestionRequest && (
-            <AskUserQuestionRequest request={pendingQuestionRequest} />
-          )}
-
-          {/* 计划审批请求 - 待处理 */}
-          {pendingPlanApprovalRequest && (
-            <div className="mt-3">
-              <PlanApprovalBlock pendingRequest={pendingPlanApprovalRequest} />
-            </div>
-          )}
-
           {/* 错误提示 */}
           {error && (
             <div className="mt-3 p-4 bg-destructive/10 border border-destructive/30 rounded-xl relative">

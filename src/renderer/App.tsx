@@ -101,8 +101,7 @@ const App: React.FC = () => {
 
   // 派生状态：检查是否需要显示 onboarding
   const needsOnboarding =
-    settings.agent.providers.length === 0 &&
-    !settings.agent.claudeCodeMode;
+    settings.agent.providerConfigs.length === 0;
 
   // 显示 onboarding（自动响应设置变化）
   if (needsOnboarding) {

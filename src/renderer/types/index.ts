@@ -2,32 +2,21 @@
 export type {
   Session,
   Message,
-  MessageContentBlock,
-  ToolCall,
+  UserMessage,
+  AssistantMessage,
+  AssistantContentBlock,
+  TextContentBlock,
+  ThinkingContentBlock,
+  ToolCallContentBlock,
   ToolCallStatus,
+  TokenUsage,
   Settings,
   AgentSettings,
+  ProviderConfig,
+  ProviderInfo,
+  ModelInfo,
   Shortcuts,
-  PermissionMode,
   Workspace,
-  Provider,
-  SDKMessageType,
-  SDKMessage,
-  SDKUsage,
-  TokenUsage,
-  ContentBlock,
-  StreamEvent,
-  ToolPermissionRequest,
-  PermissionResult,
-  PermissionResultAllow,
-  PermissionResultDeny,
-  PermissionRecord,
-  AskUserQuestion,
-  AskUserQuestionOption,
-  AskUserQuestionInput,
-  AskUserQuestionRequest,
-  AskUserQuestionResponse,
-  UserQuestionRecord,
   Skill,
   SkillMetadata,
   SkillSource,
@@ -35,9 +24,9 @@ export type {
   WorkspaceSkills,
   RecommendedSkill,
   SkillInstallTarget,
-  MessageOptions,
   SettingsSetResult,
   MessageCompleteData,
+  MessageParams,
   ImageAttachment,
   ImageMimeType,
   FileInfo,
@@ -50,23 +39,23 @@ import type {
   Session,
   Settings,
   Message,
-  ToolPermissionRequest,
-  PermissionResult,
-  AskUserQuestionRequest,
   SkillsLoadResult,
   RecommendedSkill,
   SkillInstallTarget,
-  MessageOptions,
   SettingsSetResult,
   MessageCompleteData,
   ImageAttachment,
   FileInfo,
+  ProviderInfo,
+  ModelInfo,
 } from '../../shared/types';
 
 export interface ElectronAPI {
   agent: {
-    sendMessage: (prompt: string, sessionId: string, options?: MessageOptions, images?: ImageAttachment[]) => Promise<{ success: boolean; error?: string }>;
+    sendMessage: (prompt: string, sessionId: string, images?: ImageAttachment[]) => Promise<{ success: boolean; error?: string }>;
     interrupt: (sessionId: string) => Promise<{ success: boolean; error?: string }>;
+    getProviders: () => Promise<{ success: boolean; providers: ProviderInfo[] }>;
+    getModels: (provider: string) => Promise<{ success: boolean; models: ModelInfo[] }>;
     onMessagesUpdated: (callback: (data: { sessionId: string; messages: Message[] }) => void) => void;
     offMessagesUpdated: (callback: (data: { sessionId: string; messages: Message[] }) => void) => void;
     onMessageState: (callback: (data: { sessionId: string; isLoading: boolean }) => void) => void;
@@ -90,8 +79,6 @@ export interface ElectronAPI {
     offDeleted: (callback: (data: { sessionId: string }) => void) => void;
     onUpdated: (callback: (session: Session) => void) => void;
     offUpdated: (callback: (session: Session) => void) => void;
-    onSdkSessionId: (callback: (data: { sessionId: string; sdkSessionId: string }) => void) => void;
-    offSdkSessionId: (callback: (data: { sessionId: string; sdkSessionId: string }) => void) => void;
   };
   settings: {
     get: () => Promise<Settings>;
@@ -100,7 +87,7 @@ export interface ElectronAPI {
     offChange: (callback: (settings: Settings) => void) => void;
   };
   window: {
-    openSettings: () => Promise<{ success: boolean }>;
+    openSettings: (tab?: string) => Promise<{ success: boolean }>;
     closeSettings: () => Promise<{ success: boolean }>;
   };
   shell: {
@@ -116,16 +103,6 @@ export interface ElectronAPI {
   shortcuts: {
     onNewSession: (callback: () => void) => void;
     offNewSession: (callback: () => void) => void;
-  };
-  permission: {
-    respond: (requestId: string, result: PermissionResult) => Promise<{ success: boolean }>;
-    onRequest: (callback: (request: ToolPermissionRequest) => void) => void;
-    offRequest: (callback: (request: ToolPermissionRequest) => void) => void;
-  };
-  askUserQuestion: {
-    respond: (requestId: string, answers: Record<string, string>) => Promise<{ success: boolean }>;
-    onRequest: (callback: (request: AskUserQuestionRequest) => void) => void;
-    offRequest: (callback: (request: AskUserQuestionRequest) => void) => void;
   };
   cli: {
     onSessionCreated: (callback: (data: { sessionId: string }) => void) => void;
