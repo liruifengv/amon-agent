@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
-import SystemPromptEditor from './SystemPromptEditor';
 import type { ModelInfo } from '../../types';
 
 /** 当前支持的 provider 显示名 */
@@ -30,33 +29,31 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
 
-  const { activeProvider, activeModelId, thinkingLevel, maxTurns, providerConfigs } = formData.agent;
+  const { activeProviderId, activeModelId, thinkingLevel, maxTurns, providerConfigs } = formData.agent;
 
   // 已配置 API Key 的 provider 列表（用于 provider 选择下拉框）
   const configuredProviders = (providerConfigs || [])
     .filter(c => c.apiKey?.trim())
     .map(c => ({
-      id: c.provider,
-      name: PROVIDER_NAMES[c.provider] || c.provider,
+      id: c.id,
+      name: PROVIDER_NAMES[c.id] || c.id,
     }));
 
   // Load models when provider changes
   useEffect(() => {
     const loadModels = async () => {
-      if (!activeProvider) {
+      if (!activeProviderId) {
         setModels([]);
         return;
       }
 
       setIsLoadingModels(true);
       try {
-        if (window.electronAPI.agent.getModels) {
-          const result = await window.electronAPI.agent.getModels(activeProvider);
-          if (result.success && result.models.length > 0) {
-            setModels(result.models);
-            setIsLoadingModels(false);
-            return;
-          }
+        const models = await window.ipc.agent.getModels(activeProviderId);
+        if (Array.isArray(models) && models.length > 0) {
+          setModels(models);
+          setIsLoadingModels(false);
+          return;
         }
       } catch {
         // fallback
@@ -65,11 +62,11 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
       setIsLoadingModels(false);
     };
     loadModels();
-  }, [activeProvider]);
+  }, [activeProviderId]);
 
   const handleProviderChange = (provider: string) => {
     clearSaveError();
-    setAgentFormData({ activeProvider: provider, activeModelId: '' });
+    setAgentFormData({ activeProviderId: provider, activeModelId: '' });
   };
 
   const handleModelChange = (modelId: string) => {
@@ -119,7 +116,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
           {t('settings:agent.provider')}
         </label>
         <select
-          value={activeProvider}
+          value={activeProviderId}
           onChange={(e) => handleProviderChange(e.target.value)}
           className="w-full px-3 py-2 text-sm rounded-lg border border-border
                      bg-background text-foreground
@@ -131,10 +128,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
               {provider.name}
             </option>
           ))}
-          {/* Include current activeProvider if not in available list */}
-          {activeProvider && !configuredProviders.find(p => p.id === activeProvider) && (
-            <option value={activeProvider}>
-              {getProviderName(activeProvider)}
+          {/* Include current activeProviderId if not in available list */}
+          {activeProviderId && !configuredProviders.find(p => p.id === activeProviderId) && (
+            <option value={activeProviderId}>
+              {getProviderName(activeProviderId)}
             </option>
           )}
         </select>
@@ -210,9 +207,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
           ))}
         </div>
       </div>
-
-      {/* System Prompt */}
-      <SystemPromptEditor />
 
       {/* Max Turns */}
       <div>

@@ -29,18 +29,13 @@ const TokenUsage: React.FC<TokenUsageProps> = ({ usage }) => {
     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
       <Zap className="w-3 h-3" />
       <span>
-        {formatTokenCount(usage.input)} {t('tokenUsage.input')} / {formatTokenCount(usage.output)} {t('tokenUsage.output')}
-        {usage.cacheRead > 0 && (
+        {formatTokenCount(usage.inputTokens)} {t('tokenUsage.input')} / {formatTokenCount(usage.outputTokens)} {t('tokenUsage.output')}
+        {usage.cacheReadTokens > 0 && (
           <span className="text-success ml-1">
-            ({formatTokenCount(usage.cacheRead)} {t('tokenUsage.cache')})
+            ({formatTokenCount(usage.cacheReadTokens)} {t('tokenUsage.cache')})
           </span>
         )}
       </span>
-      {usage.cost && usage.cost.total > 0 && (
-        <span className="text-muted-foreground">
-          · ${usage.cost.total.toFixed(4)}
-        </span>
-      )}
     </div>
   );
 };

@@ -1,0 +1,91 @@
+import { z } from 'zod';
+import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { ProviderToolDef } from '@shared/provider-types';
+import { bashTool } from './bash-tool';
+import { readTool } from './read-tool';
+import { writeTool } from './write-tool';
+import { editTool } from './edit-tool';
+import { globTool } from './glob-tool';
+import { grepTool } from './grep-tool';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyTool = Tool<any>;
+
+export class ToolRegistry {
+  private tools = new Map<string, AnyTool>();
+
+  register(tool: AnyTool): void {
+    this.tools.set(tool.name, tool);
+  }
+
+  unregister(name: string): boolean {
+    return this.tools.delete(name);
+  }
+
+  get(name: string): AnyTool | undefined {
+    return this.tools.get(name);
+  }
+
+  getAll(): AnyTool[] {
+    return Array.from(this.tools.values());
+  }
+
+  has(name: string): boolean {
+    return this.tools.has(name);
+  }
+
+  get size(): number {
+    return this.tools.size;
+  }
+
+  /**
+   * Convert all registered tools to provider-compatible tool definitions.
+   * Uses Zod 4's z.toJSONSchema() to convert Zod schemas to JSON Schema.
+   */
+  toProviderToolDefs(): ProviderToolDef[] {
+    return this.getAll().map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: z.toJSONSchema(tool.inputSchema) as Record<string, unknown>,
+    }));
+  }
+
+  /**
+   * Execute a tool by name with raw input (will be validated via Zod).
+   */
+  async execute(
+    name: string,
+    rawInput: unknown,
+    context: ToolContext
+  ): Promise<ToolResult> {
+    const tool = this.tools.get(name);
+    if (!tool) {
+      return { output: `Unknown tool: ${name}`, isError: true };
+    }
+
+    const parsed = tool.inputSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      return { output: `Invalid input: ${parsed.error.message}`, isError: true };
+    }
+
+    try {
+      return await tool.execute(parsed.data, context);
+    } catch (err) {
+      return { output: String(err), isError: true };
+    }
+  }
+}
+
+/**
+ * Create a ToolRegistry pre-loaded with all built-in tools.
+ */
+export function createDefaultToolRegistry(): ToolRegistry {
+  const registry = new ToolRegistry();
+  registry.register(bashTool);
+  registry.register(readTool);
+  registry.register(writeTool);
+  registry.register(editTool);
+  registry.register(globTool);
+  registry.register(grepTool);
+  return registry;
+}

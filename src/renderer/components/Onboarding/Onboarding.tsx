@@ -11,7 +11,7 @@ const Onboarding: React.FC = () => {
 
   const handleConfigureProvider = async () => {
     // 打开设置窗口并直接跳转到供应商页面
-    await window.electronAPI.window.openSettings('provider');
+    await window.ipc.system.openSettings('provider');
   };
 
   const handleEnableClaudeCode = async () => {
@@ -30,10 +30,10 @@ const Onboarding: React.FC = () => {
         }
       };
 
-      const result = await window.electronAPI.settings.set(newSettings);
+      const result = await window.ipc.settings.set(newSettings);
 
       if (!result.success) {
-        console.error('Failed to enable Claude Code mode:', result.errors);
+        console.error('Failed to enable Claude Code mode');
         toast.error(t('enableFailed'));
       }
     }, 1500); // 延迟 1.5 秒，让用户看到 Toast

@@ -23,14 +23,14 @@ const ProviderSelector: React.FC = () => {
   const ref = useRef<HTMLDivElement>(null);
 
   const { settings, setAgentFormData, saveSettings } = useSettingsStore();
-  const { providerConfigs, activeProvider } = settings.agent;
+  const { providerConfigs, activeProviderId } = settings.agent;
 
   const getDisplayName = (providerId: string): string => {
     return PROVIDER_NAMES[providerId] || providerId;
   };
 
-  const displayName = activeProvider
-    ? getDisplayName(activeProvider)
+  const displayName = activeProviderId
+    ? getDisplayName(activeProviderId)
     : t('common:notConfigured');
 
   const isDisabled = providerConfigs.length === 0;
@@ -48,7 +48,7 @@ const ProviderSelector: React.FC = () => {
   }, []);
 
   const handleProviderChange = async (provider: string) => {
-    setAgentFormData({ activeProvider: provider });
+    setAgentFormData({ activeProviderId: provider });
     await saveSettings();
     setOpen(false);
   };
@@ -83,17 +83,17 @@ const ProviderSelector: React.FC = () => {
           </div>
           {providerConfigs.map((config: ProviderConfig) => (
             <button
-              key={config.provider}
-              onClick={() => handleProviderChange(config.provider)}
+              key={config.id}
+              onClick={() => handleProviderChange(config.id)}
               className={`
                 w-full flex items-center gap-2 px-3 py-2 text-left text-sm
                 hover:bg-accent
-                ${activeProvider === config.provider ? 'bg-primary/10 text-primary' : 'text-foreground'}
+                ${activeProviderId === config.id ? 'bg-primary/10 text-primary' : 'text-foreground'}
               `}
             >
-              <Server className={`w-4 h-4 ${activeProvider === config.provider ? 'text-primary' : 'text-muted-foreground'}`} />
+              <Server className={`w-4 h-4 ${activeProviderId === config.id ? 'text-primary' : 'text-muted-foreground'}`} />
               <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{getDisplayName(config.provider)}</div>
+                <div className="font-medium truncate">{getDisplayName(config.id)}</div>
               </div>
             </button>
           ))}

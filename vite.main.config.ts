@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@shared': path.resolve(__dirname, 'src/shared'),
+    },
+  },
   build: {
     rollupOptions: {
       external: [
-        // ws 的可选原生依赖，无法被 Vite 打包
-        // 依赖链：pi-ai → openai → ws → bufferutil / utf-8-validate
+        // ws optional native deps
         'bufferutil',
         'utf-8-validate',
       ],

@@ -1,15 +1,17 @@
 import React from 'react';
-import { AssistantContentBlock } from '../../../types';
+import { ContentBlock } from '../../../types';
 import TextBlock from './TextBlock';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCallBlock from './ToolCallBlock';
 
 export interface ContentBlockRendererProps {
-  block: AssistantContentBlock;
+  block: ContentBlock;
   isStreaming?: boolean;
   isLastBlock?: boolean;
   /** Whether collapsible blocks should be collapsed by default (for historical messages) */
   defaultCollapsed?: boolean;
+  /** Current session ID for accessing tool call state */
+  sessionId: string | null;
 }
 
 /**
@@ -20,6 +22,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
   isStreaming,
   isLastBlock,
   defaultCollapsed = false,
+  sessionId,
 }) => {
   switch (block.type) {
     case 'text':
@@ -39,11 +42,11 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
         />
       );
 
-    case 'toolCall':
-      return <ToolCallBlock toolCall={block} />;
+    case 'tool_use':
+      return <ToolCallBlock toolCall={block} sessionId={sessionId} />;
 
     default:
-      // 未知类型，静默忽略
+      // 未知类型（包括 tool_result），静默忽略
       return null;
   }
 };

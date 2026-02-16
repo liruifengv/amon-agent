@@ -1,13 +1,6 @@
 /// <reference types="vite/client" />
 
-// 声明 electronAPI 类型
-import type { ElectronAPI } from './preload';
-
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
-}
+// Window types (ipc + push) are declared in src/renderer/types/index.ts
 
 // 声明图片资源模块
 declare module '*.png' {

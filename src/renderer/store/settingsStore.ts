@@ -78,7 +78,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ isSaving: true, saveError: null });
 
     try {
-      const result = await window.electronAPI.settings.set(formData);
+      const result = await window.ipc.settings.set(formData);
 
       if (result.success && result.data) {
         // 同时更新 settings 和 formData，确保与后端返回的数据一致
@@ -103,7 +103,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = { ...settings, theme };
 
     try {
-      const result = await window.electronAPI.settings.set(newSettings);
+      const result = await window.ipc.settings.set(newSettings);
 
       if (result.success && result.data) {
         set({ settings: result.data, formData: { ...get().formData, theme } });
@@ -121,7 +121,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const newSettings = { ...settings, language };
 
     try {
-      const result = await window.electronAPI.settings.set(newSettings);
+      const result = await window.ipc.settings.set(newSettings);
 
       if (result.success && result.data) {
         set({ settings: result.data, formData: { ...get().formData, language } });
@@ -137,7 +137,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   loadSettings: async () => {
     set({ isLoading: true });
     try {
-      const settings = await window.electronAPI.settings.get();
+      const settings = await window.ipc.settings.get();
       set({ settings, formData: settings, isLoading: false, hasChanges: false });
       applyTheme(settings.theme);
       // 初始化渲染进程 i18n 语言
@@ -177,19 +177,19 @@ export function initSettingsListeners(): () => void {
   };
   mediaQuery.addEventListener('change', handleThemeChange);
 
-  // 监听设置变更广播（来自其他窗口）
-  const handleSettingsChange = (newSettings: Settings) => {
-    useSettingsStore.getState().setSettings(newSettings);
-    applyTheme(newSettings.theme);
-    // 同步渲染进程 i18n 语言
-    i18n.changeLanguage(newSettings.language);
-  };
-  window.electronAPI.settings.onChange(handleSettingsChange);
+  // 监听设置变更广播（来自其他窗口）— 使用 push 事件
+  const cleanupSettingsChanged = window.push.on('push:settingsChanged', async () => {
+    // 重新加载设置
+    const settings = await window.ipc.settings.get();
+    useSettingsStore.getState().setSettings(settings);
+    applyTheme(settings.theme);
+    i18n.changeLanguage(settings.language);
+  });
 
   // 返回清理函数
   return () => {
     mediaQuery.removeEventListener('change', handleThemeChange);
-    window.electronAPI.settings.offChange(handleSettingsChange);
+    cleanupSettingsChanged();
     listenersInitialized = false;
   };
 }

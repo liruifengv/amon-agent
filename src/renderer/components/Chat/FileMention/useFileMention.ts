@@ -185,13 +185,13 @@ export function useFileMention({
         }, 200);
 
         try {
-          const result = await window.electronAPI.workspace.listFiles(
+          const result = await window.ipc.workspace.listFiles(
             currentSessionId,
             trigger.query || undefined,
             50
           );
-          if (result.success) {
-            setFiles(result.files);
+          if (Array.isArray(result)) {
+            setFiles(result);
           }
         } catch (error) {
           console.error('Failed to list files:', error);

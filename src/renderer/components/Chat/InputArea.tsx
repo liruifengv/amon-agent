@@ -150,16 +150,13 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
   }, [currentSessionId, images.length, processFiles]);
 
   // 选择图片
+  // TODO: 新的 window.ipc.dialog.selectImages() 返回 string[]（文件路径数组），
+  // 需要通过 main process 读取文件并转换为 base64。暂时禁用此功能，
+  // 用户仍可通过拖拽和粘贴方式添加图片。
   const handleSelectImages = async () => {
     if (!currentSessionId) return;
-
-    const result = await window.electronAPI.dialog.selectImages();
-    if (result.success && result.images.length > 0) {
-      // 过滤掉超过大小限制的图片
-      const validImages = result.images.filter(img => img.size <= MAX_IMAGE_SIZE);
-      // 限制最大数量
-      setImages(prev => [...prev, ...validImages].slice(0, MAX_IMAGES));
-    }
+    // window.ipc.dialog.selectImages() 返回 string[]（文件路径），
+    // 但 renderer 无法直接读取本地文件为 base64，需要后续实现 IPC 桥接。
   };
 
   // 移除图片

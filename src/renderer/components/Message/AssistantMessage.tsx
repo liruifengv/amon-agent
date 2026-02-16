@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AssistantMessage as AssistantMessageType,
-  AssistantContentBlock,
-  ToolCallContentBlock,
+  ContentBlock,
+  ToolUseBlock,
 } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 import ToolGroup from './ToolGroup';
@@ -13,30 +13,35 @@ export interface AssistantMessageProps {
   message: AssistantMessageType;
   /** Whether tool groups and thinking blocks should be collapsed by default */
   defaultCollapsed?: boolean;
+  /** Current session ID for accessing tool call state */
+  sessionId: string | null;
+  /** Whether the session is currently streaming */
+  isStreaming: boolean;
 }
 
 /**
  * 分组后的内容块类型
  */
 type GroupedBlock =
-  | { type: 'single'; block: AssistantContentBlock; index: number }
-  | { type: 'tool_group'; blocks: ToolCallContentBlock[] };
+  | { type: 'single'; block: ContentBlock; index: number }
+  | { type: 'tool_group'; blocks: ToolUseBlock[] };
 
 /**
  * 将内容块分组：
- * - 连续的 toolCall 归为一组（Write/Edit/TodoWrite 除外）
+ * - 连续的 tool_use 归为一组（Write/Edit/TodoWrite 除外）
  * - Write/Edit 单独展示
  * - TodoWrite 不展示（由 extractLatestTodos 处理）
+ * - tool_result 块跳过（不直接渲染）
  */
-function groupContentBlocks(blocks: AssistantContentBlock[]): GroupedBlock[] {
+function groupContentBlocks(blocks: ContentBlock[]): GroupedBlock[] {
   const groups: GroupedBlock[] = [];
-  let currentToolGroup: ToolCallContentBlock[] = [];
+  let currentToolGroup: ToolUseBlock[] = [];
 
   // 需要单独展示的工具
   const standaloneTools = ['TodoWrite', 'Write', 'Edit'];
 
   blocks.forEach((block, index) => {
-    if (block.type === 'toolCall') {
+    if (block.type === 'tool_use') {
       // TodoWrite 完全跳过
       if (block.name === 'TodoWrite') {
         return;
@@ -55,6 +60,9 @@ function groupContentBlocks(blocks: AssistantContentBlock[]): GroupedBlock[] {
 
       // 普通工具，加入当前工具组
       currentToolGroup.push(block);
+    } else if (block.type === 'tool_result') {
+      // tool_result 块跳过，不直接渲染
+      return;
     } else {
       // 非工具块
       // 如果有累积的工具调用组，先添加
@@ -77,12 +85,12 @@ function groupContentBlocks(blocks: AssistantContentBlock[]): GroupedBlock[] {
 /**
  * 提取最新的 TodoWrite 调用中的 todos
  */
-function extractLatestTodos(blocks: AssistantContentBlock[]): TodoItem[] | null {
+function extractLatestTodos(blocks: ContentBlock[]): TodoItem[] | null {
   // 从后往前找最新的 TodoWrite
   for (let i = blocks.length - 1; i >= 0; i--) {
     const block = blocks[i];
-    if (block.type === 'toolCall' && block.name === 'TodoWrite') {
-      const args = block.arguments as { todos?: TodoItem[] };
+    if (block.type === 'tool_use' && block.name === 'TodoWrite') {
+      const args = block.input as { todos?: TodoItem[] };
       return args.todos || null;
     }
   }
@@ -92,24 +100,24 @@ function extractLatestTodos(blocks: AssistantContentBlock[]): TodoItem[] | null 
 /**
  * 助手消息组件
  */
-const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, defaultCollapsed = false }) => {
+const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, defaultCollapsed = false, sessionId, isStreaming }) => {
   const { t } = useTranslation('message');
-  const { contentBlocks, isStreaming } = message;
+  const { content } = message;
 
   // 分组内容块
   const groupedBlocks = useMemo(() => {
-    if (!contentBlocks || contentBlocks.length === 0) return [];
-    return groupContentBlocks(contentBlocks);
-  }, [contentBlocks]);
+    if (!content || content.length === 0) return [];
+    return groupContentBlocks(content);
+  }, [content]);
 
   // 提取 todos
   const latestTodos = useMemo(() => {
-    if (!contentBlocks || contentBlocks.length === 0) return null;
-    return extractLatestTodos(contentBlocks);
-  }, [contentBlocks]);
+    if (!content || content.length === 0) return null;
+    return extractLatestTodos(content);
+  }, [content]);
 
-  const hasContent = contentBlocks && contentBlocks.length > 0;
-  const totalBlocks = contentBlocks?.length || 0;
+  const hasContent = content && content.length > 0;
+  const totalBlocks = content?.length || 0;
 
   return (
     <div className="text-[15px] leading-relaxed w-full text-foreground">
@@ -122,6 +130,7 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
                 blocks={group.blocks}
                 isStreaming={isStreaming}
                 defaultCollapsed={defaultCollapsed}
+                sessionId={sessionId}
               />
             );
           }
@@ -133,6 +142,7 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
               isStreaming={isStreaming}
               isLastBlock={group.index === totalBlocks - 1}
               defaultCollapsed={defaultCollapsed}
+              sessionId={sessionId}
             />
           );
         })

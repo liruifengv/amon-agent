@@ -14,7 +14,7 @@ import { Input } from '../ui/input';
  * - 今年内: 显示月日 (如 3/15)
  * - 更早: 显示年月日 (如 2024/3/15)
  */
-function formatTime(timestamp: string, yesterdayLabel: string): string {
+function formatTime(timestamp: number, yesterdayLabel: string): string {
   const date = new Date(timestamp);
   const now = new Date();
 
@@ -67,7 +67,7 @@ const SessionList: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    const { confirmed } = await window.electronAPI.dialog.confirm({
+    const confirmed = await window.ipc.dialog.confirm({
       title: t('deleteSession'),
       message: t('confirmDeleteSession', { name }),
     });
@@ -121,9 +121,9 @@ const SessionList: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <span
                   className="block text-sm truncate"
-                  onDoubleClick={() => handleStartRename(session.id, session.name)}
+                  onDoubleClick={() => handleStartRename(session.id, session.title)}
                 >
-                  {session.name}
+                  {session.title}
                 </span>
                 <span className="block text-xs text-muted-foreground mt-0.5">
                   {formatTime(session.updatedAt, t('yesterday'))}
@@ -132,7 +132,7 @@ const SessionList: React.FC = () => {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={(e) => handleDelete(e, session.id, session.name)}
+                onClick={(e) => handleDelete(e, session.id, session.title)}
                 className="opacity-0 group-hover:opacity-100 h-7 w-7 text-muted-foreground hover:text-destructive flex-shrink-0"
                 title={t('deleteSession')}
               >

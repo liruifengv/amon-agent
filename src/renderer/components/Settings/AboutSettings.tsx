@@ -9,27 +9,25 @@ const AboutSettings: React.FC = () => {
 
   useEffect(() => {
     // 获取应用版本号
-    window.electronAPI.app.getVersion().then((result) => {
-      if (result.success) {
-        setVersion(result.version);
-      }
+    window.ipc.system.getVersion().then((version: string) => {
+      setVersion(version);
     });
   }, []);
 
   const handleOpenConfigDir = () => {
-    window.electronAPI.shell.openConfigDir();
+    window.ipc.system.openConfigDir();
   };
 
   const handleOpenGithub = () => {
-    window.electronAPI.shell.openExternal('https://github.com/liruifengv/amon-agent');
+    window.ipc.system.openExternal('https://github.com/liruifengv/amon-agent');
   };
 
   const handleOpenLicense = () => {
-    window.electronAPI.shell.openExternal('https://github.com/liruifengv/amon-agent/blob/main/LICENSE');
+    window.ipc.system.openExternal('https://github.com/liruifengv/amon-agent/blob/main/LICENSE');
   };
 
   const handleOpenDocs = () => {
-    window.electronAPI.shell.openExternal('https://github.com/liruifengv/amon-agent#readme');
+    window.ipc.system.openExternal('https://github.com/liruifengv/amon-agent#readme');
   };
 
   return (

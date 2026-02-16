@@ -22,10 +22,10 @@ const ProviderSettings: React.FC = () => {
   const [showAddDropdown, setShowAddDropdown] = useState(false);
 
   const providerConfigs = formData.agent.providerConfigs || [];
-  const activeProvider = formData.agent.activeProvider;
+  const activeProviderId = formData.agent.activeProviderId;
 
   // 已添加的 provider ID 列表
-  const configuredProviderIds = providerConfigs.map(c => c.provider);
+  const configuredProviderIds = providerConfigs.map(c => c.id);
 
   // 还没添加的 provider
   const unconfiguredProviders = SUPPORTED_PROVIDERS.filter(
@@ -33,7 +33,7 @@ const ProviderSettings: React.FC = () => {
   );
 
   const getConfig = (providerId: string): ProviderConfig | undefined => {
-    return providerConfigs.find(c => c.provider === providerId);
+    return providerConfigs.find(c => c.id === providerId);
   };
 
   const getProviderName = (providerId: string): string => {
@@ -42,15 +42,15 @@ const ProviderSettings: React.FC = () => {
 
   const updateProviderConfig = (providerId: string, updates: Partial<ProviderConfig>) => {
     clearSaveError();
-    const existing = providerConfigs.find(c => c.provider === providerId);
+    const existing = providerConfigs.find(c => c.id === providerId);
     let newConfigs: ProviderConfig[];
 
     if (existing) {
       newConfigs = providerConfigs.map(c =>
-        c.provider === providerId ? { ...c, ...updates } : c
+        c.id === providerId ? { ...c, ...updates } : c
       );
     } else {
-      newConfigs = [...providerConfigs, { provider: providerId, apiKey: '', ...updates }];
+      newConfigs = [...providerConfigs, { id: providerId, name: getProviderName(providerId), apiKey: '', ...updates }];
     }
 
     setAgentFormData({ providerConfigs: newConfigs });
@@ -63,7 +63,7 @@ const ProviderSettings: React.FC = () => {
 
   const handleRemoveProvider = async (providerId: string) => {
     clearSaveError();
-    const newConfigs = providerConfigs.filter(c => c.provider !== providerId);
+    const newConfigs = providerConfigs.filter(c => c.id !== providerId);
     setAgentFormData({ providerConfigs: newConfigs });
     setTimeout(() => saveSettings(), 0);
   };
@@ -106,7 +106,7 @@ const ProviderSettings: React.FC = () => {
       <div className="space-y-3">
         {configuredProviderIds.map((providerId) => {
           const config = getConfig(providerId);
-          const isActive = activeProvider === providerId;
+          const isActive = activeProviderId === providerId;
           const hasKey = !!config?.apiKey?.trim();
 
           return (

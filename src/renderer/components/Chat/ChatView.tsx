@@ -126,7 +126,7 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
         )}
         <div className="flex-1 flex flex-col items-center justify-center relative">
           <h2 className="text-sm font-medium text-foreground truncate">
-            {currentSession?.name || t('newSession')}
+            {currentSession?.title || t('newSession')}
           </h2>
           {/* 工作空间指示器 */}
           <button

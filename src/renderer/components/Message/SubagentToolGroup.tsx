@@ -1,25 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { ToolCallContentBlock } from '../../types';
+import { ToolUseBlock, ToolCallState } from '../../types';
+import { useChatStore } from '../../store/chatStore';
 import { ChevronRight, Bot, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
 export interface SubagentToolGroupProps {
   /** Task 工具调用（父工具） */
-  parentTool: ToolCallContentBlock;
+  parentTool: ToolUseBlock;
   /** 子工具调用列表 */
-  childTools: ToolCallContentBlock[];
+  childTools: ToolUseBlock[];
   /** 是否正在流式传输 */
   isStreaming?: boolean;
   /** 是否默认折叠 */
   defaultCollapsed?: boolean;
+  /** Current session ID for accessing tool call state */
+  sessionId: string | null;
 }
 
 /**
  * 获取 Subagent 描述
  */
-function getSubagentDescription(parentTool: ToolCallContentBlock): string {
-  const args = parentTool.arguments as {
+function getSubagentDescription(parentTool: ToolUseBlock): string {
+  const args = parentTool.input as {
     description?: string;
     subagent_type?: string;
     prompt?: string;
@@ -42,14 +45,17 @@ function getSubagentDescription(parentTool: ToolCallContentBlock): string {
 /**
  * 检查 Subagent 是否正在运行
  */
-function isSubagentRunning(parentTool: ToolCallContentBlock, childTools: ToolCallContentBlock[]): boolean {
+function isSubagentRunning(
+  parentState: ToolCallState | undefined,
+  childStates: (ToolCallState | undefined)[]
+): boolean {
   // 如果父工具还在运行
-  if (parentTool.status === 'running' || parentTool.status === 'pending') {
+  if (parentState?.status === 'running' || parentState?.status === 'pending') {
     return true;
   }
 
   // 如果有任何子工具还在运行
-  return childTools.some(t => t.status === 'running' || t.status === 'pending');
+  return childStates.some(s => s?.status === 'running' || s?.status === 'pending');
 }
 
 /**
@@ -62,23 +68,31 @@ const SubagentToolGroup: React.FC<SubagentToolGroupProps> = ({
   parentTool,
   childTools,
   defaultCollapsed = true,
+  sessionId,
 }) => {
   const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
 
+  // 获取父工具和子工具的运行时状态
+  const parentState = useChatStore((state) => state.getToolCallState(sessionId, parentTool.id));
+  const childStates = useMemo(
+    () => childTools.map(ct => useChatStore.getState().getToolCallState(sessionId, ct.id)),
+    [childTools, sessionId]
+  );
+
   const description = useMemo(() => getSubagentDescription(parentTool), [parentTool]);
   const isRunning = useMemo(
-    () => isSubagentRunning(parentTool, childTools),
-    [parentTool, childTools]
+    () => isSubagentRunning(parentState, childStates),
+    [parentState, childStates]
   );
 
   // 统计子工具状态
   const stats = useMemo(() => {
-    const completed = childTools.filter(t => t.status === 'completed').length;
-    const errors = childTools.filter(t => t.status === 'error').length;
+    const completed = childStates.filter(s => s?.status === 'completed').length;
+    const errors = childStates.filter(s => s?.status === 'error').length;
     const total = childTools.length;
     return { completed, errors, total };
-  }, [childTools]);
+  }, [childStates, childTools.length]);
 
   return (
     <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
@@ -124,7 +138,7 @@ const SubagentToolGroup: React.FC<SubagentToolGroupProps> = ({
           {/* 左侧边框指示层级 */}
           <div className="ml-3 pl-3 border-l-2 border-primary/20 py-2 space-y-2">
             {childTools.map((tool) => (
-              <ToolCallBlock key={tool.id} toolCall={tool} isNested />
+              <ToolCallBlock key={tool.id} toolCall={tool} isNested sessionId={sessionId} />
             ))}
           </div>
         </div>

@@ -1,23 +1,25 @@
 import { create } from 'zustand';
-import { Message, ImageAttachment } from '../types';
+import type { Message, ImageAttachment, StreamingState, ToolCallState } from '../types';
 
 interface ChatState {
   // 按会话缓存消息（来自主进程推送）
   sessionMessages: Record<string, Message[]>;
-  // 各会话的加载状态
-  sessionLoadingState: Record<string, boolean>;
+  // 各会话的流式状态
+  streamingStates: Record<string, StreamingState>;
   // 各会话的错误信息
   sessionErrors: Record<string, string | null>;
 
   // Getters
   getMessages: (sessionId: string | null) => Message[];
   isSessionLoading: (sessionId: string | null) => boolean;
+  getStreamingState: (sessionId: string | null) => StreamingState | null;
+  getToolCallState: (sessionId: string | null, toolCallId: string) => ToolCallState | undefined;
   getSessionError: (sessionId: string | null) => string | null;
 
   // Actions（仅用于更新本地缓存，实际数据由主进程管理）
   setMessages: (sessionId: string, messages: Message[]) => void;
-  setLoadingState: (sessionId: string, isLoading: boolean) => void;
-  setLoadingStates: (states: Record<string, boolean>) => void;
+  setStreamingState: (sessionId: string, state: StreamingState) => void;
+  updateToolCallState: (sessionId: string, toolCallId: string, state: ToolCallState) => void;
   setSessionError: (sessionId: string, error: string | null) => void;
   clearSessionError: (sessionId: string) => void;
   clearSessionCache: (sessionId: string) => void;
@@ -30,7 +32,7 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   sessionMessages: {},
-  sessionLoadingState: {},
+  streamingStates: {},
   sessionErrors: {},
 
   getMessages: (sessionId) => {
@@ -40,7 +42,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   isSessionLoading: (sessionId) => {
     if (!sessionId) return false;
-    return get().sessionLoadingState[sessionId] || false;
+    return get().streamingStates[sessionId]?.isStreaming || false;
+  },
+
+  getStreamingState: (sessionId) => {
+    if (!sessionId) return null;
+    return get().streamingStates[sessionId] || null;
+  },
+
+  getToolCallState: (sessionId, toolCallId) => {
+    if (!sessionId) return undefined;
+    return get().streamingStates[sessionId]?.toolCallStates?.[toolCallId];
   },
 
   getSessionError: (sessionId) => {
@@ -53,13 +65,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sessionMessages: { ...state.sessionMessages, [sessionId]: messages },
     })),
 
-  setLoadingState: (sessionId, isLoading) =>
+  setStreamingState: (sessionId, streamState) =>
     set((state) => ({
-      sessionLoadingState: { ...state.sessionLoadingState, [sessionId]: isLoading },
+      streamingStates: { ...state.streamingStates, [sessionId]: streamState },
     })),
 
-  setLoadingStates: (states) =>
-    set({ sessionLoadingState: states }),
+  updateToolCallState: (sessionId, toolCallId, toolState) =>
+    set((state) => {
+      const current = state.streamingStates[sessionId] || {
+        isStreaming: false,
+        blockCompletionMap: {},
+        toolCallStates: {},
+      };
+      return {
+        streamingStates: {
+          ...state.streamingStates,
+          [sessionId]: {
+            ...current,
+            toolCallStates: {
+              ...current.toolCallStates,
+              [toolCallId]: toolState,
+            },
+          },
+        },
+      };
+    }),
 
   setSessionError: (sessionId, error) =>
     set((state) => ({
@@ -74,14 +104,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearSessionCache: (sessionId) =>
     set((state) => {
       const { [sessionId]: _removedMessages, ...restMessages } = state.sessionMessages;
-      const { [sessionId]: _removedState, ...restLoadingState } = state.sessionLoadingState;
+      const { [sessionId]: _removedState, ...restStreaming } = state.streamingStates;
       const { [sessionId]: _removedError, ...restErrors } = state.sessionErrors;
       void _removedMessages;
       void _removedState;
       void _removedError;
       return {
         sessionMessages: restMessages,
-        sessionLoadingState: restLoadingState,
+        streamingStates: restStreaming,
         sessionErrors: restErrors,
       };
     }),
@@ -93,7 +123,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         sessionErrors: { ...state.sessionErrors, [sessionId]: null },
       }));
 
-      await window.electronAPI.agent.sendMessage(content, sessionId, images);
+      await window.ipc.agent.sendMessage(content, sessionId, images);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       set((state) => ({
@@ -104,7 +134,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   interruptMessage: async (sessionId: string) => {
     try {
-      await window.electronAPI.agent.interrupt(sessionId);
+      await window.ipc.agent.interrupt(sessionId);
     } catch (error) {
       console.error('Failed to interrupt message:', error);
     }
@@ -112,7 +142,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadMessages: async (sessionId) => {
     try {
-      const messages = await window.electronAPI.session.getMessages(sessionId);
+      const messages = await window.ipc.session.getMessages(sessionId);
       set((state) => ({
         sessionMessages: { ...state.sessionMessages, [sessionId]: messages },
       }));
@@ -122,25 +152,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 }));
 
-// 初始化监听器（模块级别，只执行一次）
-if (typeof window !== 'undefined' && window.electronAPI) {
+// ==================== 初始化 Push 监听器 ====================
+
+if (typeof window !== 'undefined' && window.push) {
   // 监听消息更新
-  window.electronAPI.agent.onMessagesUpdated(({ sessionId, messages }) => {
+  window.push.on('push:messagesUpdated', ({ sessionId, messages }) => {
     useChatStore.getState().setMessages(sessionId, messages);
   });
 
-  // 监听消息状态变化
-  window.electronAPI.agent.onMessageState(({ sessionId, isLoading }) => {
-    useChatStore.getState().setLoadingState(sessionId, isLoading);
+  // 监听流式状态变化（替代旧的 messageState + messageComplete）
+  window.push.on('push:streamingState', ({ sessionId, state }) => {
+    useChatStore.getState().setStreamingState(sessionId, state);
   });
 
-  // 监听消息错误
-  window.electronAPI.agent.onMessageError(({ sessionId, error }) => {
+  // 监听工具调用状态
+  window.push.on('push:toolCallState', ({ sessionId, toolCallId, state }) => {
+    useChatStore.getState().updateToolCallState(sessionId, toolCallId, state);
+  });
+
+  // 监听错误
+  window.push.on('push:error', ({ sessionId, error }) => {
     useChatStore.getState().setSessionError(sessionId, error);
-  });
-
-  // 监听消息完成（可用于更新 UI 状态）
-  window.electronAPI.agent.onMessageComplete(({ sessionId }) => {
-    useChatStore.getState().setLoadingState(sessionId, false);
   });
 }

@@ -41,25 +41,25 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
   };
 
   const handleAddNewWorkspace = async () => {
-    const result = await window.electronAPI.dialog.selectFolder();
-    if (result.success && result.path) {
+    const selectedPath = await window.ipc.dialog.selectFolder();
+    if (selectedPath) {
       // 检查是否已存在相同路径的工作空间
-      const existingWorkspace = workspaces.find(w => w.path === result.path);
+      const existingWorkspace = workspaces.find(w => w.path === selectedPath);
       if (existingWorkspace) {
         // 已存在，直接应用到当前会话
         if (!hasMessages) {
-          await updateSessionWorkspace(sessionId, result.path);
+          await updateSessionWorkspace(sessionId, selectedPath);
         }
         onClose();
         return;
       }
 
       // 添加到保存的工作空间列表
-      const name = getPathName(result.path) || 'workspace';
+      const name = getPathName(selectedPath) || 'workspace';
       const newWorkspace: Workspace = {
         id: crypto.randomUUID(),
         name,
-        path: result.path,
+        path: selectedPath,
         isDefault: workspaces.length === 0,
       };
 
@@ -70,7 +70,7 @@ const WorkspaceSelector: React.FC<WorkspaceSelectorProps> = ({
 
       // 如果没有消息，应用到当前会话
       if (!hasMessages) {
-        await updateSessionWorkspace(sessionId, result.path);
+        await updateSessionWorkspace(sessionId, selectedPath);
       }
       onClose();
     }

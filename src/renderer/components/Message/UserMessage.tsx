@@ -100,12 +100,13 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
     // 先重置，然后异步获取
     const fetchValidPaths = async () => {
       try {
-        const result = await window.electronAPI.workspace.validatePaths(
-          currentSessionId,
+        const results: boolean[] = await window.ipc.workspace.validatePaths(
           mentionedPaths
         );
-        if (!cancelled && result.success) {
-          setValidPaths(result.validPaths);
+        if (!cancelled && Array.isArray(results)) {
+          // 从 boolean[] 结果中筛选出有效路径
+          const valid = mentionedPaths.filter((_, index) => results[index]);
+          setValidPaths(valid);
         }
       } catch {
         // 忽略错误

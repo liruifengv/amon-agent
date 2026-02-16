@@ -15,18 +15,18 @@ const WorkspaceSettings: React.FC = () => {
   const workspaces = formData.workspaces || [];
 
   const handleAddWorkspace = async () => {
-    const result = await window.electronAPI.dialog.selectFolder();
-    if (result.success && result.path) {
+    const selectedPath = await window.ipc.dialog.selectFolder();
+    if (selectedPath) {
       // 检查是否已存在相同路径的工作空间
-      if (workspaces.some(w => w.path === result.path)) {
+      if (workspaces.some(w => w.path === selectedPath)) {
         return; // 已存在，不重复添加
       }
       // 提取目录最后一级作为名称
-      const name = getPathName(result.path) || 'workspace';
+      const name = getPathName(selectedPath) || 'workspace';
       const newWorkspace: Workspace = {
         id: crypto.randomUUID(),
         name,
-        path: result.path,
+        path: selectedPath,
         isDefault: workspaces.length === 0, // 第一个工作空间设为默认
       };
       setFormData({ workspaces: [...workspaces, newWorkspace] });
@@ -51,7 +51,7 @@ const WorkspaceSettings: React.FC = () => {
   };
 
   const handleDeleteWorkspace = async (workspace: Workspace) => {
-    const { confirmed } = await window.electronAPI.dialog.confirm({
+    const confirmed = await window.ipc.dialog.confirm({
       title: t('common:confirmDelete'),
       message: t('settings:workspace.confirmDeleteMessage', { name: workspace.name }),
     });
@@ -88,7 +88,7 @@ const WorkspaceSettings: React.FC = () => {
   };
 
   const handleOpenInFinder = async (path: string) => {
-    await window.electronAPI.shell.openPath(path);
+    await window.ipc.system.openPath(path);
   };
 
   // 检查是否有用户设置的默认工作空间

@@ -1,5 +1,40 @@
 import { z } from 'zod';
-import { DEFAULT_SYSTEM_PROMPT } from './constants';
+
+// ==================== Provider 配置 Schema ====================
+
+export const ProviderConfigSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  apiKey: z.string().default(''),
+  baseUrl: z.string().optional(),
+});
+
+export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
+
+// ==================== Agent 配置 Schema ====================
+
+export const AgentSettingsSchema = z.object({
+  activeProviderId: z.string().default('anthropic'),
+  activeModelId: z.string().default('claude-sonnet-4-20250514'),
+  maxTurns: z.number().default(50),
+  thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('medium'),
+  providerConfigs: z.array(ProviderConfigSchema).default([]),
+});
+
+export type AgentSettings = z.infer<typeof AgentSettingsSchema>;
+
+export const DEFAULT_AGENT_SETTINGS: AgentSettings = AgentSettingsSchema.parse({});
+
+// ==================== 工作空间 Schema ====================
+
+export const WorkspaceSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  path: z.string().min(1),
+  isDefault: z.boolean().default(false),
+});
+
+export type Workspace = z.infer<typeof WorkspaceSchema>;
 
 // ==================== 快捷键 Schema ====================
 
@@ -10,158 +45,93 @@ export const ShortcutsSchema = z.object({
 
 export type Shortcuts = z.infer<typeof ShortcutsSchema>;
 
-export const DEFAULT_SHORTCUTS: Shortcuts = {
-  newSession: 'CmdOrCtrl+N',
-  openSettings: 'CmdOrCtrl+,',
-};
-
-// ==================== 工作空间 Schema ====================
-
-export const WorkspaceSchema = z.object({
-  id: z.string(),
-  name: z.string().min(1, '工作空间名称不能为空'),
-  path: z.string().min(1, '工作空间路径不能为空'),
-  isDefault: z.boolean().default(false),
-});
-
-export type Workspace = z.infer<typeof WorkspaceSchema>;
-
-// ==================== Provider 配置 Schema ====================
-
-export const ProviderConfigSchema = z.object({
-  /** pi-ai 的 provider 标识，如 "anthropic", "openai", "google" 等 */
-  provider: z.string(),
-  /** 该 provider 的 API Key */
-  apiKey: z.string().default(''),
-  /** 自定义 base URL（可选，用于代理或私有部署） */
-  baseUrl: z.string().optional(),
-});
-
-export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
-
-// ==================== Agent 配置 Schema ====================
-
-export const AgentSchema = z.object({
-  /** Provider 配置列表（API Key 等） */
-  providerConfigs: z.array(ProviderConfigSchema).default([]),
-
-  /** 当前选中的 provider（如 "anthropic"） */
-  activeProvider: z.string().default('anthropic'),
-
-  /** 当前选中的 model ID（如 "claude-sonnet-4-20250514"） */
-  activeModelId: z.string().default('claude-sonnet-4-20250514'),
-
-  /** thinking level */
-  thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('medium'),
-
-  /** 系统提示词（追加到默认提示词后） */
-  systemPrompt: z.preprocess(
-    (val) => (val === '' ? undefined : val),
-    z.string().default(DEFAULT_SYSTEM_PROMPT)
-  ),
-
-  /** 最大轮数 */
-  maxTurns: z.number().default(50),
-});
-
-export type AgentSettings = z.infer<typeof AgentSchema>;
-
-export const DEFAULT_AGENT_SETTINGS: AgentSettings = {
-  providerConfigs: [],
-  activeProvider: 'anthropic',
-  activeModelId: 'claude-sonnet-4-20250514',
-  thinkingLevel: 'medium',
-  systemPrompt: DEFAULT_SYSTEM_PROMPT,
-  maxTurns: 50,
-};
+export const DEFAULT_SHORTCUTS: Shortcuts = ShortcutsSchema.parse({});
 
 // ==================== 设置 Schema ====================
 
 export const SettingsSchema = z.object({
-  // 主题
   theme: z.enum(['light', 'dark', 'system']).default('system'),
-
-  // 语言
   language: z.enum(['en', 'zh']).default('en'),
-
-  // 快捷键配置
   shortcuts: ShortcutsSchema.default(DEFAULT_SHORTCUTS),
-
-  // 保存的工作空间列表
   workspaces: z.array(WorkspaceSchema).default([]),
-
-  // Agent 配置
-  agent: AgentSchema.default(DEFAULT_AGENT_SETTINGS),
+  agent: AgentSettingsSchema.default(DEFAULT_AGENT_SETTINGS),
 });
-
-// ==================== 类型导出 ====================
 
 export type Settings = z.infer<typeof SettingsSchema>;
 
-// 默认设置
-export const DEFAULT_SETTINGS: Settings = {
-  theme: 'system',
-  language: 'en',
-  shortcuts: DEFAULT_SHORTCUTS,
-  workspaces: [],
-  agent: DEFAULT_AGENT_SETTINGS,
-};
+export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
+
+// ==================== 设置迁移 ====================
+
+/**
+ * Migrate old settings format to new format.
+ * Old format: top-level `providers[]`, `agent.provider`, `agent.model`, `agent.thinkingBudget`
+ * New format: `agent.providerConfigs[]`, `agent.activeProviderId`, `agent.activeModelId`, `agent.thinkingLevel`
+ */
+function migrateSettings(data: unknown): unknown {
+  if (!data || typeof data !== 'object') return data;
+  const raw = { ...(data as Record<string, unknown>) };
+
+  // Deep-clone agent to avoid mutating input
+  if (raw.agent && typeof raw.agent === 'object') {
+    raw.agent = { ...(raw.agent as Record<string, unknown>) };
+  }
+
+  const agent = (raw.agent || {}) as Record<string, unknown>;
+
+  // Migrate old top-level `providers[]` → `agent.providerConfigs[]`
+  if (Array.isArray(raw.providers) && !agent.providerConfigs) {
+    agent.providerConfigs = (raw.providers as Record<string, unknown>[]).map(p => ({
+      id: ((p.id as string) || '').toLowerCase(),
+      name: (p.id as string) || (p.name as string) || '',
+      apiKey: (p.apiKey as string) || '',
+      ...(p.baseUrl ? { baseUrl: p.baseUrl as string } : {}),
+    }));
+    delete raw.providers;
+  }
+
+  // Migrate `agent.provider` → `agent.activeProviderId`
+  if (agent.provider && !agent.activeProviderId) {
+    agent.activeProviderId = (agent.provider as string).toLowerCase();
+  }
+  delete agent.provider;
+
+  // Migrate `agent.model` → `agent.activeModelId`
+  if (agent.model && !agent.activeModelId) {
+    agent.activeModelId = agent.model;
+  }
+  delete agent.model;
+
+  // Remove old agent fields that don't exist in new schema
+  delete agent.thinkingBudget;
+  delete agent.customSystemPrompt;
+
+  raw.agent = agent;
+
+  // Migrate workspaces: add `id` if missing
+  if (Array.isArray(raw.workspaces)) {
+    raw.workspaces = (raw.workspaces as Record<string, unknown>[]).map((w, i) => ({
+      ...w,
+      id: w.id || `ws_${i}`,
+      isDefault: w.isDefault ?? false,
+    }));
+  }
+
+  // Remove old top-level fields
+  delete raw.defaultWorkspace;
+
+  return raw;
+}
 
 // ==================== 校验函数 ====================
 
-/**
- * 校验并解析设置，返回校验后的设置对象
- * 如果校验失败，使用默认值填充
- */
 export function parseSettings(data: unknown): Settings {
-  const result = SettingsSchema.safeParse(data);
+  // First try to migrate old format
+  const migrated = migrateSettings(data);
 
-  if (result.success) {
-    return result.data;
-  }
+  const result = SettingsSchema.safeParse(migrated);
+  if (result.success) return result.data;
 
-  // 校验失败时，尝试部分解析并合并默认值
-  console.warn('Settings validation failed:', result.error.flatten());
-
-  // 如果是对象，尝试逐个字段校验
-  if (data && typeof data === 'object') {
-    const partialData = data as Record<string, unknown>;
-    const merged: Record<string, unknown> = { ...DEFAULT_SETTINGS };
-
-    // 逐个字段尝试校验
-    for (const key of Object.keys(SettingsSchema.shape)) {
-      if (key in partialData) {
-        const fieldSchema = SettingsSchema.shape[key as keyof typeof SettingsSchema.shape];
-        const fieldResult = fieldSchema.safeParse(partialData[key]);
-        if (fieldResult.success) {
-          merged[key] = fieldResult.data;
-        }
-      }
-    }
-
-    return merged as Settings;
-  }
-
+  console.warn('Settings validation failed, using defaults', result.error.issues);
   return DEFAULT_SETTINGS;
-}
-
-/**
- * 校验设置更新，返回校验结果
- */
-export function validateSettingsUpdate(
-  updates: Partial<Settings>
-): { success: true; data: Partial<Settings> } | { success: false; errors: { field: string; message: string }[] } {
-  const partialSchema = SettingsSchema.partial();
-  const result = partialSchema.safeParse(updates);
-
-  if (result.success) {
-    return { success: true, data: result.data };
-  }
-
-  const errors = result.error.issues.map((err) => ({
-    field: err.path.map(String).join('.'),
-    message: err.message,
-  }));
-
-  return { success: false, errors };
 }

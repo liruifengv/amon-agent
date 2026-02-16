@@ -13,7 +13,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const { t } = useTranslation('sidebar');
   const handleOpenSettings = () => {
-    window.electronAPI.window.openSettings();
+    window.ipc.system.openSettings();
   };
 
   return (

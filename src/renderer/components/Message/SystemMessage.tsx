@@ -10,21 +10,22 @@ export interface SystemMessageProps {
  * 系统消息组件 - 用于显示权限响应等系统信息
  */
 const SystemMessage: React.FC<SystemMessageProps> = ({ message }) => {
-  const { contentBlocks } = message;
+  const blocks = message.content;
 
-  if (!contentBlocks || contentBlocks.length === 0) {
+  if (!blocks || blocks.length === 0) {
     return null;
   }
 
   return (
     <div className="flex flex-col items-start">
       <div className="max-w-[80%]">
-        {contentBlocks.map((block, index) => (
+        {blocks.map((block, index) => (
           <ContentBlockRenderer
             key={`block-${index}`}
             block={block}
             isStreaming={false}
-            isLastBlock={index === contentBlocks.length - 1}
+            isLastBlock={index === blocks.length - 1}
+            sessionId={null}
           />
         ))}
       </div>
