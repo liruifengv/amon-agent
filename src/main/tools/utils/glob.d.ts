@@ -7,5 +7,8 @@ declare module 'glob' {
     ignore?: string | string[];
   }
 
-  export function globSync(pattern: string, options?: GlobOptions): string[];
+  function sync(pattern: string, options?: GlobOptions): string[];
+
+  export default { sync };
+  export { sync };
 }

@@ -4,6 +4,7 @@ import {
   AssistantMessage as AssistantMessageType,
   ContentBlock,
   ToolUseBlock,
+  ToolResultBlock,
 } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 import ToolGroup from './ToolGroup';
@@ -110,6 +111,18 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
     return groupContentBlocks(content);
   }, [content]);
 
+  // 构建 toolUseId → ToolResultBlock 查找表
+  const toolResultMap = useMemo(() => {
+    const map = new Map<string, ToolResultBlock>();
+    if (!content) return map;
+    for (const block of content) {
+      if (block.type === 'tool_result') {
+        map.set(block.toolUseId, block);
+      }
+    }
+    return map;
+  }, [content]);
+
   // 提取 todos
   const latestTodos = useMemo(() => {
     if (!content || content.length === 0) return null;
@@ -131,6 +144,7 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
                 isStreaming={isStreaming}
                 defaultCollapsed={defaultCollapsed}
                 sessionId={sessionId}
+                toolResultMap={toolResultMap}
               />
             );
           }
@@ -143,6 +157,7 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
               isLastBlock={group.index === totalBlocks - 1}
               defaultCollapsed={defaultCollapsed}
               sessionId={sessionId}
+              toolResultMap={toolResultMap}
             />
           );
         })

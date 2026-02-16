@@ -66,9 +66,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })),
 
   setStreamingState: (sessionId, streamState) =>
-    set((state) => ({
-      streamingStates: { ...state.streamingStates, [sessionId]: streamState },
-    })),
+    set((state) => {
+      const current = state.streamingStates[sessionId];
+      // When streaming ends, preserve accumulated tool call states
+      // so completed tools don't revert to 'pending' spinners
+      const toolCallStates = !streamState.isStreaming && current?.toolCallStates
+        ? { ...current.toolCallStates, ...streamState.toolCallStates }
+        : streamState.toolCallStates;
+      return {
+        streamingStates: {
+          ...state.streamingStates,
+          [sessionId]: { ...streamState, toolCallStates },
+        },
+      };
+    }),
 
   updateToolCallState: (sessionId, toolCallId, toolState) =>
     set((state) => {

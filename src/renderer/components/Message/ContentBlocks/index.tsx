@@ -1,5 +1,5 @@
 import React from 'react';
-import { ContentBlock } from '../../../types';
+import { ContentBlock, ToolResultBlock } from '../../../types';
 import TextBlock from './TextBlock';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCallBlock from './ToolCallBlock';
@@ -12,6 +12,8 @@ export interface ContentBlockRendererProps {
   defaultCollapsed?: boolean;
   /** Current session ID for accessing tool call state */
   sessionId: string | null;
+  /** Map from toolUseId to ToolResultBlock for status derivation */
+  toolResultMap?: Map<string, ToolResultBlock>;
 }
 
 /**
@@ -23,6 +25,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
   isLastBlock,
   defaultCollapsed = false,
   sessionId,
+  toolResultMap,
 }) => {
   switch (block.type) {
     case 'text':
@@ -43,7 +46,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
       );
 
     case 'tool_use':
-      return <ToolCallBlock toolCall={block} sessionId={sessionId} />;
+      return <ToolCallBlock toolCall={block} sessionId={sessionId} toolResult={toolResultMap?.get(block.id)} />;
 
     default:
       // 未知类型（包括 tool_result），静默忽略

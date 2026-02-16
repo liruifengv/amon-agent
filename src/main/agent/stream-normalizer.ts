@@ -98,6 +98,9 @@ export class StreamNormalizer {
     messageId: string,
     stream: AsyncIterable<NormalizedStreamEvent>,
   ): Promise<StopReason> {
+    // Snapshot existing content blocks (from previous turns / tool results)
+    const existingBlocks = this.getExistingBlocks(sessionId, messageId);
+
     const blockBuilders = new Map<number, BlockBuilder>();
     let stopReason: StopReason = 'end_turn';
 
@@ -117,12 +120,12 @@ export class StreamNormalizer {
         case 'content_block_delta': {
           const builder = blockBuilders.get(event.index);
           builder?.applyDelta(event.delta);
-          this.syncBlocksToStore(sessionId, messageId, blockBuilders);
+          this.syncBlocksToStore(sessionId, messageId, existingBlocks, blockBuilders);
           break;
         }
 
         case 'content_block_stop': {
-          this.syncBlocksToStore(sessionId, messageId, blockBuilders);
+          this.syncBlocksToStore(sessionId, messageId, existingBlocks, blockBuilders);
           break;
         }
 
@@ -145,19 +148,29 @@ export class StreamNormalizer {
     }
 
     // Final sync to ensure all blocks are up to date
-    const finalBlocks = this.buildBlocks(blockBuilders);
+    const finalBlocks = [...existingBlocks, ...this.buildBlocks(blockBuilders)];
     this.sessionStore.setContentBlocks(sessionId, messageId, finalBlocks);
     this.sessionStore.updateMessageStopReason(sessionId, messageId, stopReason);
 
     return stopReason;
   }
 
+  private getExistingBlocks(sessionId: string, messageId: string): ContentBlock[] {
+    const msgs = this.sessionStore.getMessages(sessionId);
+    const msg = msgs.find(m => m.id === messageId);
+    if (msg && msg.role === 'assistant') {
+      return [...(msg as import('@shared/types').AssistantMessage).content];
+    }
+    return [];
+  }
+
   private syncBlocksToStore(
     sessionId: string,
     messageId: string,
+    existingBlocks: ContentBlock[],
     builders: Map<number, BlockBuilder>,
   ): void {
-    const blocks = this.buildBlocks(builders);
+    const blocks = [...existingBlocks, ...this.buildBlocks(builders)];
     this.sessionStore.setContentBlocks(sessionId, messageId, blocks);
   }
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ToolUseBlock } from '../../../types';
+import { ToolUseBlock, ToolResultBlock } from '../../../types';
 import { useChatStore } from '../../../store/chatStore';
 import {
   FileText,
@@ -121,6 +121,8 @@ export interface ToolCallBlockProps {
   isNested?: boolean;
   /** Current session ID for accessing tool call state */
   sessionId: string | null;
+  /** Matching tool result from message content (for status derivation) */
+  toolResult?: ToolResultBlock;
 }
 
 // 工具图标映射
@@ -338,14 +340,17 @@ const StreamingInputContent: React.FC<{ inputBuffer: string }> = ({ inputBuffer 
   );
 };
 
-const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = false, sessionId }) => {
+const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = false, sessionId, toolResult }) => {
   const { t } = useTranslation('message');
-  // 从 chatStore 获取工具调用的运行时状态
+  // 从 chatStore 获取工具调用的运行时状态（流式期间可用）
   const toolCallState = useChatStore((state) => state.getToolCallState(sessionId, toolCall.id));
-  const status = toolCallState?.status || 'pending';
+
+  // 状态派生优先级：streaming state > message content (toolResult) > fallback
+  const status = toolCallState?.status
+    ?? (toolResult ? (toolResult.isError ? 'error' : 'completed') : 'pending');
   const inputBuffer = toolCallState?.inputBuffer;
-  const output = toolCallState?.output;
-  const isError = toolCallState?.isError;
+  const output = toolCallState?.output ?? toolResult?.output;
+  const isError = toolCallState?.isError ?? toolResult?.isError;
 
   // Write 和 Edit 工具始终展开
   const isStandaloneTool = toolCall.name === 'Write' || toolCall.name === 'Edit';

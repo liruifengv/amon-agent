@@ -1,5 +1,5 @@
 import { existsSync } from 'fs';
-import { globSync } from 'glob';
+import glob from 'glob';
 import { z } from 'zod';
 import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
 import { resolveToCwd } from './utils/path-utils';
@@ -33,7 +33,7 @@ export const globTool: Tool<GlobInput> = {
     }
 
     try {
-      const results = globSync(pattern, {
+      const results = glob.sync(pattern, {
         cwd: searchPath,
         dot: true,
         absolute: false,

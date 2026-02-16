@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronRight, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ToolUseBlock } from '../../types';
+import { ToolUseBlock, ToolResultBlock } from '../../types';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
 export interface ToolGroupProps {
@@ -11,12 +11,14 @@ export interface ToolGroupProps {
   defaultCollapsed?: boolean;
   /** Current session ID for accessing tool call state */
   sessionId: string | null;
+  /** Map from toolUseId to ToolResultBlock for status derivation */
+  toolResultMap?: Map<string, ToolResultBlock>;
 }
 
 /**
  * 工具调用组容器 - 支持折叠和自动滚动
  */
-const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false, sessionId }) => {
+const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false, sessionId, toolResultMap }) => {
   const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +61,7 @@ const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultColla
           className="p-2 space-y-2 border-t border-border max-h-96 overflow-y-auto"
         >
           {blocks.map((block) => (
-            <ToolCallBlock key={`tool-${block.id}`} toolCall={block} sessionId={sessionId} />
+            <ToolCallBlock key={`tool-${block.id}`} toolCall={block} sessionId={sessionId} toolResult={toolResultMap?.get(block.id)} />
           ))}
         </div>
       )}

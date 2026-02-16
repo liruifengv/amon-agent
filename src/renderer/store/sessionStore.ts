@@ -46,11 +46,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   createSession: async (workspace?) => {
     try {
+      // Only send IPC — the push:sessionCreated event in App.tsx
+      // handles adding the session to state (with dedup).
       const session = await window.ipc.session.create(workspace);
-      set((state) => ({
-        sessions: [session, ...state.sessions],
-        currentSessionId: session.id,
-      }));
       return session;
     } catch (error) {
       console.error('Failed to create session:', error);
@@ -60,18 +58,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   deleteSession: async (id) => {
     try {
+      // Only send IPC — the push:sessionDeleted event in App.tsx
+      // handles removing from state.
       await window.ipc.session.delete(id);
-      set((state) => {
-        const newSessions = state.sessions.filter((s) => s.id !== id);
-        const newCurrentId =
-          state.currentSessionId === id
-            ? newSessions[0]?.id || null
-            : state.currentSessionId;
-        return {
-          sessions: newSessions,
-          currentSessionId: newCurrentId,
-        };
-      });
     } catch (error) {
       console.error('Failed to delete session:', error);
       throw error;
@@ -80,12 +69,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   renameSession: async (id, title) => {
     try {
+      // push:sessionUpdated in App.tsx handles state update
       await window.ipc.session.rename(id, title);
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.id === id ? { ...s, title } : s
-        ),
-      }));
     } catch (error) {
       console.error('Failed to rename session:', error);
       throw error;
@@ -94,12 +79,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   updateSessionWorkspace: async (id, workspace) => {
     try {
+      // push:sessionUpdated in App.tsx handles state update
       await window.ipc.session.updateWorkspace(id, workspace);
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.id === id ? { ...s, workspace } : s
-        ),
-      }));
     } catch (error) {
       console.error('Failed to update session workspace:', error);
       throw error;
