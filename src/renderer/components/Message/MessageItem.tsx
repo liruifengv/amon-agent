@@ -21,6 +21,9 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isLastMessage = fals
   const { currentSessionId } = useSessionStore();
   const isStreaming = useChatStore((state) => state.isSessionLoading(currentSessionId));
 
+  // 只有最后一条消息才传递流式状态，避免历史消息也显示"工作中"
+  const isActivelyStreaming = isLastMessage && isStreaming;
+
   // 历史消息：不是最后一条消息，或者是最后一条但已经完成（不在流式输出中）
   // 只有最后一条且正在流式输出的消息才展开
   const isHistorical = !isLastMessage || (message.role === 'assistant' && !isStreaming);
@@ -36,12 +39,12 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isLastMessage = fals
             message={message as AssistantMessageType}
             defaultCollapsed={isHistorical}
             sessionId={currentSessionId}
-            isStreaming={isStreaming}
+            isStreaming={isActivelyStreaming}
           />
         )}
 
         {/* 底部信息 */}
-        <MessageFooter message={message} isUser={isUser} isStreaming={isStreaming} />
+        <MessageFooter message={message} isUser={isUser} isStreaming={isActivelyStreaming} />
       </div>
     </div>
   );

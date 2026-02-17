@@ -247,6 +247,11 @@ export class AnthropicAdapter implements ProviderAdapter {
   async *stream(
     request: ProviderRequest,
   ): AsyncGenerator<NormalizedStreamEvent> {
+    // Track input usage from message_start (Anthropic splits usage across two events)
+    let inputTokens = 0;
+    let cacheReadTokens = 0;
+    let cacheWriteTokens = 0;
+
     try {
       const params: Anthropic.MessageCreateParamsStreaming = {
         model: request.model,
@@ -274,8 +279,24 @@ export class AnthropicAdapter implements ProviderAdapter {
       });
 
       for await (const event of response) {
+        // Capture input usage from message_start
+        if (event.type === 'message_start') {
+          const usage = event.message?.usage;
+          if (usage) {
+            inputTokens = usage.input_tokens ?? 0;
+            cacheReadTokens = (usage as Record<string, number>).cache_read_input_tokens ?? 0;
+            cacheWriteTokens = (usage as Record<string, number>).cache_creation_input_tokens ?? 0;
+          }
+        }
+
         const normalized = mapEvent(event);
         if (normalized) {
+          // Merge input usage into message_delta
+          if (normalized.type === 'message_delta' && normalized.usage) {
+            normalized.usage.inputTokens = inputTokens;
+            normalized.usage.cacheReadTokens = cacheReadTokens;
+            normalized.usage.cacheWriteTokens = cacheWriteTokens;
+          }
           yield normalized;
         }
       }

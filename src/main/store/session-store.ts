@@ -124,7 +124,16 @@ export class SessionStore extends EventEmitter {
     if (!msgs) return;
     const msg = msgs.find(m => m.id === messageId);
     if (msg && msg.role === 'assistant') {
-      (msg as AssistantMessage).usage = usage;
+      const existing = (msg as AssistantMessage).usage;
+      if (existing) {
+        // 累加多轮 turn 的 token 用量
+        existing.inputTokens += usage.inputTokens;
+        existing.outputTokens += usage.outputTokens;
+        existing.cacheReadTokens += usage.cacheReadTokens;
+        existing.cacheWriteTokens += usage.cacheWriteTokens;
+      } else {
+        (msg as AssistantMessage).usage = { ...usage };
+      }
     }
   }
 
