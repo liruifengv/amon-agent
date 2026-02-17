@@ -7,43 +7,8 @@ import type {
   ProviderUserContent,
   ProviderAssistantContent,
   NormalizedStreamEvent,
-  ModelInfo,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
-
-// ---------------------------------------------------------------------------
-// Hardcoded model list
-// ---------------------------------------------------------------------------
-
-const OPENAI_MODELS: ModelInfo[] = [
-  {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'openai',
-    supportsThinking: false,
-    supportsImages: true,
-    contextWindow: 128_000,
-    maxOutputTokens: 16_384,
-  },
-  {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
-    provider: 'openai',
-    supportsThinking: false,
-    supportsImages: true,
-    contextWindow: 128_000,
-    maxOutputTokens: 16_384,
-  },
-  {
-    id: 'o3-mini',
-    name: 'o3-mini',
-    provider: 'openai',
-    supportsThinking: false,
-    supportsImages: false,
-    contextWindow: 200_000,
-    maxOutputTokens: 100_000,
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> OpenAI.ChatCompletionMessageParam[]
@@ -191,10 +156,6 @@ export class OpenAIAdapter implements ProviderAdapter {
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
-  }
-
-  listModels(): ModelInfo[] {
-    return OPENAI_MODELS;
   }
 
   async *stream(

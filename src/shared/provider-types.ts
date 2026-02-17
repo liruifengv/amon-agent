@@ -16,16 +16,6 @@ export interface ProviderConfig {
   modelId: string;
 }
 
-export interface ModelInfo {
-  id: string;
-  name: string;
-  provider: string;
-  supportsThinking: boolean;
-  supportsImages: boolean;
-  contextWindow: number;
-  maxOutputTokens: number;
-}
-
 export interface ProviderInfo {
   id: string;
   name: string;
@@ -35,7 +25,6 @@ export interface ProviderInfo {
 
 export interface ProviderAdapter {
   readonly id: string;
-  listModels(): ModelInfo[];
   stream(request: ProviderRequest): AsyncIterable<NormalizedStreamEvent>;
 }
 

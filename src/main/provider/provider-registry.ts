@@ -1,7 +1,6 @@
 import type {
   ProviderAdapter,
   ProviderInfo,
-  ModelInfo,
 } from '@shared/provider-types';
 import { AnthropicAdapter } from './anthropic-adapter';
 import { OpenAIAdapter } from './openai-adapter';
@@ -53,20 +52,6 @@ export class ProviderRegistry {
       infos.push({ id: adapter.id, name: adapter.id });
     }
     return infos;
-  }
-
-  /** List models for a specific provider. */
-  getModels(providerId: string): ModelInfo[] {
-    return this.getAdapter(providerId).listModels();
-  }
-
-  /** List all models across all registered providers. */
-  getAllModels(): ModelInfo[] {
-    const models: ModelInfo[] = [];
-    for (const adapter of this.adapters.values()) {
-      models.push(...adapter.listModels());
-    }
-    return models;
   }
 }
 

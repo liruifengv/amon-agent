@@ -1,40 +1,28 @@
 import React from 'react';
 
-// Color variants (multi-color SVG, theme-safe)
-import DeepSeekColor from '@lobehub/icons/es/DeepSeek/components/Color';
-import GeminiColor from '@lobehub/icons/es/Gemini/components/Color';
-import MistralColor from '@lobehub/icons/es/Mistral/components/Color';
-import TogetherColor from '@lobehub/icons/es/Together/components/Color';
-import SiliconCloudColor from '@lobehub/icons/es/SiliconCloud/components/Color';
+// Color variants
+import ChatGLMColor from '@lobehub/icons/es/ZAI/components/Mono';
+import KimiMono from '@lobehub/icons/es/Kimi/components/Mono';
+import MinimaxColor from '@lobehub/icons/es/Minimax/components/Color';
 
-// Mono variants (use brand color for tinting)
+// Mono variants
 import AnthropicMono from '@lobehub/icons/es/Anthropic/components/Mono';
 import OpenAIMono from '@lobehub/icons/es/OpenAI/components/Mono';
-import GroqMono from '@lobehub/icons/es/Groq/components/Mono';
-import OpenRouterMono from '@lobehub/icons/es/OpenRouter/components/Mono';
-import GrokMono from '@lobehub/icons/es/Grok/components/Mono';
 
 interface ProviderIconProps {
   icon: string;
   size?: number;
 }
 
-// Icons that have a native Color variant
 const COLOR_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
-  DeepSeek: DeepSeekColor,
-  Gemini: GeminiColor,
-  Mistral: MistralColor,
-  Together: TogetherColor,
-  SiliconCloud: SiliconCloudColor,
+  Minimax: MinimaxColor,
 };
 
-// Icons that only have Mono, paired with their brand color
-const MONO_ICONS: Record<string, { component: React.ComponentType<{ size?: number }>; color: string }> = {
+const MONO_ICONS: Record<string, { component: React.ComponentType<{ size?: number }>; color: string; invertInDark?: boolean }> = {
   Anthropic: { component: AnthropicMono, color: '#D97757' },
   OpenAI: { component: OpenAIMono, color: '#10A37F' },
-  Groq: { component: GroqMono, color: '#F55036' },
-  OpenRouter: { component: OpenRouterMono, color: '#6566F1' },
-  Grok: { component: GrokMono, color: '#FF6A00' },
+  ZAI: { component: ChatGLMColor, color: '#000000', invertInDark: true },
+  Kimi: { component: KimiMono, color: '#000000', invertInDark: true },
 };
 
 const ProviderIcon: React.FC<ProviderIconProps> = ({ icon, size = 20 }) => {
@@ -47,18 +35,22 @@ const ProviderIcon: React.FC<ProviderIconProps> = ({ icon, size = 20 }) => {
   if (mono) {
     const MonoIcon = mono.component;
     return (
-      <span style={{ color: mono.color }} className="inline-flex">
+      <span
+        style={{ color: mono.color }}
+        className={`inline-flex ${mono.invertInDark ? 'dark:invert' : ''}`}
+      >
         <MonoIcon size={size} />
       </span>
     );
   }
 
+  // Fallback: 首字母头像
   return (
     <div
-      className="flex items-center justify-center rounded bg-muted text-muted-foreground text-xs font-medium"
+      className="flex items-center justify-center rounded bg-primary/15 text-primary text-xs font-bold shrink-0"
       style={{ width: size, height: size }}
     >
-      {icon.charAt(0).toUpperCase()}
+      {icon ? icon.charAt(0).toUpperCase() : '?'}
     </div>
   );
 };

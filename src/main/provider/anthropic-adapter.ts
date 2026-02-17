@@ -9,43 +9,8 @@ import type {
   NormalizedStreamEvent,
   ContentBlockStart,
   ContentBlockDelta,
-  ModelInfo,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
-
-// ---------------------------------------------------------------------------
-// Hardcoded model list
-// ---------------------------------------------------------------------------
-
-const ANTHROPIC_MODELS: ModelInfo[] = [
-  {
-    id: 'claude-opus-4-20250514',
-    name: 'Claude Opus 4',
-    provider: 'anthropic',
-    supportsThinking: true,
-    supportsImages: true,
-    contextWindow: 200_000,
-    maxOutputTokens: 32_000,
-  },
-  {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Claude Sonnet 4',
-    provider: 'anthropic',
-    supportsThinking: true,
-    supportsImages: true,
-    contextWindow: 200_000,
-    maxOutputTokens: 16_000,
-  },
-  {
-    id: 'claude-haiku-3-5-20241022',
-    name: 'Claude 3.5 Haiku',
-    provider: 'anthropic',
-    supportsThinking: false,
-    supportsImages: true,
-    contextWindow: 200_000,
-    maxOutputTokens: 8_192,
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> Anthropic.MessageParam[]
@@ -239,10 +204,6 @@ export class AnthropicAdapter implements ProviderAdapter {
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
-  }
-
-  listModels(): ModelInfo[] {
-    return ANTHROPIC_MODELS;
   }
 
   async *stream(
