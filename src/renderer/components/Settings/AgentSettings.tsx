@@ -1,14 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
-import type { ModelInfo } from '../../types';
 
-/** 当前支持的 provider 显示名 */
-const PROVIDER_NAMES: Record<string, string> = {
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  google: 'Google Gemini',
-};
+import ProviderIcon from '../Settings/ProviderIcon';
 
 const THINKING_LEVELS = [
   { value: 'off', label: 'Off' },
@@ -25,53 +19,35 @@ interface AgentSettingsProps {
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) => {
   const { formData, setAgentFormData, clearSaveError } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
+  const { activeProviderId, thinkingLevel, maxTurns, providerConfigs } = formData.agent;
 
-  const { activeProviderId, activeModelId, thinkingLevel, maxTurns, providerConfigs } = formData.agent;
-
-  // 已配置 API Key 的 provider 列表（用于 provider 选择下拉框）
   const configuredProviders = (providerConfigs || [])
-    .filter(c => c.apiKey?.trim())
-    .map(c => ({
-      id: c.id,
-      name: PROVIDER_NAMES[c.id] || c.id,
-    }));
+    .filter(c => c.apiKey?.trim());
 
-  // Load models when provider changes
+  const activeProvider = configuredProviders.find(c => c.id === activeProviderId);
+
+  // Close dropdown on outside click
   useEffect(() => {
-    const loadModels = async () => {
-      if (!activeProviderId) {
-        setModels([]);
-        return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setOpen(false);
       }
-
-      setIsLoadingModels(true);
-      try {
-        const models = await window.ipc.agent.getModels(activeProviderId);
-        if (Array.isArray(models) && models.length > 0) {
-          setModels(models);
-          setIsLoadingModels(false);
-          return;
-        }
-      } catch {
-        // fallback
-      }
-      setModels([]);
-      setIsLoadingModels(false);
     };
-    loadModels();
-  }, [activeProviderId]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  const handleProviderChange = (provider: string) => {
+  const handleProviderChange = (providerId: string) => {
     clearSaveError();
-    setAgentFormData({ activeProviderId: provider, activeModelId: '' });
-  };
-
-  const handleModelChange = (modelId: string) => {
-    clearSaveError();
-    setAgentFormData({ activeModelId: modelId });
+    const selected = providerConfigs?.find(c => c.id === providerId);
+    setAgentFormData({
+      activeProviderId: providerId,
+      activeModelId: selected?.modelId || '',
+    });
+    setOpen(false);
   };
 
   const handleThinkingLevelChange = (level: string) => {
@@ -85,10 +61,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
     if (!isNaN(num) && num > 0) {
       setAgentFormData({ maxTurns: num });
     }
-  };
-
-  const getProviderName = (providerId: string): string => {
-    return PROVIDER_NAMES[providerId] || providerId;
   };
 
   const hasNoProviders = configuredProviders.length === 0;
@@ -110,79 +82,68 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         </div>
       )}
 
-      {/* Provider selection */}
+      {/* Provider selection - custom dropdown with icons */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.provider')}
         </label>
-        <select
-          value={activeProviderId}
-          onChange={(e) => handleProviderChange(e.target.value)}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-border
-                     bg-background text-foreground
-                     focus:ring-2 focus:ring-primary focus:border-primary
-                     outline-none transition-colors"
-        >
-          {configuredProviders.map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.name}
-            </option>
-          ))}
-          {/* Include current activeProviderId if not in available list */}
-          {activeProviderId && !configuredProviders.find(p => p.id === activeProviderId) && (
-            <option value={activeProviderId}>
-              {getProviderName(activeProviderId)}
-            </option>
-          )}
-        </select>
-      </div>
-
-      {/* Model selection */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          {t('settings:agent.model')}
-        </label>
-        {isLoadingModels ? (
-          <div className="px-3 py-2 text-sm text-muted-foreground bg-muted rounded-lg">
-            {t('common:loading')}
-          </div>
-        ) : models.length > 0 ? (
-          <select
-            value={activeModelId}
-            onChange={(e) => handleModelChange(e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-border
-                       bg-background text-foreground
+        <div className="relative" ref={ref}>
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg border border-border
+                       bg-background text-foreground hover:border-foreground/30
                        focus:ring-2 focus:ring-primary focus:border-primary
-                       outline-none transition-colors"
+                       outline-none transition-colors cursor-pointer"
           >
-            {!activeModelId && (
-              <option value="">{t('settings:agent.selectModel')}</option>
+            {activeProvider ? (
+              <>
+                <ProviderIcon icon={activeProvider.icon} size={18} />
+                <div className="flex-1 text-left min-w-0">
+                  <span className="font-medium">{activeProvider.name}</span>
+                  {activeProvider.modelId && (
+                    <span className="text-muted-foreground ml-2 text-xs">{activeProvider.modelId}</span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <span className="text-muted-foreground">{activeProviderId || t('common:notConfigured')}</span>
             )}
-            {models.map((model) => (
-              <option key={model.id} value={model.id}>
-                {model.name}
-              </option>
-            ))}
-            {/* Include current activeModelId if not in list */}
-            {activeModelId && !models.find(m => m.id === activeModelId) && (
-              <option value={activeModelId}>{activeModelId}</option>
-            )}
-          </select>
-        ) : (
-          <input
-            type="text"
-            value={activeModelId}
-            onChange={(e) => handleModelChange(e.target.value)}
-            placeholder={t('settings:agent.modelPlaceholder')}
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg
-                       bg-background text-foreground
-                       placeholder-muted-foreground
-                       focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-          />
-        )}
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('settings:agent.modelHint')}
-        </p>
+            <svg className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </button>
+
+          {open && configuredProviders.length > 0 && (
+            <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
+              {configuredProviders.map((provider) => (
+                <button
+                  key={provider.id}
+                  type="button"
+                  onClick={() => handleProviderChange(provider.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors cursor-pointer ${
+                    activeProviderId === provider.id
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <ProviderIcon icon={provider.icon} size={18} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{provider.name}</div>
+                    {provider.modelId && (
+                      <div className="text-xs text-muted-foreground truncate">{provider.modelId}</div>
+                    )}
+                  </div>
+                  {activeProviderId === provider.id && (
+                    <svg className="w-4 h-4 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Thinking Level */}

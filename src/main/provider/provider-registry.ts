@@ -71,7 +71,7 @@ export class ProviderRegistry {
 }
 
 // ---------------------------------------------------------------------------
-// Factory: create a registry pre-populated with default providers
+// Factory: create a registry pre-populated with all configured providers
 // ---------------------------------------------------------------------------
 
 export async function createDefaultProviderRegistry(
@@ -81,26 +81,21 @@ export async function createDefaultProviderRegistry(
   const settings = await configStore.getSettings();
   const providerConfigs = settings.agent?.providerConfigs ?? [];
 
-  // Anthropic adapter
-  const anthropicKey = configStore.getApiKey('anthropic');
-  if (anthropicKey) {
-    const anthropicConfig = providerConfigs.find(
-      (c) => c.id === 'anthropic',
-    );
-    registry.register(
-      new AnthropicAdapter(anthropicKey, anthropicConfig?.baseUrl),
-    );
-  }
+  for (const config of providerConfigs) {
+    const apiKey = config.apiKey || configStore.getApiKey(config.id);
+    if (!apiKey) continue;
 
-  // OpenAI adapter
-  const openaiKey = configStore.getApiKey('openai');
-  if (openaiKey) {
-    const openaiConfig = providerConfigs.find(
-      (c) => c.id === 'openai',
-    );
-    registry.register(
-      new OpenAIAdapter(openaiKey, openaiConfig?.baseUrl),
-    );
+    const type = config.type || 'openai';
+
+    if (type === 'anthropic') {
+      registry.register(
+        new AnthropicAdapter(apiKey, config.baseUrl, config.id),
+      );
+    } else {
+      registry.register(
+        new OpenAIAdapter(apiKey, config.baseUrl, config.id),
+      );
+    }
   }
 
   return registry;

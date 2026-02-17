@@ -83,12 +83,21 @@
     "openConfigDir": "Open Config Directory"
   },
   "provider": {
-    "providerConfigDesc": "Configure API keys for each provider. Only providers with configured API keys will be available for model selection.",
+    "providerConfigDesc": "Configure your AI providers. Each provider can have its own API key, endpoint, and model.",
     "active": "Active",
     "configured": "Configured",
     "baseUrlPlaceholder": "Custom base URL (leave empty for default)",
-    "providerHint1New": "Enter your API key for each provider you want to use.",
-    "providerHint2New": "Base URL is optional and only needed for custom endpoints or proxies."
+    "addProvider": "Add Provider",
+    "selectProvider": "Select Provider",
+    "editProvider": "Edit Provider",
+    "name": "Name",
+    "namePlaceholder": "Enter a display name",
+    "model": "Model",
+    "modelPlaceholder": "Enter model ID",
+    "modelHint": "Click a tag below to fill in, or type a custom model ID",
+    "deleteProvider": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this provider?",
+    "emptyState": "No providers configured yet. Click \"Add Provider\" to get started."
   },
   "systemPrompt": {
     "title": "System Prompt",

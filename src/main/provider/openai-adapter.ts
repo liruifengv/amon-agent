@@ -182,10 +182,11 @@ function mapFinishReason(reason: string | null): StopReason {
 // ---------------------------------------------------------------------------
 
 export class OpenAIAdapter implements ProviderAdapter {
-  readonly id = 'openai';
+  readonly id: string;
   private client: OpenAI;
 
-  constructor(apiKey: string, baseUrl?: string) {
+  constructor(apiKey: string, baseUrl?: string, id?: string) {
+    this.id = id ?? 'openai';
     this.client = new OpenAI({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),

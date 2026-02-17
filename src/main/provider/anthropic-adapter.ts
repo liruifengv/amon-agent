@@ -230,10 +230,11 @@ function mapEvent(
 // ---------------------------------------------------------------------------
 
 export class AnthropicAdapter implements ProviderAdapter {
-  readonly id = 'anthropic';
+  readonly id: string;
   private client: Anthropic;
 
-  constructor(apiKey: string, baseUrl?: string) {
+  constructor(apiKey: string, baseUrl?: string, id?: string) {
+    this.id = id ?? 'anthropic';
     this.client = new Anthropic({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),

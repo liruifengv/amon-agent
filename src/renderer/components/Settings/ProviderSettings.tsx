@@ -1,257 +1,165 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { nanoid } from 'nanoid';
 import { useSettingsStore } from '../../store/settingsStore';
-import { Key, Globe, Eye, EyeOff, CheckCircle, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, CheckCircle } from 'lucide-react';
 import type { ProviderConfig } from '../../types';
-
-/** 当前支持的 provider 列表 */
-const SUPPORTED_PROVIDERS = [
-  { id: 'anthropic', name: 'Anthropic' },
-  { id: 'openai', name: 'OpenAI' },
-  { id: 'google', name: 'Google Gemini' },
-] as const;
-
-const PROVIDER_NAME_MAP = Object.fromEntries(
-  SUPPORTED_PROVIDERS.map(p => [p.id, p.name])
-);
+import type { ProviderPreset } from '@shared/provider-presets';
+import ProviderIcon from './ProviderIcon';
+import ProviderPickerModal from './ProviderPickerModal';
+import ProviderEditModal from './ProviderEditModal';
 
 const ProviderSettings: React.FC = () => {
   const { formData, setAgentFormData, clearSaveError, saveSettings } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
-  const [visibleKeys, setVisibleKeys] = useState<Set<string>>(new Set());
-  const [showAddDropdown, setShowAddDropdown] = useState(false);
+
+  const [showPicker, setShowPicker] = useState(false);
+  const [editingConfig, setEditingConfig] = useState<ProviderConfig | null>(null);
+  const [isNewConfig, setIsNewConfig] = useState(false);
 
   const providerConfigs = formData.agent.providerConfigs || [];
   const activeProviderId = formData.agent.activeProviderId;
 
-  // 已添加的 provider ID 列表
-  const configuredProviderIds = providerConfigs.map(c => c.id);
-
-  // 还没添加的 provider
-  const unconfiguredProviders = SUPPORTED_PROVIDERS.filter(
-    p => !configuredProviderIds.includes(p.id)
-  );
-
-  const getConfig = (providerId: string): ProviderConfig | undefined => {
-    return providerConfigs.find(c => c.id === providerId);
+  const handleAddClick = () => {
+    setShowPicker(true);
   };
 
-  const getProviderName = (providerId: string): string => {
-    return PROVIDER_NAME_MAP[providerId] || providerId;
+  const handlePresetSelect = (preset: ProviderPreset) => {
+    setShowPicker(false);
+    const newConfig: ProviderConfig = {
+      id: nanoid(10),
+      type: preset.type,
+      icon: preset.icon,
+      name: preset.name,
+      apiKey: '',
+      baseUrl: preset.defaultBaseUrl,
+      modelId: preset.defaultModels[0] ?? '',
+    };
+    setEditingConfig(newConfig);
+    setIsNewConfig(true);
   };
 
-  const updateProviderConfig = (providerId: string, updates: Partial<ProviderConfig>) => {
+  const handleItemClick = (config: ProviderConfig) => {
+    setEditingConfig(config);
+    setIsNewConfig(false);
+  };
+
+  const handleSave = async (config: ProviderConfig) => {
     clearSaveError();
-    const existing = providerConfigs.find(c => c.id === providerId);
     let newConfigs: ProviderConfig[];
 
-    if (existing) {
-      newConfigs = providerConfigs.map(c =>
-        c.id === providerId ? { ...c, ...updates } : c
-      );
+    if (isNewConfig) {
+      newConfigs = [...providerConfigs, config];
     } else {
-      newConfigs = [...providerConfigs, { id: providerId, name: getProviderName(providerId), apiKey: '', ...updates }];
+      newConfigs = providerConfigs.map((c) =>
+        c.id === config.id ? config : c
+      );
     }
 
     setAgentFormData({ providerConfigs: newConfigs });
-  };
-
-  const handleAddProvider = (providerId: string) => {
-    updateProviderConfig(providerId, { apiKey: '' });
-    setShowAddDropdown(false);
-  };
-
-  const handleRemoveProvider = async (providerId: string) => {
-    clearSaveError();
-    const newConfigs = providerConfigs.filter(c => c.id !== providerId);
-    setAgentFormData({ providerConfigs: newConfigs });
+    setEditingConfig(null);
     setTimeout(() => saveSettings(), 0);
   };
 
-  const handleApiKeyChange = (providerId: string, apiKey: string) => {
-    updateProviderConfig(providerId, { apiKey });
-  };
-
-  const handleBaseUrlChange = (providerId: string, baseUrl: string) => {
-    updateProviderConfig(providerId, { baseUrl: baseUrl || undefined });
-  };
-
-  const handleSaveProvider = async () => {
+  const handleDelete = async (id: string) => {
     clearSaveError();
-    await saveSettings();
+    const newConfigs = providerConfigs.filter((c) => c.id !== id);
+    setAgentFormData({ providerConfigs: newConfigs });
+    setEditingConfig(null);
+    setTimeout(() => saveSettings(), 0);
   };
 
-  const toggleKeyVisibility = (providerId: string) => {
-    setVisibleKeys(prev => {
-      const next = new Set(prev);
-      if (next.has(providerId)) {
-        next.delete(providerId);
-      } else {
-        next.add(providerId);
-      }
-      return next;
-    });
-  };
+  const isActive = (config: ProviderConfig) => activeProviderId === config.id;
+  const isConfigured = (config: ProviderConfig) => !!config.apiKey?.trim();
 
   return (
-    <div className="space-y-6">
-      {/* Description */}
-      <div>
-        <p className="text-xs text-muted-foreground">
+    <div className="space-y-4">
+      {/* Header with description and add button */}
+      <div className="flex items-start justify-between">
+        <p className="text-xs text-muted-foreground flex-1 pr-4">
           {t('settings:provider.providerConfigDesc')}
         </p>
+        <button
+          type="button"
+          onClick={handleAddClick}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium
+                     text-primary border border-primary/30 hover:bg-primary/10
+                     rounded-lg transition-colors shrink-0"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          {t('settings:provider.addProvider')}
+        </button>
       </div>
 
-      {/* Configured provider list */}
-      <div className="space-y-3">
-        {configuredProviderIds.map((providerId) => {
-          const config = getConfig(providerId);
-          const isActive = activeProviderId === providerId;
-          const hasKey = !!config?.apiKey?.trim();
-
-          return (
-            <div
-              key={providerId}
-              className={`p-4 rounded-lg border transition-colors ${
-                isActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-muted'
-              }`}
-            >
-              {/* Provider header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-foreground">
-                    {getProviderName(providerId)}
-                  </span>
-                  {isActive && hasKey && (
-                    <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs bg-primary/20 text-primary rounded">
-                      <CheckCircle className="w-3 h-3" />
-                      {t('settings:provider.active')}
-                    </span>
-                  )}
-                  {hasKey && !isActive && (
-                    <span className="text-xs text-success">
-                      {t('settings:provider.configured')}
-                    </span>
-                  )}
-                </div>
-                {!isActive && (
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveProvider(providerId)}
-                    className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                    title="Remove"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+      {/* Provider List */}
+      <div className="space-y-2">
+        {providerConfigs.map((config) => (
+          <button
+            key={config.id}
+            type="button"
+            onClick={() => handleItemClick(config)}
+            className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors text-left cursor-pointer ${
+              isActive(config)
+                ? 'border-primary bg-primary/5'
+                : 'border-border hover:border-foreground/20 bg-muted'
+            }`}
+          >
+            <ProviderIcon icon={config.icon} size={24} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-foreground truncate">
+                {config.name}
               </div>
-
-              {/* API Key input */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Key className="w-3 h-3" />
-                  API Key
-                </label>
-                <div className="flex-1 relative">
-                  <input
-                    type={visibleKeys.has(providerId) ? 'text' : 'password'}
-                    value={config?.apiKey || ''}
-                    onChange={(e) => handleApiKeyChange(providerId, e.target.value)}
-                    onBlur={handleSaveProvider}
-                    placeholder={`${getProviderName(providerId)} API Key`}
-                    className="w-full px-3 py-2 pr-10 text-sm border border-border rounded-lg
-                               bg-background text-foreground
-                               placeholder-muted-foreground
-                               focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleKeyVisibility(providerId)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1
-                               text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {visibleKeys.has(providerId) ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Base URL (optional) */}
-                <div>
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                    <Globe className="w-3 h-3" />
-                    Base URL
-                    <span className="text-muted-foreground/60">({t('common:optional')})</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={config?.baseUrl || ''}
-                    onChange={(e) => handleBaseUrlChange(providerId, e.target.value)}
-                    onBlur={handleSaveProvider}
-                    placeholder={t('settings:provider.baseUrlPlaceholder')}
-                    className="w-full px-3 py-2 text-sm border border-border rounded-lg
-                               bg-background text-foreground
-                               placeholder-muted-foreground
-                               focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {config.modelId || t('common:notSet')}
               </div>
             </div>
-          );
-        })}
+            <div className="shrink-0">
+              {isActive(config) && isConfigured(config) && (
+                <span className="flex items-center gap-1 px-1.5 py-0.5 text-xs bg-primary/20 text-primary rounded">
+                  <CheckCircle className="w-3 h-3" />
+                  {t('settings:provider.active')}
+                </span>
+              )}
+              {!isActive(config) && isConfigured(config) && (
+                <span className="text-xs text-muted-foreground">
+                  {t('settings:provider.configured')}
+                </span>
+              )}
+              {!isConfigured(config) && (
+                <span className="text-xs text-muted-foreground/60">
+                  {t('common:notConfigured')}
+                </span>
+              )}
+            </div>
+          </button>
+        ))}
 
         {/* Empty state */}
-        {configuredProviderIds.length === 0 && (
-          <div className="p-6 rounded-lg border border-dashed border-border text-center">
+        {providerConfigs.length === 0 && (
+          <div className="p-8 rounded-lg border border-dashed border-border text-center">
             <p className="text-sm text-muted-foreground">
-              {t('settings:provider.providerHint1New')}
+              {t('settings:provider.emptyState')}
             </p>
           </div>
         )}
       </div>
 
-      {/* Add provider button + dropdown */}
-      {unconfiguredProviders.length > 0 && (
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowAddDropdown(!showAddDropdown)}
-            className="flex items-center gap-2 px-3 py-2 text-sm border border-dashed border-border
-                       rounded-lg text-muted-foreground hover:text-foreground hover:border-foreground/30
-                       transition-colors w-full justify-center"
-          >
-            <Plus className="w-4 h-4" />
-            Add Provider
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAddDropdown ? 'rotate-180' : ''}`} />
-          </button>
+      {/* Picker Modal */}
+      <ProviderPickerModal
+        open={showPicker}
+        onClose={() => setShowPicker(false)}
+        onSelect={handlePresetSelect}
+      />
 
-          {showAddDropdown && (
-            <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto
-                            bg-background border border-border rounded-lg shadow-lg">
-              {unconfiguredProviders.map(provider => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => handleAddProvider(provider.id)}
-                  className="w-full px-3 py-2 text-sm text-left text-foreground
-                             hover:bg-accent transition-colors"
-                >
-                  {provider.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Hints */}
-      <div className="text-xs text-muted-foreground space-y-1">
-        <p>{t('settings:provider.providerHint2New')}</p>
-      </div>
+      {/* Edit Modal */}
+      <ProviderEditModal
+        open={!!editingConfig}
+        config={editingConfig}
+        isNew={isNewConfig}
+        onClose={() => setEditingConfig(null)}
+        onSave={handleSave}
+        onDelete={editingConfig && isActive(editingConfig) ? undefined : handleDelete}
+      />
     </div>
   );
 };

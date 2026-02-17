@@ -4,9 +4,12 @@ import { z } from 'zod';
 
 export const ProviderConfigSchema = z.object({
   id: z.string(),
+  type: z.enum(['anthropic', 'openai']).default('openai'),
+  icon: z.string().default(''),
   name: z.string().min(1),
   apiKey: z.string().default(''),
   baseUrl: z.string().optional(),
+  modelId: z.string().default(''),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
@@ -119,6 +122,41 @@ function migrateSettings(data: unknown): unknown {
 
   // Remove old top-level fields
   delete raw.defaultWorkspace;
+
+  // Migrate provider configs: add `type`, `icon`, `modelId` if missing
+  if (Array.isArray(agent.providerConfigs)) {
+    const activeModelId = (agent.activeModelId as string) || '';
+    const activeProviderId = (agent.activeProviderId as string) || '';
+
+    agent.providerConfigs = (agent.providerConfigs as Record<string, unknown>[]).map(c => {
+      if (c.type && c.icon !== undefined) return c; // already migrated
+
+      const id = (c.id as string) || '';
+      let type = 'openai';
+      let icon = '';
+
+      if (id === 'anthropic') {
+        type = 'anthropic';
+        icon = 'Anthropic';
+      } else if (id === 'openai') {
+        type = 'openai';
+        icon = 'OpenAI';
+      } else if (id === 'google') {
+        type = 'openai';
+        icon = 'Gemini';
+      } else if (id === 'deepseek') {
+        type = 'openai';
+        icon = 'DeepSeek';
+      }
+
+      return {
+        ...c,
+        type,
+        icon,
+        modelId: c.modelId || (id === activeProviderId ? activeModelId : ''),
+      };
+    });
+  }
 
   return raw;
 }

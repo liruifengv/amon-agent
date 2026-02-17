@@ -8,9 +8,12 @@ import type {
 
 export interface ProviderConfig {
   id: string;
+  type: 'anthropic' | 'openai';
+  icon: string;
   name: string;
   apiKey: string;
   baseUrl?: string;
+  modelId: string;
 }
 
 export interface ModelInfo {

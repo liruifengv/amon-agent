@@ -83,12 +83,21 @@
     "openConfigDir": "打开配置目录"
   },
   "provider": {
-    "providerConfigDesc": "为每个供应商配置 API Key。只有配置了 API Key 的供应商才可用于模型选择。",
+    "providerConfigDesc": "配置你的 AI 供应商。每个供应商可以独立设置 API Key、端点和模型。",
     "active": "使用中",
     "configured": "已配置",
     "baseUrlPlaceholder": "自定义 Base URL（留空使用默认值）",
-    "providerHint1New": "为您想使用的每个供应商输入 API Key。",
-    "providerHint2New": "Base URL 为可选项，仅在使用自定义端点或代理时需要。"
+    "addProvider": "新增供应商",
+    "selectProvider": "选择供应商",
+    "editProvider": "编辑供应商",
+    "name": "名称",
+    "namePlaceholder": "输入显示名称",
+    "model": "模型",
+    "modelPlaceholder": "输入模型 ID",
+    "modelHint": "点击下方标签快速填入，或手动输入模型 ID",
+    "deleteProvider": "删除",
+    "deleteConfirm": "确定要删除此供应商吗？",
+    "emptyState": "尚未配置任何供应商。点击「新增供应商」开始配置。"
   },
   "systemPrompt": {
     "title": "系统提示词",
