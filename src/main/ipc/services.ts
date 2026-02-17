@@ -77,7 +77,13 @@ function registerSessionHandlers(deps: IpcDependencies): void {
   });
 
   handle('session.create', async (workspace?: unknown) => {
-    const ws = (workspace as string) || path.join(os.homedir(), '.amon', 'workspace');
+    let ws = workspace as string | undefined;
+    if (!ws) {
+      // 从设置中查找用户标记为默认的工作空间
+      const settings = await deps.configStore.getSettings();
+      const defaultWs = settings.workspaces.find(w => w.isDefault);
+      ws = defaultWs?.path ?? path.join(os.homedir(), '.amon', 'workspace');
+    }
     const session: Session = {
       id: nanoid(),
       title: 'New Session',
