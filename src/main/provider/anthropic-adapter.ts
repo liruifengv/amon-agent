@@ -285,8 +285,8 @@ export class AnthropicAdapter implements ProviderAdapter {
           const usage = event.message?.usage;
           if (usage) {
             inputTokens = usage.input_tokens ?? 0;
-            cacheReadTokens = (usage as Record<string, number>).cache_read_input_tokens ?? 0;
-            cacheWriteTokens = (usage as Record<string, number>).cache_creation_input_tokens ?? 0;
+            cacheReadTokens = (usage as unknown as Record<string, number>).cache_read_input_tokens ?? 0;
+            cacheWriteTokens = (usage as unknown as Record<string, number>).cache_creation_input_tokens ?? 0;
           }
         }
 
