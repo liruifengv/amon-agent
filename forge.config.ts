@@ -35,6 +35,8 @@ const config: ForgeConfig = {
       ...(process.platform === 'win32' ? ['./resources/git-portable'] : []),
       // msys2（仅 Windows）
       ...(process.platform === 'win32' ? ['./resources/msys2'] : []),
+      // workspace 模板文件
+      './resources/templates',
     ],
   },
   rebuildConfig: {},

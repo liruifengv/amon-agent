@@ -64,6 +64,18 @@ export function getBundledMsys2Path(): string | null {
 }
 
 /**
+ * 获取打包的 workspace 模板目录路径
+ */
+export function getTemplatesDir(): string {
+  const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_RENDERER_URL;
+  if (isDev) {
+    return join(app.getAppPath(), 'resources', 'templates');
+  } else {
+    return join(process.resourcesPath, 'templates');
+  }
+}
+
+/**
  * 检查 bash.exe 路径是否来自 MSYS2
  * MSYS2 bash 需要特殊的环境变量才能正确继承 Windows 环境变量
  */
