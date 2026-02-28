@@ -1,9 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server, Terminal } from 'lucide-react';
+import { Server } from 'lucide-react';
 import LogoImage from '@/renderer/assets/images/Logo.png';
 import { useSettingsStore } from '@/renderer/store/settingsStore';
-import { toast } from 'sonner';
 
 const Onboarding: React.FC = () => {
   const { t } = useTranslation('onboarding');
@@ -12,31 +11,6 @@ const Onboarding: React.FC = () => {
   const handleConfigureProvider = async () => {
     // 打开设置窗口并直接跳转到供应商页面
     await window.ipc.system.openSettings('provider');
-  };
-
-  const handleEnableClaudeCode = async () => {
-    // 先显示成功通知
-    toast.success(t('startVibeCoding'));
-
-    // 延迟更新设置，让 Toast 有时间显示
-    setTimeout(async () => {
-      // 直接更新设置，触发 SETTINGS_CHANGED 事件
-      // App.tsx 会自动检测并隐藏 onboarding
-      const newSettings = {
-        ...settings,
-        agent: {
-          ...settings.agent,
-          claudeCodeMode: true
-        }
-      };
-
-      const result = await window.ipc.settings.set(newSettings);
-
-      if (!result.success) {
-        console.error('Failed to enable Claude Code mode');
-        toast.error(t('enableFailed'));
-      }
-    }, 1500); // 延迟 1.5 秒，让用户看到 Toast
   };
 
   return (
@@ -63,19 +37,6 @@ const Onboarding: React.FC = () => {
           >
             <Server className="w-5 h-5" />
             {t('configureProvider')}
-          </button>
-
-          <button
-            onClick={handleEnableClaudeCode}
-            className="flex flex-col items-center gap-1 px-6 py-3 border border-border rounded-lg hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2 text-foreground">
-              <Terminal className="w-5 h-5" />
-              <span>{t('enableClaudeCodeMode')}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {t('useLocalClaudeCode')}
-            </span>
           </button>
         </div>
       </div>

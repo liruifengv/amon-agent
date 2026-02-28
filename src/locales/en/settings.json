@@ -15,7 +15,10 @@
     "themeSystem": "Follow System",
     "language": "Language",
     "languageEn": "English",
-    "languageZh": "Chinese"
+    "languageZh": "Chinese",
+    "chatWidth": "Chat Width",
+    "chatWidthNarrow": "Standard",
+    "chatWidthWide": "Wide"
   },
   "agent": {
     "provider": "Provider",

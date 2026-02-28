@@ -26,7 +26,6 @@
     "resetToGlobal": "Reset to Global Setting"
   },
   "provider": {
-    "claudeCodeMode": "Claude Code Mode",
     "pleaseConfigureProvider": "Please configure a Provider in Settings",
     "switchProvider": "Switch Provider",
     "selectProvider": "Select Provider"

@@ -19,6 +19,7 @@ interface SettingsState {
   saveSettings: () => Promise<boolean>;
   saveTheme: (theme: 'light' | 'dark' | 'system') => Promise<boolean>;
   saveLanguage: (language: 'en' | 'zh') => Promise<boolean>;
+  saveChatWidth: (chatWidth: 'narrow' | 'wide') => Promise<boolean>;
   loadSettings: () => Promise<void>;
   clearSaveError: () => void;
 }
@@ -99,6 +100,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   saveTheme: async (theme) => {
+    // 乐观更新 formData，不触发 hasChanges
+    set((state) => ({ formData: { ...state.formData, theme } }));
     const { settings } = get();
     const newSettings = { ...settings, theme };
 
@@ -106,7 +109,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const result = await window.ipc.settings.set(newSettings);
 
       if (result.success && result.data) {
-        set({ settings: result.data, formData: { ...get().formData, theme } });
+        const newFormData = { ...get().formData, theme };
+        set({ settings: result.data, formData: newFormData, hasChanges: !areSettingsEqual(newFormData, result.data) });
         return true;
       }
       return false;
@@ -117,6 +121,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   saveLanguage: async (language) => {
+    // 乐观更新 formData，不触发 hasChanges
+    set((state) => ({ formData: { ...state.formData, language } }));
     const { settings } = get();
     const newSettings = { ...settings, language };
 
@@ -124,12 +130,34 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const result = await window.ipc.settings.set(newSettings);
 
       if (result.success && result.data) {
-        set({ settings: result.data, formData: { ...get().formData, language } });
+        const newFormData = { ...get().formData, language };
+        set({ settings: result.data, formData: newFormData, hasChanges: !areSettingsEqual(newFormData, result.data) });
         return true;
       }
       return false;
     } catch (error) {
       console.error('Failed to save language:', error);
+      return false;
+    }
+  },
+
+  saveChatWidth: async (chatWidth) => {
+    // 乐观更新 formData，不触发 hasChanges
+    set((state) => ({ formData: { ...state.formData, chatWidth } }));
+    const { settings } = get();
+    const newSettings = { ...settings, chatWidth };
+
+    try {
+      const result = await window.ipc.settings.set(newSettings);
+
+      if (result.success && result.data) {
+        const newFormData = { ...get().formData, chatWidth };
+        set({ settings: result.data, formData: newFormData, hasChanges: !areSettingsEqual(newFormData, result.data) });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to save chatWidth:', error);
       return false;
     }
   },

@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useEffect, useImperativeHandle } from 'reac
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { MessageItem } from '../Message';
 
 export interface MessageListRef {
@@ -19,6 +20,8 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
   const { getMessages, getSessionError, clearSessionError } = useChatStore();
   const messages = getMessages(currentSessionId);
   const error = getSessionError(currentSessionId);
+  const { formData } = useSettingsStore();
+  const maxWidthClass = formData.chatWidth === 'wide' ? 'max-w-5xl' : 'max-w-3xl';
 
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -150,13 +153,13 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
       <div ref={contentRef}>
         {/* 消息列表 */}
         {messages.map((message, index) => (
-          <div key={message.id} className="max-w-3xl mx-auto px-4 py-2.5">
+          <div key={message.id} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
             <MessageItem message={message} isLastMessage={index === messages.length - 1} />
           </div>
         ))}
 
         {/* Footer 内容 */}
-        <div className="max-w-3xl mx-auto px-4 pb-6">
+        <div className={`${maxWidthClass} mx-auto px-4 pb-6`}>
           {/* 错误提示 */}
           {error && (
             <div className="mt-3 p-4 bg-destructive/10 border border-destructive/30 rounded-xl relative">

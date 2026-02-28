@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsStore, applyTheme } from '../../store/settingsStore';
-import { Sun, Moon, Monitor, Languages } from 'lucide-react';
+import { Sun, Moon, Monitor, Languages, AlignCenter, AlignJustify } from 'lucide-react';
 
 const LANGUAGES = [
   { id: 'en' as const, label: 'English' },
@@ -9,7 +9,7 @@ const LANGUAGES = [
 ];
 
 const GeneralSettings: React.FC = () => {
-  const { formData, setFormData, saveTheme, saveLanguage } = useSettingsStore();
+  const { formData, saveTheme, saveLanguage, saveChatWidth } = useSettingsStore();
   const { t, i18n } = useTranslation('settings');
 
   const THEMES = [
@@ -32,20 +32,30 @@ const GeneralSettings: React.FC = () => {
 
   const handleThemeChange = async (theme: 'light' | 'dark' | 'system') => {
     applyTheme(theme);
-    setFormData({ theme });
-
-    // 立即保存主题设置（不影响其他未保存的设置）
     await saveTheme(theme);
   };
 
   const handleLanguageChange = async (language: 'en' | 'zh') => {
-    // 立即切换当前窗口语言
     i18n.changeLanguage(language);
-    setFormData({ language });
-
-    // 立即保存语言设置（不影响其他未保存的设置）
     await saveLanguage(language);
   };
+
+  const handleChatWidthChange = async (chatWidth: 'narrow' | 'wide') => {
+    await saveChatWidth(chatWidth);
+  };
+
+  const CHAT_WIDTHS = [
+    {
+      id: 'narrow' as const,
+      name: t('general.chatWidthNarrow'),
+      icon: <AlignCenter className="w-5 h-5" />,
+    },
+    {
+      id: 'wide' as const,
+      name: t('general.chatWidthWide'),
+      icon: <AlignJustify className="w-5 h-5" />,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -94,6 +104,31 @@ const GeneralSettings: React.FC = () => {
             >
               <Languages className="w-5 h-5" />
               <span className="text-sm font-medium">{lang.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 聊天宽度设置 */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-3">
+          {t('general.chatWidth')}
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          {CHAT_WIDTHS.map((width) => (
+            <button
+              key={width.id}
+              onClick={() => handleChatWidthChange(width.id)}
+              className={`
+                flex items-center justify-center gap-2 p-4 rounded-xl cursor-pointer
+                border-2 transition-all duration-150
+                ${formData.chatWidth === width.id
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border text-muted-foreground hover:bg-accent'}
+              `}
+            >
+              {width.icon}
+              <span className="text-sm font-medium">{width.name}</span>
             </button>
           ))}
         </div>

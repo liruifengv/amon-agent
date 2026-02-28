@@ -1,8 +1,7 @@
 {
   "welcome": "Welcome to Amon",
-  "subtitle": "Before getting started, configure an AI provider or enable Claude Code mode",
+  "subtitle": "Before getting started, configure an AI provider",
   "configureProvider": "Configure Provider",
-  "enableClaudeCodeMode": "Enable Claude Code Mode",
   "useLocalClaudeCode": "Use local Claude Code configuration and API key",
   "startVibeCoding": "Start VibeCoding~",
   "enableFailed": "Enable failed, please retry"

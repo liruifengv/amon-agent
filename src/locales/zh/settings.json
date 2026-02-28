@@ -15,7 +15,10 @@
     "themeSystem": "跟随系统",
     "language": "语言",
     "languageEn": "英文",
-    "languageZh": "中文"
+    "languageZh": "中文",
+    "chatWidth": "聊天宽度",
+    "chatWidthNarrow": "标准",
+    "chatWidthWide": "宽屏"
   },
   "agent": {
     "provider": "供应商",

@@ -64,6 +64,7 @@ export type SkillsSettings = z.infer<typeof SkillsSettingsSchema>;
 export const SettingsSchema = z.object({
   theme: z.enum(['light', 'dark', 'system']).default('system'),
   language: z.enum(['en', 'zh']).default('en'),
+  chatWidth: z.enum(['narrow', 'wide']).default('narrow'),
   shortcuts: ShortcutsSchema.default(DEFAULT_SHORTCUTS),
   workspaces: z.array(WorkspaceSchema).default([]),
   agent: AgentSettingsSchema.default(DEFAULT_AGENT_SETTINGS),

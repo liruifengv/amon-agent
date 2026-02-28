@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { Square, ArrowUp, Paperclip, X } from 'lucide-react';
 import { ImageAttachment, ImageMimeType } from '../../types';
 import { useFileMention, FileMentionPopover, InputHighlight } from './FileMention';
@@ -26,6 +27,8 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { sendMessage, interruptMessage, isSessionLoading } = useChatStore();
   const { currentSessionId } = useSessionStore();
+  const { formData } = useSettingsStore();
+  const maxWidthClass = formData.chatWidth === 'wide' ? 'max-w-5xl' : 'max-w-3xl';
 
   // 当前会话是否正在加载
   const isLoading = isSessionLoading(currentSessionId);
@@ -215,7 +218,7 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
 
   return (
     <div className="bg-background px-4 pb-4">
-      <div className="max-w-3xl mx-auto">
+      <div className={`${maxWidthClass} mx-auto`}>
         {/* 输入框容器 */}
         <div
           ref={containerRef}
