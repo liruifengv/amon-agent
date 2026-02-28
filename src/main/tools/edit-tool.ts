@@ -23,7 +23,7 @@ const editInputSchema = z.object({
 type EditInput = z.infer<typeof editInputSchema>;
 
 export const editTool: Tool<EditInput> = {
-  name: 'edit',
+  name: 'Edit',
   description:
     'Edit a file by replacing exact text. The old_string must match exactly (including whitespace). Use this for precise, surgical edits.',
   inputSchema: editInputSchema,

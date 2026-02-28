@@ -12,7 +12,7 @@ const writeInputSchema = z.object({
 type WriteInput = z.infer<typeof writeInputSchema>;
 
 export const writeTool: Tool<WriteInput> = {
-  name: 'write',
+  name: 'Write',
   description:
     "Write content to a file. Creates the file if it doesn't exist, overwrites if it does. Automatically creates parent directories.",
   inputSchema: writeInputSchema,

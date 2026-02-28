@@ -50,6 +50,15 @@ export type Shortcuts = z.infer<typeof ShortcutsSchema>;
 
 export const DEFAULT_SHORTCUTS: Shortcuts = ShortcutsSchema.parse({});
 
+// ==================== Skills 配置 Schema ====================
+
+export const SkillsSettingsSchema = z.object({
+  /** 额外的 skill 搜索目录名（如 ".claude"），每个条目同时扫描系统级和项目级 */
+  extraDirs: z.array(z.string()).default(['.claude']),
+});
+
+export type SkillsSettings = z.infer<typeof SkillsSettingsSchema>;
+
 // ==================== 设置 Schema ====================
 
 export const SettingsSchema = z.object({
@@ -58,6 +67,7 @@ export const SettingsSchema = z.object({
   shortcuts: ShortcutsSchema.default(DEFAULT_SHORTCUTS),
   workspaces: z.array(WorkspaceSchema).default([]),
   agent: AgentSettingsSchema.default(DEFAULT_AGENT_SETTINGS),
+  skills: SkillsSettingsSchema.default({ extraDirs: ['.claude'] }),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;

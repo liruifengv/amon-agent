@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ToolUseBlock, ToolResultBlock } from '../../../types';
 import { useChatStore } from '../../../store/chatStore';
@@ -180,28 +180,16 @@ function getInputSummary(name: string, args: Record<string, any>): string {
 }
 
 /**
- * 渲染 Write 工具的输入内容
+ * 渲染 Write 工具的输入内容（无外层包装，直接输出代码）
  */
 const WriteInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
-  const workspace = useSessionStore((state) => state.getCurrentWorkspace());
   const filePath = String(args.file_path || '');
-  const displayPath = truncateFilePath(filePath, workspace);
   const content = String(args.content || '');
   const language = useMemo(() => getLanguageFromPath(filePath), [filePath]);
 
   return (
-    <div className="p-3">
-      {/* 代码块容器 - 带边框 */}
-      <div className="rounded-md border border-border overflow-hidden">
-        {/* 代码块标题栏 */}
-        <div className="flex items-center bg-muted px-3 py-2 text-muted-foreground text-xs border-b border-border">
-          <span className="font-mono truncate">{displayPath}</span>
-        </div>
-        {/* 代码内容 */}
-        <div className="max-h-80 overflow-y-auto">
-          <CodeBlockContent code={content} language={language} showLineNumbers />
-        </div>
-      </div>
+    <div className="max-h-80 overflow-y-auto">
+      <CodeBlockContent code={content} language={language} showLineNumbers />
     </div>
   );
 };
@@ -281,28 +269,15 @@ const DiffView: React.FC<{ oldStr: string; newStr: string }> = ({ oldStr, newStr
 };
 
 /**
- * 渲染 Edit 工具的输入内容
+ * 渲染 Edit 工具的输入内容（无外层包装，直接输出 diff）
  */
 const EditInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
-  const workspace = useSessionStore((state) => state.getCurrentWorkspace());
-  const filePath = String(args.file_path || '');
-  const displayPath = truncateFilePath(filePath, workspace);
   const oldString = String(args.old_string || '');
   const newString = String(args.new_string || '');
 
   return (
-    <div className="p-3">
-      {/* 代码块容器 - 带边框 */}
-      <div className="rounded-md border border-border overflow-hidden">
-        {/* 代码块标题栏 */}
-        <div className="flex items-center bg-muted px-3 py-2 text-muted-foreground text-xs border-b border-border">
-          <span className="font-mono truncate">{displayPath}</span>
-        </div>
-        {/* Diff 内容 */}
-        <div className="max-h-80 overflow-y-auto">
-          <DiffView oldStr={oldString} newStr={newString} />
-        </div>
-      </div>
+    <div className="max-h-80 overflow-y-auto">
+      <DiffView oldStr={oldString} newStr={newString} />
     </div>
   );
 };
@@ -352,14 +327,27 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
   const output = toolCallState?.output ?? toolResult?.output;
   const isError = toolCallState?.isError ?? toolResult?.isError;
 
-  // Write 和 Edit 工具始终展开
+  // Write 和 Edit 工具：内容到齐后自动展开，流式期间保持折叠
   const isStandaloneTool = toolCall.name === 'Write' || toolCall.name === 'Edit';
-  const [isExpanded, setIsExpanded] = useState(isStandaloneTool);
+  const argsAvailable = !!toolCall.input && Object.keys(toolCall.input).length > 0;
+  const [isExpanded, setIsExpanded] = useState(isStandaloneTool && argsAvailable);
+
+  useEffect(() => {
+    if (isStandaloneTool && argsAvailable) {
+      setIsExpanded(true);
+    }
+  }, [isStandaloneTool, argsAvailable]);
 
   const icon = TOOL_ICONS[toolCall.name] || <Settings className="w-4 h-4" />;
   const displayNameKey = TOOL_DISPLAY_NAME_KEYS[toolCall.name];
   const displayName = displayNameKey ? t(displayNameKey) : toolCall.name;
   const inputSummary = getInputSummary(toolCall.name, toolCall.input as Record<string, any>);
+
+  // Write/Edit: 从 args 取文件相对路径用于标题
+  const workspace = useSessionStore((state) => state.getCurrentWorkspace());
+  const standaloneFilePath = isStandaloneTool
+    ? truncateFilePath(String((toolCall.input as Record<string, any>)?.file_path || ''), workspace)
+    : '';
 
   // 状态图标和样式
   const statusIcon = {
@@ -375,8 +363,8 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
     const hasInputBuffer = inputBuffer && inputBuffer.length > 0;
     const argsIsEmpty = !toolCall.input || Object.keys(toolCall.input).length === 0;
 
-    if (hasInputBuffer && argsIsEmpty) {
-      return <StreamingInputContent inputBuffer={inputBuffer!} />;
+    if (argsIsEmpty) {
+      return hasInputBuffer ? <StreamingInputContent inputBuffer={inputBuffer!} /> : null;
     }
 
     switch (toolCall.name) {
@@ -396,7 +384,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
         : isNested
           ? 'border-border/50 bg-muted/50'
           : 'border-border bg-muted'
-    }`}>
+    } ${isNested ? '' : 'mb-2'}`}>
       {/* 头部 - 可点击折叠 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -408,10 +396,15 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
         {/* 工具图标 */}
         <span className="shrink-0">{icon}</span>
 
-        {/* 工具名称 */}
+        {/* 工具名称 + 文件路径（Write/Edit） */}
         <span className="font-medium text-sm shrink-0">{displayName}</span>
+        {standaloneFilePath && (
+          <span className="text-xs opacity-70 truncate flex-1 font-mono">
+            {standaloneFilePath}
+          </span>
+        )}
 
-        {/* 输入摘要 - Write/Edit 工具不显示 */}
+        {/* 输入摘要 - Write/Edit 工具不显示（已在标题中） */}
         {inputSummary && !isStandaloneTool && (
           <span className="text-xs opacity-70 truncate flex-1 font-mono">
             {inputSummary}

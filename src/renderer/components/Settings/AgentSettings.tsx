@@ -83,6 +83,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
       )}
 
       {/* Provider selection - custom dropdown with icons */}
+      {!hasNoProviders && (
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.provider')}
@@ -145,6 +146,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
           )}
         </div>
       </div>
+      )}
 
       {/* Thinking Level */}
       <div>

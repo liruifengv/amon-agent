@@ -14,6 +14,7 @@ import { AgentRuntime } from './agent/agent-runtime';
 import { StreamNormalizer } from './agent/stream-normalizer';
 import { ContextManager } from './agent/context-manager';
 import { PushService, bridgeSessionStoreToPush } from './ipc/push';
+import { SkillsStore } from './skills';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import type { Shortcuts } from '@shared/schemas';
 import type { Session } from '@shared/types';
@@ -37,6 +38,7 @@ const DEFAULT_WORKSPACE = path.join(DATA_DIR, 'workspace');
 const sessionStore = new SessionStore();
 const persistence = new Persistence(SESSIONS_DIR);
 const configStore = new ConfigStore(SETTINGS_PATH);
+const skillsStore = new SkillsStore(configStore);
 const toolRegistry = createDefaultToolRegistry();
 const contextManager = new ContextManager();
 const pushService = new PushService();
@@ -354,6 +356,7 @@ app.on('ready', async () => {
     streamNormalizer,
     pushService,
     configStore,
+    skillsStore,
   });
 
   // Register IPC handlers

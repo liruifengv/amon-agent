@@ -1,6 +1,5 @@
 import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
-import type { Session, Message, ImageAttachment } from '@shared/types';
-import type { ModelInfo } from '@shared/provider-types';
+import type { Session, ImageAttachment } from '@shared/types';
 import type { Settings } from '@shared/schemas';
 import type { AgentRuntime } from '../agent/agent-runtime';
 import type { SessionStore } from '../store/session-store';
@@ -63,10 +62,6 @@ function registerAgentHandlers(deps: IpcDependencies): void {
   handle('agent.getProviders', async () => {
     return deps.providerRegistry.listProviders();
   });
-
-  handle('agent.getModels', async (providerId: unknown) => {
-    return deps.providerRegistry.getModels(providerId as string);
-  });
 }
 
 // ==================== Session Handlers ====================
@@ -125,6 +120,8 @@ function registerSettingsHandlers(deps: IpcDependencies): void {
 
   handle('settings.set', async (updates: unknown) => {
     const result = await deps.configStore.updateSettings(updates as Partial<Settings>);
+    // 同步 provider registry
+    await deps.providerRegistry.syncFromConfig(deps.configStore);
     // Broadcast to all windows
     deps.pushService.pushSettingsChanged();
     return { success: true, data: result };

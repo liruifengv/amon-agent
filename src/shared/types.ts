@@ -137,3 +137,63 @@ export interface FileInfo {
   name: string;
   extension?: string;
 }
+
+// ==================== Skills 类型 ====================
+
+/** Skill 来源层级 */
+export type SkillSource =
+  | 'extra'             // 用户配置的额外目录（含 .claude 等）
+  | 'system-amon'       // ~/.amon/skills/
+  | 'project-amon';     // <workspace>/.amon/skills/
+
+/** agentskills.io 规范 + Claude Code 扩展的完整 frontmatter */
+export interface SkillFrontmatter {
+  // === agentskills.io 规范字段 ===
+  name?: string;
+  description?: string;
+  license?: string;
+  compatibility?: string;
+  metadata?: Record<string, string>;
+  'allowed-tools'?: string;
+
+  // === Claude Code 扩展字段 ===
+  'disable-model-invocation'?: boolean;
+  'user-invocable'?: boolean;
+  'argument-hint'?: string;
+  model?: string;
+  context?: string;
+  agent?: string;
+  hooks?: unknown;
+
+  [key: string]: unknown;
+}
+
+/** 加载后的 Skill 对象 */
+export interface Skill {
+  name: string;
+  description: string;
+  filePath: string;
+  baseDir: string;
+  source: SkillSource;
+  frontmatter: SkillFrontmatter;
+  disableModelInvocation: boolean;
+  userInvocable: boolean;
+}
+
+/** Skills 加载诊断信息 */
+export interface SkillDiagnostic {
+  type: 'warning' | 'error' | 'collision';
+  message: string;
+  path: string;
+  collision?: {
+    name: string;
+    winnerPath: string;
+    loserPath: string;
+  };
+}
+
+/** Skills 加载结果 */
+export interface SkillsLoadResult {
+  skills: Skill[];
+  diagnostics: SkillDiagnostic[];
+}

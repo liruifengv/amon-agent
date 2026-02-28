@@ -97,7 +97,8 @@
     "modelHint": "Click a tag below to fill in, or type a custom model ID",
     "deleteProvider": "Delete",
     "deleteConfirm": "Are you sure you want to delete this provider?",
-    "emptyState": "No providers configured yet. Click \"Add Provider\" to get started."
+    "emptyState": "No providers configured yet. Click \"Add Provider\" to get started.",
+    "activate": "Activate"
   },
   "systemPrompt": {
     "title": "System Prompt",

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Plus, CheckCircle } from 'lucide-react';
-import type { ProviderConfig } from '../../types';
+import type { ProviderConfig, AgentSettings } from '../../types';
 import type { ProviderPreset } from '@shared/provider-presets';
 import ProviderIcon from './ProviderIcon';
 import ProviderPickerModal from './ProviderPickerModal';
@@ -47,16 +47,27 @@ const ProviderSettings: React.FC = () => {
   const handleSave = async (config: ProviderConfig) => {
     clearSaveError();
     let newConfigs: ProviderConfig[];
+    const updates: Partial<AgentSettings> = {};
 
     if (isNewConfig) {
       newConfigs = [...providerConfigs, config];
+      // 第一个 provider 自动设为默认
+      if (providerConfigs.length === 0) {
+        updates.activeProviderId = config.id;
+        updates.activeModelId = config.modelId || '';
+      }
     } else {
       newConfigs = providerConfigs.map((c) =>
         c.id === config.id ? config : c
       );
+      // 如果编辑的是当前激活的 provider，同步更新 modelId
+      if (config.id === activeProviderId) {
+        updates.activeModelId = config.modelId || '';
+      }
     }
 
-    setAgentFormData({ providerConfigs: newConfigs });
+    updates.providerConfigs = newConfigs;
+    setAgentFormData(updates);
     setEditingConfig(null);
     setTimeout(() => saveSettings(), 0);
   };
@@ -71,6 +82,16 @@ const ProviderSettings: React.FC = () => {
 
   const isActive = (config: ProviderConfig) => activeProviderId === config.id;
   const isConfigured = (config: ProviderConfig) => !!config.apiKey?.trim();
+
+  const handleActivate = (e: React.MouseEvent, config: ProviderConfig) => {
+    e.stopPropagation();
+    clearSaveError();
+    setAgentFormData({
+      activeProviderId: config.id,
+      activeModelId: config.modelId || '',
+    });
+    setTimeout(() => saveSettings(), 0);
+  };
 
   return (
     <div className="space-y-4">
@@ -121,9 +142,14 @@ const ProviderSettings: React.FC = () => {
                 </span>
               )}
               {!isActive(config) && isConfigured(config) && (
-                <span className="text-xs text-muted-foreground">
-                  {t('settings:provider.configured')}
-                </span>
+                <button
+                  type="button"
+                  onClick={(e) => handleActivate(e, config)}
+                  className="px-2 py-0.5 text-xs font-medium text-primary border border-primary/30
+                             hover:bg-primary/10 rounded transition-colors cursor-pointer"
+                >
+                  {t('settings:provider.activate')}
+                </button>
               )}
               {!isConfigured(config) && (
                 <span className="text-xs text-muted-foreground/60">

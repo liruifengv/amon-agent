@@ -2,11 +2,9 @@ import { nanoid } from 'nanoid';
 import type {
   UserMessage,
   AssistantMessage,
-  ContentBlock,
   ToolUseBlock,
   ToolResultBlock,
   ImageAttachment,
-  StreamingState,
 } from '@shared/types';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
@@ -16,6 +14,7 @@ import type { ContextManager } from './context-manager';
 import type { StreamNormalizer } from './stream-normalizer';
 import type { PushService } from '../ipc/push';
 import type { ConfigStore } from '../store/config-store';
+import { SkillsStore, formatSkillsForPrompt } from '../skills';
 import { buildSystemPrompt } from './system-prompt';
 import { DEFAULT_MAX_THINKING_TOKENS } from '@shared/constants';
 
@@ -28,6 +27,7 @@ interface AgentRuntimeDeps {
   streamNormalizer: StreamNormalizer;
   pushService: PushService;
   configStore: ConfigStore;
+  skillsStore: SkillsStore;
 }
 
 const THINKING_BUDGET_MAP: Record<string, number> = {
@@ -52,7 +52,7 @@ export class AgentRuntime {
 
     const {
       sessionStore, persistence, providerRegistry, toolRegistry,
-      contextManager, streamNormalizer, pushService, configStore,
+      contextManager, streamNormalizer, pushService, configStore, skillsStore,
     } = this.deps;
 
     // 1. Get config
@@ -66,10 +66,19 @@ export class AgentRuntime {
       ? THINKING_BUDGET_MAP[agentSettings.thinkingLevel] ?? DEFAULT_MAX_THINKING_TOKENS
       : undefined;
 
+    // Load skills for current workspace
+    await skillsStore.load(session.workspace);
+    const skillsPrompt = formatSkillsForPrompt(skillsStore.getSkills());
+
     const systemPrompt = buildSystemPrompt({
       workspace: session.workspace,
       tools: toolRegistry.getAll(),
+      skillsPrompt,
     });
+
+    console.log('====================');
+    console.log('System Prompt:', systemPrompt);
+    console.log('====================');
 
     // 2. Create messages
     const userMsg: UserMessage = {
@@ -109,7 +118,13 @@ export class AgentRuntime {
         const providerMessages = contextManager.buildProviderMessages(allMessages);
         const toolDefs = toolRegistry.toProviderToolDefs();
 
-        // 3b. Call provider
+        // 3b. Call provider (sync registry if adapter missing)
+        if (!providerRegistry.hasAdapter(agentSettings.activeProviderId)) {
+          await providerRegistry.syncFromConfig(configStore);
+        }
+        if (!providerRegistry.hasAdapter(agentSettings.activeProviderId)) {
+          throw new Error(`Provider "${agentSettings.activeProviderId}" not found or not configured. Please check your API key settings.`);
+        }
         const adapter = providerRegistry.getAdapter(agentSettings.activeProviderId);
         const stream = adapter.stream({
           model: agentSettings.activeModelId,

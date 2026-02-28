@@ -19,7 +19,7 @@ const readInputSchema = z.object({
 type ReadInput = z.infer<typeof readInputSchema>;
 
 export const readTool: Tool<ReadInput> = {
-  name: 'read',
+  name: 'Read',
   description: `Read the contents of a file. Supports text files and images (jpg, png, gif, webp). For text files, output is truncated to ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). Use offset/limit for large files. When you need the full file, continue with offset until complete.`,
   inputSchema: readInputSchema,
   execute: async (input: ReadInput, context: ToolContext): Promise<ToolResult> => {

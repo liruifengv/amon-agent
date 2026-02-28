@@ -97,7 +97,8 @@
     "modelHint": "点击下方标签快速填入，或手动输入模型 ID",
     "deleteProvider": "删除",
     "deleteConfirm": "确定要删除此供应商吗？",
-    "emptyState": "尚未配置任何供应商。点击「新增供应商」开始配置。"
+    "emptyState": "尚未配置任何供应商。点击「新增供应商」开始配置。",
+    "activate": "激活"
   },
   "systemPrompt": {
     "title": "系统提示词",

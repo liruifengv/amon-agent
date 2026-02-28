@@ -53,6 +53,30 @@ export class ProviderRegistry {
     }
     return infos;
   }
+
+  /** Re-build adapters from config (call after settings change). */
+  async syncFromConfig(configStore: ConfigStoreLike): Promise<void> {
+    this.adapters.clear();
+    const settings = await configStore.getSettings();
+    const providerConfigs = settings.agent?.providerConfigs ?? [];
+
+    for (const config of providerConfigs) {
+      const apiKey = config.apiKey || configStore.getApiKey(config.id);
+      if (!apiKey) continue;
+
+      const type = config.type || 'openai';
+
+      if (type === 'anthropic') {
+        this.register(
+          new AnthropicAdapter(apiKey, config.baseUrl, config.id),
+        );
+      } else {
+        this.register(
+          new OpenAIAdapter(apiKey, config.baseUrl, config.id),
+        );
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -63,25 +87,6 @@ export async function createDefaultProviderRegistry(
   configStore: ConfigStoreLike,
 ): Promise<ProviderRegistry> {
   const registry = new ProviderRegistry();
-  const settings = await configStore.getSettings();
-  const providerConfigs = settings.agent?.providerConfigs ?? [];
-
-  for (const config of providerConfigs) {
-    const apiKey = config.apiKey || configStore.getApiKey(config.id);
-    if (!apiKey) continue;
-
-    const type = config.type || 'openai';
-
-    if (type === 'anthropic') {
-      registry.register(
-        new AnthropicAdapter(apiKey, config.baseUrl, config.id),
-      );
-    } else {
-      registry.register(
-        new OpenAIAdapter(apiKey, config.baseUrl, config.id),
-      );
-    }
-  }
-
+  await registry.syncFromConfig(configStore);
   return registry;
 }

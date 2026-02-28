@@ -26,7 +26,6 @@ export type {
 
 export type {
   ProviderConfig,
-  ModelInfo,
   ProviderInfo,
 } from '../../shared/provider-types';
 
