@@ -10,6 +10,7 @@ export interface SystemPromptOptions {
   skillsPrompt?: string;
   customInstructions?: string;
   workspaceFiles?: WorkspaceBootstrapFile[];
+  projectAgentsFile?: WorkspaceBootstrapFile;
 }
 
 function buildToolsSection(tools: Tool[]): string {
@@ -96,6 +97,16 @@ function buildProjectContext(files: WorkspaceBootstrapFile[]): string {
   return lines.join('\n');
 }
 
+function buildProjectInstructions(file: WorkspaceBootstrapFile): string {
+  return [
+    '# Project Instructions',
+    '',
+    `Source: ${file.path}`,
+    '',
+    file.content,
+  ].join('\n');
+}
+
 export function buildSystemPrompt(options: SystemPromptOptions): string {
   const parts = [
     DEFAULT_SYSTEM_PROMPT,
@@ -115,6 +126,11 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
   // Project Context 放在最后（最靠近对话内容的位置，优先级更高）
   if (options.workspaceFiles && options.workspaceFiles.length > 0) {
     parts.push(buildProjectContext(options.workspaceFiles));
+  }
+
+  // 项目级 AGENTS.md 放在最末尾（最高优先级）
+  if (options.projectAgentsFile) {
+    parts.push(buildProjectInstructions(options.projectAgentsFile));
   }
 
   return parts.join('\n\n');

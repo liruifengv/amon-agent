@@ -144,6 +144,25 @@ export async function loadWorkspaceBootstrapFiles(): Promise<WorkspaceBootstrapF
 }
 
 /**
+ * 从项目根目录加载 AGENTS.md 文件。
+ * 如果 workspace 就是全局工作空间则跳过（避免重复加载）。
+ * 找不到则返回 null，不做模板种子。
+ */
+export async function loadProjectAgentsFile(
+  workspace: string,
+): Promise<WorkspaceBootstrapFile | null> {
+  if (workspace === WORKSPACE_DIR) return null;
+
+  const filePath = join(workspace, BOOTSTRAP_FILENAMES.AGENTS);
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    return { name: BOOTSTRAP_FILENAMES.AGENTS, path: filePath, content };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 删除 BOOTSTRAP.md 文件。不存在时静默返回。
  */
 export async function removeBootstrapFile(): Promise<void> {

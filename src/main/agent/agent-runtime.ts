@@ -15,7 +15,7 @@ import type { StreamNormalizer } from './stream-normalizer';
 import type { PushService } from '../ipc/push';
 import type { ConfigStore } from '../store/config-store';
 import { SkillsStore, formatSkillsForPrompt } from '../skills';
-import { ensureBootstrapFiles, loadWorkspaceBootstrapFiles } from '../workspace';
+import { ensureBootstrapFiles, loadWorkspaceBootstrapFiles, loadProjectAgentsFile } from '../workspace';
 import { buildSystemPrompt } from './system-prompt';
 import { DEFAULT_MAX_THINKING_TOKENS } from '@shared/constants';
 
@@ -75,11 +75,15 @@ export class AgentRuntime {
     await ensureBootstrapFiles();
     const workspaceFiles = await loadWorkspaceBootstrapFiles();
 
+    // Load project-level AGENTS.md from workspace root
+    const projectAgentsFile = await loadProjectAgentsFile(session.workspace);
+
     const systemPrompt = buildSystemPrompt({
       workspace: session.workspace,
       tools: toolRegistry.getAll(),
       skillsPrompt,
       workspaceFiles,
+      projectAgentsFile: projectAgentsFile ?? undefined,
     });
 
     console.log('====================');

@@ -1,6 +1,7 @@
 export {
   ensureBootstrapFiles,
   loadWorkspaceBootstrapFiles,
+  loadProjectAgentsFile,
   removeBootstrapFile,
   BOOTSTRAP_FILENAMES,
   type BootstrapFileName,
