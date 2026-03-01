@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, dialog, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -124,6 +124,15 @@ function createWindow(): void {
   if (process.env.NODE_ENV === 'development' || MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.webContents.openDevTools();
   }
+
+  // 拦截外部链接：用系统默认浏览器打开，而非在 Electron 内开新窗口
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url);
+      return { action: 'deny' };
+    }
+    return { action: 'allow' };
+  });
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -370,6 +379,26 @@ app.on('ready', async () => {
     getMainWindow: () => mainWindow,
     getSettingsWindow: () => settingsWindow,
     createSettingsWindow: (tab?: string) => openSettingsWindow(tab),
+  });
+
+  // 允许 renderer 跨域请求外部资源（图片下载等）
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    headers['Access-Control-Allow-Origin'] = ['*'];
+    callback({ responseHeaders: headers });
+  });
+
+  // 处理文件下载：弹出保存对话框
+  session.defaultSession.on('will-download', (_event, item) => {
+    const defaultPath = item.getFilename();
+    const result = dialog.showSaveDialogSync(mainWindow!, {
+      defaultPath,
+    });
+    if (result) {
+      item.setSavePath(result);
+    } else {
+      item.cancel();
+    }
   });
 
   // Create main window

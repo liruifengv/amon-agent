@@ -13,7 +13,7 @@ export interface TextBlockProps {
 const TextBlock: React.FC<TextBlockProps> = memo(({ content, isStreaming }) => {
   return (
     <div className="markdown-content">
-      <Streamdown plugins={{ code, mermaid, math, cjk }}>{content}</Streamdown>
+      <Streamdown plugins={{ code, mermaid, math, cjk }} linkSafety={{ enabled: false }}>{content}</Streamdown>
     </div>
   );
 });
