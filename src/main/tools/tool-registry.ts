@@ -7,6 +7,7 @@ import { writeTool } from './write-tool';
 import { editTool } from './edit-tool';
 import { globTool } from './glob-tool';
 import { grepTool } from './grep-tool';
+import { webFetchTool } from './web-fetch-tool';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTool = Tool<any>;
@@ -87,5 +88,6 @@ export function createDefaultToolRegistry(): ToolRegistry {
   registry.register(editTool);
   registry.register(globTool);
   registry.register(grepTool);
+  registry.register(webFetchTool);
   return registry;
 }

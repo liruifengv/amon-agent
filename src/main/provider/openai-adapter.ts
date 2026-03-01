@@ -89,6 +89,10 @@ function toOpenAIMessages(
               },
             });
             break;
+          case 'server_tool_use':
+          case 'server_tool_result':
+            // Anthropic server tool blocks — skip for OpenAI
+            break;
         }
       }
 

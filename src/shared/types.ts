@@ -42,7 +42,43 @@ export interface ToolResultBlock {
   isError: boolean;
 }
 
-export type ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock;
+export interface ServerToolUseBlock {
+  type: 'server_tool_use';
+  id: Id;
+  name: string;
+  input: Record<string, unknown>;
+  callerType?: string;
+  callerToolId?: Id;
+}
+
+export interface ServerToolResultBlock {
+  type: 'server_tool_result';
+  toolUseId: Id;
+  resultType: string;
+  content: unknown;
+  callerType?: string;
+  callerToolId?: Id;
+}
+
+export interface CodeExecutionResultContent {
+  type: 'code_execution_result';
+  stdout: string;
+  stderr: string;
+  return_code: number;
+  content: unknown[];
+  abort_reason: string | null;
+}
+
+export interface WebFetchResultContent {
+  type: 'web_fetch_result';
+  url: string;
+  retrieved_at: string;
+  content: unknown;
+}
+
+export type ContentBlock =
+  | TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock
+  | ServerToolUseBlock | ServerToolResultBlock;
 
 // ==================== 停止原因 ====================
 

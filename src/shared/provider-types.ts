@@ -52,12 +52,25 @@ export type ProviderUserContent =
 export type ProviderAssistantContent =
   | { type: 'text'; text: string }
   | { type: 'thinking'; thinking: string; signature?: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> };
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'server_tool_use'; id: string; name: string; input: Record<string, unknown>;
+      callerType?: string; callerToolId?: string }
+  | { type: 'server_tool_result'; toolUseId: string; resultType: string; content: unknown;
+      callerType?: string; callerToolId?: string };
 
 export interface ProviderToolDef {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+}
+
+export interface ServerToolDef {
+  type: string;
+  name: string;
+  maxUses?: number;
+  allowedDomains?: string[];
+  blockedDomains?: string[];
+  maxContentTokens?: number;
 }
 
 // ==================== 归一化流式事件 ====================
@@ -74,7 +87,13 @@ export type NormalizedStreamEvent =
 export type ContentBlockStart =
   | { type: 'text' }
   | { type: 'thinking' }
-  | { type: 'tool_use'; id: string; name: string };
+  | { type: 'tool_use'; id: string; name: string }
+  | { type: 'server_tool_use'; id: string; name: string;
+      input?: Record<string, unknown>;
+      callerType?: string; callerToolId?: string }
+  | { type: 'server_tool_result'; toolUseId: string; resultType: string;
+      content: unknown;
+      callerType?: string; callerToolId?: string };
 
 export type ContentBlockDelta =
   | { type: 'text_delta'; text: string }

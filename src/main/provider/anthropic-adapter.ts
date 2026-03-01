@@ -9,6 +9,7 @@ import type {
   NormalizedStreamEvent,
   ContentBlockStart,
   ContentBlockDelta,
+  ServerToolDef,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
 
@@ -48,9 +49,9 @@ function toAnthropicMessages(
       return { role: 'user', content };
     }
 
-    // assistant
-    const content: Anthropic.ContentBlockParam[] = msg.content.map(
-      (block: ProviderAssistantContent): Anthropic.ContentBlockParam => {
+    // assistant — includes server tool blocks passed through as raw objects
+    const content: unknown[] = msg.content.map(
+      (block: ProviderAssistantContent): unknown => {
         switch (block.type) {
           case 'text':
             return { type: 'text', text: block.text };
@@ -67,10 +68,36 @@ function toAnthropicMessages(
               name: block.name,
               input: block.input,
             };
+          case 'server_tool_use':
+            return {
+              type: 'server_tool_use',
+              id: block.id,
+              name: block.name,
+              input: block.input,
+              ...(block.callerType ? {
+                caller: {
+                  type: block.callerType,
+                  ...(block.callerToolId ? { tool_id: block.callerToolId } : {}),
+                },
+              } : {}),
+            };
+          case 'server_tool_result':
+            // Restore original API type name: e.g. 'web_fetch_result' -> 'web_fetch_tool_result'
+            return {
+              type: block.resultType.replace(/_result$/, '_tool_result'),
+              tool_use_id: block.toolUseId,
+              content: block.content,
+              ...(block.callerType ? {
+                caller: {
+                  type: block.callerType,
+                  ...(block.callerToolId ? { tool_id: block.callerToolId } : {}),
+                },
+              } : {}),
+            };
         }
       },
     );
-    return { role: 'assistant', content };
+    return { role: 'assistant', content: content as Anthropic.ContentBlockParam[] };
   });
 }
 
@@ -88,12 +115,25 @@ function toAnthropicTools(tools: ProviderToolDef[]): Anthropic.Tool[] {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function buildServerTools(serverTools: ServerToolDef[]): any[] {
+  return serverTools.map(st => ({
+    type: st.type,
+    name: st.name,
+    ...(st.maxUses != null ? { max_uses: st.maxUses } : {}),
+    ...(st.allowedDomains ? { allowed_domains: st.allowedDomains } : {}),
+    ...(st.blockedDomains ? { blocked_domains: st.blockedDomains } : {}),
+    ...(st.maxContentTokens != null ? { max_content_tokens: st.maxContentTokens } : {}),
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // Event mapping: Anthropic.RawMessageStreamEvent -> NormalizedStreamEvent
 // ---------------------------------------------------------------------------
 
 function mapBlockStart(
-  block: Anthropic.Messages.RawContentBlockStartEvent['content_block'],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  block: any,
 ): ContentBlockStart {
   switch (block.type) {
     case 'text':
@@ -102,8 +142,28 @@ function mapBlockStart(
       return { type: 'thinking' };
     case 'tool_use':
       return { type: 'tool_use', id: block.id, name: block.name };
+    case 'server_tool_use':
+      return {
+        type: 'server_tool_use',
+        id: block.id,
+        name: block.name,
+        input: block.input,
+        callerType: block.caller?.type,
+        callerToolId: block.caller?.tool_id,
+      };
     default:
-      // redacted_thinking, server_tool_use, web_search_tool_result — treat as text
+      // Match *_tool_result pattern (web_fetch_tool_result, code_execution_tool_result, etc.)
+      if (typeof block.type === 'string' && block.type.endsWith('_tool_result')) {
+        return {
+          type: 'server_tool_result',
+          toolUseId: block.tool_use_id,
+          resultType: block.content?.type ?? block.type,
+          content: block.content,
+          callerType: block.caller?.type,
+          callerToolId: block.caller?.tool_id,
+        };
+      }
+      // redacted_thinking or unknown — treat as text
       return { type: 'text' };
   }
 }
@@ -152,7 +212,9 @@ function mapEvent(
       return {
         type: 'content_block_start',
         index: event.index,
-        block: mapBlockStart(event.content_block),
+        // Use `as any` because SDK types don't cover server_tool_use / *_tool_result
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        block: mapBlockStart(event.content_block as any),
       };
 
     case 'content_block_delta':
@@ -194,12 +256,22 @@ function mapEvent(
 // Adapter
 // ---------------------------------------------------------------------------
 
+/**
+ * Mapping from server tool names to custom tool names they replace.
+ * When a server tool is enabled, its corresponding custom tool is filtered out.
+ */
+const SERVER_TOOL_REPLACES: Record<string, string> = {
+  web_fetch: 'WebFetch',
+};
+
 export class AnthropicAdapter implements ProviderAdapter {
   readonly id: string;
   private client: Anthropic;
+  private serverTools: ServerToolDef[];
 
-  constructor(apiKey: string, baseUrl?: string, id?: string) {
+  constructor(apiKey: string, baseUrl?: string, id?: string, serverTools?: ServerToolDef[]) {
     this.id = id ?? 'anthropic';
+    this.serverTools = serverTools ?? [];
     this.client = new Anthropic({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
@@ -215,6 +287,18 @@ export class AnthropicAdapter implements ProviderAdapter {
     let cacheWriteTokens = 0;
 
     try {
+      // Filter out custom tools replaced by server tools, then merge
+      const replacedNames = new Set(
+        this.serverTools.map(st => SERVER_TOOL_REPLACES[st.name]).filter(Boolean),
+      );
+      const customTools = request.tools?.length
+        ? toAnthropicTools(request.tools.filter(t => !replacedNames.has(t.name)))
+        : [];
+      const builtServerTools = this.serverTools.length
+        ? buildServerTools(this.serverTools)
+        : [];
+      const allTools = [...customTools, ...builtServerTools];
+
       const params: Anthropic.MessageCreateParamsStreaming = {
         model: request.model,
         max_tokens: request.maxTokens ?? 16_000,
@@ -223,8 +307,8 @@ export class AnthropicAdapter implements ProviderAdapter {
         ...(request.systemPrompt
           ? { system: request.systemPrompt }
           : {}),
-        ...(request.tools && request.tools.length > 0
-          ? { tools: toAnthropicTools(request.tools) }
+        ...(allTools.length > 0
+          ? { tools: allTools }
           : {}),
         ...(request.thinkingBudget
           ? {

@@ -91,6 +91,26 @@ export class ContextManager {
               input: block.input,
             });
             break;
+          case 'server_tool_use':
+            assistantContent.push({
+              type: 'server_tool_use',
+              id: block.id,
+              name: block.name,
+              input: block.input,
+              callerType: block.callerType,
+              callerToolId: block.callerToolId,
+            });
+            break;
+          case 'server_tool_result':
+            assistantContent.push({
+              type: 'server_tool_result',
+              toolUseId: block.toolUseId,
+              resultType: block.resultType,
+              content: block.content,
+              callerType: block.callerType,
+              callerToolId: block.callerToolId,
+            });
+            break;
         }
       }
     }

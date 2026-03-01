@@ -3,6 +3,8 @@ import type {
   TextBlock,
   ThinkingBlock,
   ToolUseBlock,
+  ServerToolUseBlock,
+  ServerToolResultBlock,
   StopReason,
 } from '@shared/types';
 import type {
@@ -16,7 +18,7 @@ import type { PushService } from '../ipc/push';
 // ==================== Block Builders ====================
 
 interface BlockBuilder {
-  type: 'text' | 'thinking' | 'tool_use';
+  type: 'text' | 'thinking' | 'tool_use' | 'server_tool_use' | 'server_tool_result';
   applyDelta(delta: ContentBlockDelta): void;
   build(): ContentBlock;
 }
@@ -70,6 +72,64 @@ class ToolUseBlockBuilder implements BlockBuilder {
   }
 }
 
+class ServerToolUseBlockBuilder implements BlockBuilder {
+  type = 'server_tool_use' as const;
+  private inputBuffer = '';
+
+  constructor(
+    private id: string,
+    private name: string,
+    private startInput: Record<string, unknown>,
+    private callerType?: string,
+    private callerToolId?: string,
+  ) {}
+
+  applyDelta(delta: ContentBlockDelta): void {
+    if (delta.type === 'input_json_delta') this.inputBuffer += delta.partialJson;
+  }
+
+  build(): ServerToolUseBlock {
+    let input = this.startInput;
+    if (this.inputBuffer) {
+      try { input = JSON.parse(this.inputBuffer); } catch { /* partial JSON */ }
+    }
+    return {
+      type: 'server_tool_use',
+      id: this.id,
+      name: this.name,
+      input,
+      callerType: this.callerType,
+      callerToolId: this.callerToolId,
+    };
+  }
+}
+
+class ServerToolResultBlockBuilder implements BlockBuilder {
+  type = 'server_tool_result' as const;
+
+  constructor(
+    private toolUseId: string,
+    private resultType: string,
+    private resultContent: unknown,
+    private callerType?: string,
+    private callerToolId?: string,
+  ) {}
+
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  applyDelta(): void {} // No deltas for result blocks
+
+  build(): ServerToolResultBlock {
+    return {
+      type: 'server_tool_result',
+      toolUseId: this.toolUseId,
+      resultType: this.resultType,
+      content: this.resultContent,
+      callerType: this.callerType,
+      callerToolId: this.callerToolId,
+    };
+  }
+}
+
 function createBlockBuilder(block: ContentBlockStart): BlockBuilder {
   switch (block.type) {
     case 'text':
@@ -78,6 +138,16 @@ function createBlockBuilder(block: ContentBlockStart): BlockBuilder {
       return new ThinkingBlockBuilder();
     case 'tool_use':
       return new ToolUseBlockBuilder(block.id, block.name);
+    case 'server_tool_use':
+      return new ServerToolUseBlockBuilder(
+        block.id, block.name, block.input ?? {},
+        block.callerType, block.callerToolId,
+      );
+    case 'server_tool_result':
+      return new ServerToolResultBlockBuilder(
+        block.toolUseId, block.resultType, block.content,
+        block.callerType, block.callerToolId,
+      );
   }
 }
 
@@ -114,6 +184,11 @@ export class StreamNormalizer {
               status: 'pending',
             });
           }
+          if (event.block.type === 'server_tool_use') {
+            this.pushService.pushToolCallState(sessionId, event.block.id, {
+              status: 'pending',
+            });
+          }
           break;
         }
 
@@ -125,6 +200,14 @@ export class StreamNormalizer {
         }
 
         case 'content_block_stop': {
+          const builder = blockBuilders.get(event.index);
+          // Server tool use blocks are auto-completed (executed server-side)
+          if (builder?.type === 'server_tool_use') {
+            const block = builder.build() as ServerToolUseBlock;
+            this.pushService.pushToolCallState(sessionId, block.id, {
+              status: 'completed',
+            });
+          }
           this.syncBlocksToStore(sessionId, messageId, existingBlocks, blockBuilders);
           break;
         }

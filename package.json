@@ -67,7 +67,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.74.0",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@lobehub/icons": "^4.6.0",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -85,6 +85,7 @@
     "@streamdown/math": "^1.0.1",
     "@streamdown/mermaid": "^1.0.1",
     "@tailwindcss/vite": "^4.1.18",
+    "@types/turndown": "^5.0.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "diff": "^8.0.3",
@@ -102,6 +103,7 @@
     "sonner": "^2.0.7",
     "streamdown": "^2.1.0",
     "tailwind-merge": "^3.4.0",
+    "turndown": "^7.2.2",
     "use-stick-to-bottom": "^1.1.1",
     "yaml": "^2.8.2",
     "zod": "^4.3.6",

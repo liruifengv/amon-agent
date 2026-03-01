@@ -5,6 +5,7 @@ import {
   ContentBlock,
   ToolUseBlock,
   ToolResultBlock,
+  ServerToolResultBlock,
 } from '../../types';
 import ContentBlockRenderer from './ContentBlocks';
 import ToolGroup from './ToolGroup';
@@ -63,6 +64,9 @@ function groupContentBlocks(blocks: ContentBlock[]): GroupedBlock[] {
       currentToolGroup.push(block);
     } else if (block.type === 'tool_result') {
       // tool_result 块跳过，不直接渲染
+      return;
+    } else if (block.type === 'server_tool_result') {
+      // server_tool_result rendered inside its parent ServerToolBlock
       return;
     } else {
       // 非工具块
@@ -123,6 +127,18 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
     return map;
   }, [content]);
 
+  // 构建 server toolUseId → ServerToolResultBlock 查找表
+  const serverToolResultMap = useMemo(() => {
+    const map = new Map<string, ServerToolResultBlock>();
+    if (!content) return map;
+    for (const block of content) {
+      if (block.type === 'server_tool_result') {
+        map.set(block.toolUseId, block);
+      }
+    }
+    return map;
+  }, [content]);
+
   // 提取 todos
   const latestTodos = useMemo(() => {
     if (!content || content.length === 0) return null;
@@ -158,6 +174,7 @@ const AssistantMessageComponent: React.FC<AssistantMessageProps> = ({ message, d
               defaultCollapsed={defaultCollapsed}
               sessionId={sessionId}
               toolResultMap={toolResultMap}
+              serverToolResultMap={serverToolResultMap}
             />
           );
         })

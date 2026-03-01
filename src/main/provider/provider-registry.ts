@@ -1,9 +1,15 @@
 import type {
   ProviderAdapter,
   ProviderInfo,
+  ServerToolDef,
 } from '@shared/provider-types';
 import { AnthropicAdapter } from './anthropic-adapter';
 import { OpenAIAdapter } from './openai-adapter';
+
+/** Default server tools for direct Anthropic API access. */
+const ANTHROPIC_SERVER_TOOLS: ServerToolDef[] = [
+  { type: 'web_fetch_20260209', name: 'web_fetch' },
+];
 
 // ---------------------------------------------------------------------------
 // ConfigStore interface (minimal, avoids circular dependency)
@@ -67,8 +73,13 @@ export class ProviderRegistry {
       const type = config.type || 'openai';
 
       if (type === 'anthropic') {
+        // Enable server tools for direct Anthropic API (no custom baseUrl or Anthropic-hosted)
+        const isDirectApi = config.modelId?.startsWith('claude');
         this.register(
-          new AnthropicAdapter(apiKey, config.baseUrl, config.id),
+          new AnthropicAdapter(
+            apiKey, config.baseUrl, config.id,
+            isDirectApi ? ANTHROPIC_SERVER_TOOLS : undefined,
+          ),
         );
       } else {
         this.register(

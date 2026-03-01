@@ -1,8 +1,9 @@
 import React from 'react';
-import { ContentBlock, ToolResultBlock } from '../../../types';
+import { ContentBlock, ToolResultBlock, ServerToolResultBlock } from '../../../types';
 import TextBlock from './TextBlock';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCallBlock from './ToolCallBlock';
+import ServerToolBlock from './ServerToolBlock';
 
 export interface ContentBlockRendererProps {
   block: ContentBlock;
@@ -14,6 +15,8 @@ export interface ContentBlockRendererProps {
   sessionId: string | null;
   /** Map from toolUseId to ToolResultBlock for status derivation */
   toolResultMap?: Map<string, ToolResultBlock>;
+  /** Map from server toolUseId to ServerToolResultBlock */
+  serverToolResultMap?: Map<string, ServerToolResultBlock>;
 }
 
 /**
@@ -26,6 +29,7 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
   defaultCollapsed = false,
   sessionId,
   toolResultMap,
+  serverToolResultMap,
 }) => {
   switch (block.type) {
     case 'text':
@@ -47,6 +51,19 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
 
     case 'tool_use':
       return <ToolCallBlock toolCall={block} sessionId={sessionId} toolResult={toolResultMap?.get(block.id)} />;
+
+    case 'server_tool_use':
+      return (
+        <ServerToolBlock
+          block={block}
+          sessionId={sessionId}
+          resultBlock={serverToolResultMap?.get(block.id)}
+        />
+      );
+
+    case 'server_tool_result':
+      // Rendered as part of its parent ServerToolBlock via serverToolResultMap
+      return null;
 
     default:
       // 未知类型（包括 tool_result），静默忽略
