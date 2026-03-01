@@ -71,6 +71,13 @@ export interface ServerToolDef {
   allowedDomains?: string[];
   blockedDomains?: string[];
   maxContentTokens?: number;
+  userLocation?: {
+    type: 'approximate';
+    city?: string;
+    region?: string;
+    country?: string;
+    timezone?: string;
+  };
 }
 
 // ==================== 归一化流式事件 ====================

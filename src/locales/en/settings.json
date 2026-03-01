@@ -34,6 +34,8 @@
     "thinking_high": "High",
     "maxTurns": "Max Turns",
     "maxTurnsHint": "Maximum number of tool call turns per message",
+    "exaApiKey": "Exa API Key",
+    "exaApiKeyHint": "Required for web search with non-Anthropic providers. Get your free API key at exa.ai",
     "noProviderConfigured": "No provider API key configured. Please configure at least one provider first.",
     "goToProviderSettings": "Go to Provider Settings"
   },

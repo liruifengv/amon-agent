@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ServerToolUseBlock, ServerToolResultBlock, CodeExecutionResultContent, WebFetchResultContent } from '../../../types';
+import type { ServerToolUseBlock, ServerToolResultBlock, CodeExecutionResultContent, WebFetchResultContent, WebSearchResultItem } from '../../../types';
 import { useChatStore } from '../../../store/chatStore';
 import {
   Globe,
   Code2,
+  Search,
   ChevronRight,
   Check,
   Loader2,
@@ -16,12 +17,14 @@ import { CodeBlockContent } from '../../ai-elements/code-block';
 const SERVER_TOOL_ICONS: Record<string, React.ReactNode> = {
   code_execution: <Code2 className="w-4 h-4" />,
   web_fetch: <Globe className="w-4 h-4" />,
+  web_search: <Search className="w-4 h-4" />,
 };
 
 // Server tool display names
 const SERVER_TOOL_NAMES: Record<string, string> = {
   code_execution: 'Code Execution',
   web_fetch: 'Web Fetch',
+  web_search: 'Web Search',
 };
 
 /**
@@ -31,6 +34,8 @@ function getServerToolSummary(name: string, input: Record<string, unknown>): str
   switch (name) {
     case 'web_fetch':
       return String(input.url || '');
+    case 'web_search':
+      return String(input.query || '');
     case 'code_execution': {
       const code = String(input.code || '');
       if (!code) return '';
@@ -91,6 +96,16 @@ const ServerToolBlock: React.FC<ServerToolBlockProps> = ({ block, sessionId, res
       );
     }
 
+    if (block.name === 'web_search' && block.input.query) {
+      return (
+        <div className="px-3 py-2">
+          <div className="text-xs text-muted-foreground font-mono truncate">
+            {String(block.input.query)}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="px-3 py-2">
         <div className="rounded-md border border-border overflow-hidden max-h-40 overflow-y-auto">
@@ -132,6 +147,32 @@ const ServerToolBlock: React.FC<ServerToolBlockProps> = ({ block, sessionId, res
               {stderr}
             </pre>
           )}
+        </div>
+      );
+    }
+
+    if (resultBlock.resultType === 'web_search_tool_result') {
+      const results = resultBlock.content as unknown as WebSearchResultItem[];
+      if (!Array.isArray(results) || results.length === 0) return null;
+
+      return (
+        <div className="px-3 py-2 border-t border-inherit">
+          <div className="text-xs font-medium text-muted-foreground mb-1">
+            {t('tool.output')} ({results.length} results)
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto">
+            {results.map((item, i) => (
+              <div key={i} className="text-xs">
+                <a href={item.url} className="text-primary hover:underline font-medium"
+                   target="_blank" rel="noopener noreferrer">
+                  {item.title}
+                </a>
+                {item.page_age && (
+                  <span className="ml-2 text-muted-foreground opacity-50">{item.page_age}</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       );
     }

@@ -22,6 +22,7 @@ export const AgentSettingsSchema = z.object({
   maxTurns: z.number().default(50),
   thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('medium'),
   providerConfigs: z.array(ProviderConfigSchema).default([]),
+  exaApiKey: z.string().default(''),
 });
 
 export type AgentSettings = z.infer<typeof AgentSettingsSchema>;

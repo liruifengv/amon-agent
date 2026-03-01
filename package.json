@@ -90,6 +90,7 @@
     "clsx": "^2.1.1",
     "diff": "^8.0.3",
     "electron-squirrel-startup": "^1.0.1",
+    "exa-js": "^2.6.1",
     "glob": "^7.2.3",
     "i18next": "^25.8.7",
     "lucide-react": "^0.562.0",

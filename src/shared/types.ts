@@ -76,6 +76,19 @@ export interface WebFetchResultContent {
   content: unknown;
 }
 
+export interface WebSearchResultItem {
+  type: 'web_search_result';
+  url: string;
+  title: string;
+  encrypted_content: string;
+  page_age?: string;
+}
+
+export interface WebSearchResultContent {
+  type: 'web_search_tool_result';
+  items: WebSearchResultItem[];
+}
+
 export type ContentBlock =
   | TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock
   | ServerToolUseBlock | ServerToolResultBlock;

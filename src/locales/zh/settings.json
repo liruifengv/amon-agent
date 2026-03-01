@@ -34,6 +34,8 @@
     "thinking_high": "高",
     "maxTurns": "最大轮数",
     "maxTurnsHint": "每条消息的最大工具调用轮数",
+    "exaApiKey": "Exa API Key",
+    "exaApiKeyHint": "非 Anthropic 提供商使用搜索需要此密钥。在 exa.ai 获取免费 API Key",
     "noProviderConfigured": "尚未配置任何供应商的 API Key，请先配置至少一个供应商。",
     "goToProviderSettings": "前往供应商设置"
   },

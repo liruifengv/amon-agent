@@ -9,6 +9,7 @@ import { OpenAIAdapter } from './openai-adapter';
 /** Default server tools for direct Anthropic API access. */
 const ANTHROPIC_SERVER_TOOLS: ServerToolDef[] = [
   { type: 'web_fetch_20260209', name: 'web_fetch' },
+  { type: 'web_search_20260209', name: 'web_search' },
 ];
 
 // ---------------------------------------------------------------------------

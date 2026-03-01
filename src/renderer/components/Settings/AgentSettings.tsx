@@ -190,6 +190,28 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
           {t('settings:agent.maxTurnsHint')}
         </p>
       </div>
+
+      {/* Exa API Key */}
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-2">
+          {t('settings:agent.exaApiKey')}
+        </label>
+        <input
+          type="password"
+          value={formData.agent.exaApiKey || ''}
+          onChange={(e) => {
+            clearSaveError();
+            setAgentFormData({ exaApiKey: e.target.value });
+          }}
+          placeholder="(optional)"
+          className="w-full px-3 py-2 text-sm border border-border rounded-lg
+                     bg-background text-foreground
+                     focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          {t('settings:agent.exaApiKeyHint')}
+        </p>
+      </div>
     </div>
   );
 };

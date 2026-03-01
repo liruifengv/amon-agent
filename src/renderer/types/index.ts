@@ -12,6 +12,8 @@ export type {
   ServerToolResultBlock,
   CodeExecutionResultContent,
   WebFetchResultContent,
+  WebSearchResultItem,
+  WebSearchResultContent,
   ContentBlock,
   StopReason,
   TokenUsage,

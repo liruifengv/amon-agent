@@ -124,6 +124,7 @@ function buildServerTools(serverTools: ServerToolDef[]): any[] {
     ...(st.allowedDomains ? { allowed_domains: st.allowedDomains } : {}),
     ...(st.blockedDomains ? { blocked_domains: st.blockedDomains } : {}),
     ...(st.maxContentTokens != null ? { max_content_tokens: st.maxContentTokens } : {}),
+    ...(st.userLocation ? { user_location: st.userLocation } : {}),
   }));
 }
 
@@ -262,6 +263,7 @@ function mapEvent(
  */
 const SERVER_TOOL_REPLACES: Record<string, string> = {
   web_fetch: 'WebFetch',
+  web_search: 'WebSearch',
 };
 
 export class AnthropicAdapter implements ProviderAdapter {
@@ -271,7 +273,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   constructor(apiKey: string, baseUrl?: string, id?: string, serverTools?: ServerToolDef[]) {
     this.id = id ?? 'anthropic';
-    this.serverTools = serverTools ?? [];
+    this.serverTools = [];
     this.client = new Anthropic({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
@@ -292,12 +294,12 @@ export class AnthropicAdapter implements ProviderAdapter {
         this.serverTools.map(st => SERVER_TOOL_REPLACES[st.name]).filter(Boolean),
       );
       const customTools = request.tools?.length
-        ? toAnthropicTools(request.tools.filter(t => !replacedNames.has(t.name)))
+        ? toAnthropicTools(request.tools)
         : [];
       const builtServerTools = this.serverTools.length
         ? buildServerTools(this.serverTools)
         : [];
-      const allTools = [...customTools, ...builtServerTools];
+      const allTools = [...customTools,];
 
       const params: Anthropic.MessageCreateParamsStreaming = {
         model: request.model,
