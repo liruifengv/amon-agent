@@ -89,6 +89,7 @@ export class ContextManager {
               id: block.id,
               name: block.name,
               input: block.input,
+              signature: block.signature,
             });
             break;
           case 'server_tool_use':

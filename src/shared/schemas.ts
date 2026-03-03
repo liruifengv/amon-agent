@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 export const ProviderConfigSchema = z.object({
   id: z.string(),
-  type: z.enum(['anthropic', 'openai']).default('openai'),
+  type: z.enum(['anthropic', 'openai', 'openai-responses', 'gemini']).default('openai'),
   icon: z.string().default(''),
   name: z.string().min(1),
   apiKey: z.string().default(''),

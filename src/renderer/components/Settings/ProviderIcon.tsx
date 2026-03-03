@@ -4,6 +4,7 @@ import React from 'react';
 import ChatGLMColor from '@lobehub/icons/es/ZAI/components/Mono';
 import KimiMono from '@lobehub/icons/es/Kimi/components/Mono';
 import MinimaxColor from '@lobehub/icons/es/Minimax/components/Color';
+import GeminiColor from '@lobehub/icons/es/Gemini/components/Color';
 
 // Mono variants
 import AnthropicMono from '@lobehub/icons/es/Anthropic/components/Mono';
@@ -16,6 +17,7 @@ interface ProviderIconProps {
 
 const COLOR_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
   Minimax: MinimaxColor,
+  Gemini: GeminiColor,
 };
 
 const MONO_ICONS: Record<string, { component: React.ComponentType<{ size?: number }>; color: string; invertInDark?: boolean }> = {

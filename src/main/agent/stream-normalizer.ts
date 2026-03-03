@@ -54,11 +54,13 @@ class ThinkingBlockBuilder implements BlockBuilder {
 class ToolUseBlockBuilder implements BlockBuilder {
   type = 'tool_use' as const;
   private inputBuffer = '';
+  private signature?: string;
 
   constructor(private id: string, private name: string) {}
 
   applyDelta(delta: ContentBlockDelta): void {
     if (delta.type === 'input_json_delta') this.inputBuffer += delta.partialJson;
+    if (delta.type === 'signature_delta') this.signature = (this.signature ?? '') + delta.signature;
   }
 
   build(): ToolUseBlock {
@@ -68,7 +70,7 @@ class ToolUseBlockBuilder implements BlockBuilder {
     } catch {
       // partial JSON, leave empty
     }
-    return { type: 'tool_use', id: this.id, name: this.name, input };
+    return { type: 'tool_use', id: this.id, name: this.name, input, signature: this.signature };
   }
 }
 

@@ -1,7 +1,7 @@
 export interface ProviderPreset {
   id: string;
   name: string;
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'openai-responses' | 'gemini';
   icon: string;
   defaultBaseUrl?: string;
   defaultModels: string[];
@@ -24,6 +24,20 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['gpt-5.2', 'gpt-5.3'],
   },
   {
+    id: 'openai-responses',
+    name: 'OpenAI Responses',
+    type: 'openai-responses',
+    icon: 'OpenAI',
+    defaultModels: ['gpt-5.2', 'gpt-5.3'],
+  },
+  {
+    id: 'gemini',
+    name: 'Google Gemini',
+    type: 'gemini',
+    icon: 'Gemini',
+    defaultModels: ['gemini-3-pro-preview', 'gemini-3-flash-preview'],
+  },
+  {
     id: 'glm',
     name: 'GLM',
     type: 'anthropic',
@@ -33,7 +47,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'glm-en',
-    name: 'GLM (EN)',
+    name: 'Z.AI',
     type: 'anthropic',
     icon: 'ZAI',
     defaultBaseUrl: 'https://api.z.ai/api/anthropic',
@@ -57,7 +71,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   },
   {
     id: 'kimi',
-    name: 'Kimi',
+    name: 'Kimi For Coding',
     type: 'anthropic',
     icon: 'Kimi',
     defaultBaseUrl: 'https://api.kimi.com/coding',

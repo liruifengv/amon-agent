@@ -5,6 +5,8 @@ import type {
 } from '@shared/provider-types';
 import { AnthropicAdapter } from './anthropic-adapter';
 import { OpenAIAdapter } from './openai-adapter';
+import { OpenAIResponsesAdapter } from './openai-responses-adapter';
+import { GeminiAdapter } from './gemini-adapter';
 
 /** Default server tools for direct Anthropic API access. */
 const ANTHROPIC_SERVER_TOOLS: ServerToolDef[] = [
@@ -81,6 +83,14 @@ export class ProviderRegistry {
             apiKey, config.baseUrl, config.id,
             isDirectApi ? ANTHROPIC_SERVER_TOOLS : undefined,
           ),
+        );
+      } else if (type === 'openai-responses') {
+        this.register(
+          new OpenAIResponsesAdapter(apiKey, config.baseUrl, config.id),
+        );
+      } else if (type === 'gemini') {
+        this.register(
+          new GeminiAdapter(apiKey, config.baseUrl, config.id),
         );
       } else {
         this.register(

@@ -8,7 +8,7 @@ import type {
 
 export interface ProviderConfig {
   id: string;
-  type: 'anthropic' | 'openai';
+  type: 'anthropic' | 'openai' | 'openai-responses' | 'gemini';
   icon: string;
   name: string;
   apiKey: string;
@@ -52,7 +52,7 @@ export type ProviderUserContent =
 export type ProviderAssistantContent =
   | { type: 'text'; text: string }
   | { type: 'thinking'; thinking: string; signature?: string }
-  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown>; signature?: string }
   | { type: 'server_tool_use'; id: string; name: string; input: Record<string, unknown>;
       callerType?: string; callerToolId?: string }
   | { type: 'server_tool_result'; toolUseId: string; resultType: string; content: unknown;

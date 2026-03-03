@@ -273,7 +273,7 @@ export class AnthropicAdapter implements ProviderAdapter {
 
   constructor(apiKey: string, baseUrl?: string, id?: string, serverTools?: ServerToolDef[]) {
     this.id = id ?? 'anthropic';
-    this.serverTools = [];
+    this.serverTools = serverTools ?? [];
     this.client = new Anthropic({
       apiKey,
       ...(baseUrl ? { baseURL: baseUrl } : {}),
@@ -299,7 +299,8 @@ export class AnthropicAdapter implements ProviderAdapter {
       const builtServerTools = this.serverTools.length
         ? buildServerTools(this.serverTools)
         : [];
-      const allTools = [...customTools,];
+      const filteredCustomTools = customTools.filter(t => !replacedNames.has(t.name));
+      const allTools = [...filteredCustomTools, ...builtServerTools];
 
       const params: Anthropic.MessageCreateParamsStreaming = {
         model: request.model,

@@ -33,6 +33,8 @@ export interface ToolUseBlock {
   name: string;
   input: Record<string, unknown>;
   parentToolUseId?: Id;
+  /** Opaque signature required by some providers (e.g. Gemini thought_signature). */
+  signature?: string;
 }
 
 export interface ToolResultBlock {
