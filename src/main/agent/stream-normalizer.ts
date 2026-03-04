@@ -216,6 +216,7 @@ export class StreamNormalizer {
 
         case 'message_delta': {
           stopReason = event.stopReason;
+          console.log("event.usage:", event.usage);
           if (event.usage) {
             this.sessionStore.updateMessageUsage(sessionId, messageId, event.usage);
           }

@@ -50,7 +50,10 @@
   "tokenUsage": {
     "input": "Input",
     "output": "Output",
-    "cache": "Cache"
+    "cache": "Cache",
+    "cacheRead": "Cache Read",
+    "cacheWrite": "Cache Write",
+    "new": "New"
   },
   "tasks": "Tasks",
   "subagentWorking": "Subagent is working...",

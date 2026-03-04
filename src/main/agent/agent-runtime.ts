@@ -88,10 +88,6 @@ export class AgentRuntime {
       projectAgentsFile: projectAgentsFile ?? undefined,
     });
 
-    console.log('====================');
-    console.log('System Prompt:', systemPrompt);
-    console.log('====================');
-
     // 2. Create messages
     const userMsg: UserMessage = {
       id: nanoid(),

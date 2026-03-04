@@ -19,6 +19,9 @@ import {
   THINKING_LEVEL_TO_BUDGET,
   filterBlockedHeaders,
 } from '@shared/constants';
+import { createLogger } from '../store/logger';
+
+const logger = createLogger('AnthropicAdapter');
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> Anthropic.MessageParam[]
@@ -238,19 +241,22 @@ function mapEvent(
         index: event.index,
       };
 
-    case 'message_delta':
+    case 'message_delta': {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const deltaUsage = event.usage as any;
       return {
         type: 'message_delta',
         stopReason: mapStopReason(event.delta.stop_reason),
-        usage: event.usage
+        usage: deltaUsage
           ? {
-              inputTokens: 0,
-              outputTokens: event.usage.output_tokens,
-              cacheReadTokens: 0,
-              cacheWriteTokens: 0,
+              inputTokens: deltaUsage.input_tokens ?? 0,
+              outputTokens: deltaUsage.output_tokens ?? 0,
+              cacheReadTokens: deltaUsage.cache_read_input_tokens ?? 0,
+              cacheWriteTokens: deltaUsage.cache_creation_input_tokens ?? 0,
             }
           : undefined,
       };
+    }
 
     case 'message_stop':
       return { type: 'message_stop' };
@@ -341,6 +347,7 @@ export class AnthropicAdapter implements ProviderAdapter {
         max_tokens: maxTokens,
         messages: toAnthropicMessages(request.messages),
         stream: true,
+        cache_control: { type: 'ephemeral' },
         ...(request.systemPrompt ? { system: request.systemPrompt } : {}),
         ...(allTools.length > 0 ? { tools: allTools } : {}),
         ...thinkingConfig,
@@ -371,15 +378,19 @@ export class AnthropicAdapter implements ProviderAdapter {
             cacheReadTokens = (usage as unknown as Record<string, number>).cache_read_input_tokens ?? 0;
             cacheWriteTokens = (usage as unknown as Record<string, number>).cache_creation_input_tokens ?? 0;
           }
+          if (cacheReadTokens > 0 || cacheWriteTokens > 0) {
+            logger.debug(`Cache stats - read: ${cacheReadTokens}, write: ${cacheWriteTokens}, input: ${inputTokens}`);
+          }
         }
 
         const normalized = mapEvent(event);
         if (normalized) {
-          // Merge input usage into message_delta
+          // Merge usage: take the larger value from message_start vs message_delta
+          // (Anthropic returns input in message_start; some providers return it in message_delta)
           if (normalized.type === 'message_delta' && normalized.usage) {
-            normalized.usage.inputTokens = inputTokens;
-            normalized.usage.cacheReadTokens = cacheReadTokens;
-            normalized.usage.cacheWriteTokens = cacheWriteTokens;
+            normalized.usage.inputTokens = Math.max(normalized.usage.inputTokens, inputTokens);
+            normalized.usage.cacheReadTokens = Math.max(normalized.usage.cacheReadTokens, cacheReadTokens);
+            normalized.usage.cacheWriteTokens = Math.max(normalized.usage.cacheWriteTokens, cacheWriteTokens);
           }
           yield normalized;
         }

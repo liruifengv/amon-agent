@@ -50,7 +50,10 @@
   "tokenUsage": {
     "input": "输入",
     "output": "输出",
-    "cache": "缓存"
+    "cache": "缓存",
+    "cacheRead": "缓存读取",
+    "cacheWrite": "缓存写入",
+    "new": "新增"
   },
   "tasks": "任务",
   "subagentWorking": "Subagent 正在工作...",
