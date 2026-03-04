@@ -10,12 +10,25 @@ import type {
   NormalizedStreamEvent,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
+import {
+  getModelDefaults,
+  THINKING_LEVEL_TO_REASONING_EFFORT,
+  filterBlockedHeaders,
+} from '@shared/constants';
 
 // ---------------------------------------------------------------------------
 // Thinking level → Response API reasoning effort mapping
 // ---------------------------------------------------------------------------
 
 type ReasoningEffort = 'low' | 'medium' | 'high';
+
+function mapReasoningEffort(level: string): ReasoningEffort | undefined {
+  const mapped = THINKING_LEVEL_TO_REASONING_EFFORT[level];
+  if (!mapped) return undefined;
+  // Responses API only supports low/medium/high; clamp xhigh to high
+  if (mapped === 'xhigh') return 'high';
+  return mapped as ReasoningEffort;
+}
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> ResponseInputItem[]
@@ -163,11 +176,19 @@ export class OpenAIResponsesAdapter implements ProviderAdapter {
     try {
       const input = toResponseInput(request.messages);
 
-      // Determine reasoning configuration from thinkingBudget
-      // thinkingBudget is mapped from thinkingLevel in agent-runtime:
-      //   off=0, minimal=1024, low=4096, medium=10000, high=32000
+      // --- Build params with three-layer merging ---
+      const modelDefaults = getModelDefaults(request.model);
+      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens;
+
+      // Determine reasoning configuration from thinkingLevel
       let reasoning: { effort: ReasoningEffort; summary: 'auto' } | undefined;
-      if (request.thinkingBudget && request.thinkingBudget > 0) {
+      if (request.thinkingLevel && request.thinkingLevel !== 'off') {
+        const effort = mapReasoningEffort(request.thinkingLevel);
+        if (effort) {
+          reasoning = { effort, summary: 'auto' };
+        }
+      } else if (request.thinkingBudget && request.thinkingBudget > 0) {
+        // Fallback: legacy thinkingBudget path
         let effort: ReasoningEffort = 'medium';
         if (request.thinkingBudget <= 1024) {
           effort = 'low';
@@ -181,17 +202,31 @@ export class OpenAIResponsesAdapter implements ProviderAdapter {
         ? toResponseTools(request.tools)
         : undefined;
 
-      const response = await this.client.responses.stream({
+      const responseParams: Record<string, unknown> = {
         model: request.model,
         input,
         ...(request.systemPrompt ? { instructions: request.systemPrompt } : {}),
         ...(tools ? { tools } : {}),
-        ...(request.maxTokens ? { max_output_tokens: request.maxTokens } : {}),
+        ...(maxTokens ? { max_output_tokens: maxTokens } : {}),
         ...(reasoning ? { reasoning } : {}),
         store: false,
-      }, {
-        signal: request.signal ?? undefined,
-      });
+      };
+
+      // extraParams override (highest priority)
+      if (request.extraParams) {
+        Object.assign(responseParams, request.extraParams);
+      }
+
+      // customHeaders injection
+      const safeHeaders = filterBlockedHeaders(request.customHeaders);
+
+      const response = await this.client.responses.stream(
+        responseParams as Parameters<typeof this.client.responses.stream>[0],
+        {
+          signal: request.signal ?? undefined,
+          ...(safeHeaders ? { headers: safeHeaders } : {}),
+        },
+      );
 
       for await (const event of response) {
         // Emit message_start on first event

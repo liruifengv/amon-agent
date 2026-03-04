@@ -14,6 +14,8 @@ export interface ProviderConfig {
   apiKey: string;
   baseUrl?: string;
   modelId: string;
+  extraParams?: Record<string, unknown>;
+  customHeaders?: Record<string, string>;
 }
 
 export interface ProviderInfo {
@@ -35,7 +37,10 @@ export interface ProviderRequest {
   systemPrompt?: string;
   maxTokens?: number;
   thinkingBudget?: number;
+  thinkingLevel?: string;
   signal?: AbortSignal;
+  extraParams?: Record<string, unknown>;
+  customHeaders?: Record<string, string>;
 }
 
 // ==================== Provider 消息（中间表示）====================

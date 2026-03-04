@@ -12,6 +12,13 @@ import type {
   ServerToolDef,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
+import {
+  getModelDefaults,
+  ADAPTIVE_THINKING_MODEL_PREFIXES,
+  THINKING_LEVEL_TO_EFFORT,
+  THINKING_LEVEL_TO_BUDGET,
+  filterBlockedHeaders,
+} from '@shared/constants';
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> Anthropic.MessageParam[]
@@ -302,30 +309,58 @@ export class AnthropicAdapter implements ProviderAdapter {
       const filteredCustomTools = customTools.filter(t => !replacedNames.has(t.name));
       const allTools = [...filteredCustomTools, ...builtServerTools];
 
-      const params: Anthropic.MessageCreateParamsStreaming = {
+      // --- Build params with three-layer merging ---
+      const modelDefaults = getModelDefaults(request.model);
+      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens ?? 16_000;
+
+      // Build thinking config based on thinkingLevel
+      let thinkingConfig: Record<string, unknown> = {};
+      if (request.thinkingLevel && request.thinkingLevel !== 'off') {
+        const isAdaptive = ADAPTIVE_THINKING_MODEL_PREFIXES.some(
+          prefix => request.model.startsWith(prefix),
+        );
+        if (isAdaptive) {
+          thinkingConfig = { thinking: { type: 'adaptive' } };
+          const effort = THINKING_LEVEL_TO_EFFORT[request.thinkingLevel];
+          if (effort) {
+            thinkingConfig.output_config = { effort };
+          }
+        } else {
+          const budgetTokens = THINKING_LEVEL_TO_BUDGET[request.thinkingLevel]
+            ?? request.thinkingBudget;
+          if (budgetTokens && budgetTokens > 0) {
+            thinkingConfig = {
+              thinking: { type: 'enabled', budget_tokens: budgetTokens },
+            };
+          }
+        }
+      }
+
+      const params: Record<string, unknown> = {
         model: request.model,
-        max_tokens: request.maxTokens ?? 16_000,
+        max_tokens: maxTokens,
         messages: toAnthropicMessages(request.messages),
         stream: true,
-        ...(request.systemPrompt
-          ? { system: request.systemPrompt }
-          : {}),
-        ...(allTools.length > 0
-          ? { tools: allTools }
-          : {}),
-        ...(request.thinkingBudget
-          ? {
-              thinking: {
-                type: 'enabled' as const,
-                budget_tokens: request.thinkingBudget,
-              },
-            }
-          : {}),
+        ...(request.systemPrompt ? { system: request.systemPrompt } : {}),
+        ...(allTools.length > 0 ? { tools: allTools } : {}),
+        ...thinkingConfig,
       };
 
-      const response = await this.client.messages.create(params, {
-        signal: request.signal ?? undefined,
-      });
+      // extraParams override (highest priority)
+      if (request.extraParams) {
+        Object.assign(params, request.extraParams);
+      }
+
+      // customHeaders injection
+      const safeHeaders = filterBlockedHeaders(request.customHeaders);
+
+      const response = await this.client.messages.create(
+        params as unknown as Anthropic.MessageCreateParamsStreaming,
+        {
+          signal: request.signal ?? undefined,
+          ...(safeHeaders ? { headers: safeHeaders } : {}),
+        },
+      );
 
       for await (const event of response) {
         // Capture input usage from message_start

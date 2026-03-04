@@ -6,10 +6,10 @@ import ProviderIcon from '../Settings/ProviderIcon';
 
 const THINKING_LEVELS = [
   { value: 'off', label: 'Off' },
-  { value: 'minimal', label: 'Minimal' },
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
+  { value: 'xhigh', label: 'X-High' },
 ] as const;
 
 interface AgentSettingsProps {

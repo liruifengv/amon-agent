@@ -16,6 +16,11 @@ import type {
   NormalizedStreamEvent,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
+import {
+  getModelDefaults,
+  THINKING_LEVEL_TO_GEMINI,
+  filterBlockedHeaders,
+} from '@shared/constants';
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> Gemini Content[]
@@ -121,20 +126,27 @@ function toGeminiTools(tools: ProviderToolDef[]): Tool[] {
 }
 
 // ---------------------------------------------------------------------------
-// Thinking budget mapping
+// Thinking config builder
 // ---------------------------------------------------------------------------
 
-function buildThinkingConfig(budget: number | undefined): {
+function buildThinkingConfig(request: ProviderRequest): {
   includeThoughts: boolean;
+  thinkingLevel?: string;
   thinkingBudget?: number;
 } | undefined {
-  if (!budget || budget <= 0) {
-    return undefined;
+  // Prefer thinkingLevel (direct string mapping for Gemini 3)
+  if (request.thinkingLevel && request.thinkingLevel !== 'off') {
+    const geminiLevel = THINKING_LEVEL_TO_GEMINI[request.thinkingLevel];
+    if (geminiLevel) {
+      return { includeThoughts: true, thinkingLevel: geminiLevel };
+    }
   }
-  return {
-    includeThoughts: true,
-    thinkingBudget: budget,
-  };
+  // Fallback to thinkingBudget (Gemini 2.5)
+  const budget = request.thinkingBudget;
+  if (budget && budget > 0) {
+    return { includeThoughts: true, thinkingBudget: budget };
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,11 +183,16 @@ export class GeminiAdapter implements ProviderAdapter {
   readonly id: string;
   private client: GoogleGenAI;
 
-  constructor(apiKey: string, baseUrl?: string, id?: string) {
+  constructor(apiKey: string, baseUrl?: string, id?: string, customHeaders?: Record<string, string>) {
     this.id = id ?? 'gemini';
+    const safeHeaders = filterBlockedHeaders(customHeaders);
+    const httpOptions = {
+      ...(baseUrl ? { baseUrl } : {}),
+      ...(safeHeaders ? { headers: safeHeaders } : {}),
+    };
     const opts: ConstructorParameters<typeof GoogleGenAI>[0] = {
       apiKey,
-      ...(baseUrl ? { httpOptions: { baseUrl } } : {}),
+      ...(Object.keys(httpOptions).length > 0 ? { httpOptions } : {}),
     };
     this.client = new GoogleGenAI(opts);
   }
@@ -209,22 +226,29 @@ export class GeminiAdapter implements ProviderAdapter {
     try {
       const contents = toGeminiContents(request.messages);
       const tools = request.tools?.length ? toGeminiTools(request.tools) : undefined;
-      const thinkingConfig = buildThinkingConfig(request.thinkingBudget);
+      const thinkingConfig = buildThinkingConfig(request);
+
+      // Three-layer merging: adapter defaults -> model defaults -> extraParams
+      const modelDefaults = getModelDefaults(request.model);
+      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens;
+
+      const config: Record<string, unknown> = {
+        ...(request.systemPrompt ? { systemInstruction: request.systemPrompt } : {}),
+        ...(tools ? { tools } : {}),
+        ...(maxTokens ? { maxOutputTokens: maxTokens } : {}),
+        ...(thinkingConfig ? { thinkingConfig } : {}),
+        ...(request.signal ? { abortSignal: request.signal } : {}),
+      };
+
+      // extraParams override (highest priority)
+      if (request.extraParams) {
+        Object.assign(config, request.extraParams);
+      }
 
       const response = await this.client.models.generateContentStream({
         model: request.model,
         contents,
-        config: {
-          ...(request.systemPrompt
-            ? { systemInstruction: request.systemPrompt }
-            : {}),
-          ...(tools ? { tools } : {}),
-          ...(request.maxTokens
-            ? { maxOutputTokens: request.maxTokens }
-            : {}),
-          ...(thinkingConfig ? { thinkingConfig } : {}),
-          ...(request.signal ? { abortSignal: request.signal } : {}),
-        },
+        config,
       });
 
       for await (const chunk of response) {

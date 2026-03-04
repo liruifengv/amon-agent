@@ -10,6 +10,8 @@ export const ProviderConfigSchema = z.object({
   apiKey: z.string().default(''),
   baseUrl: z.string().optional(),
   modelId: z.string().default(''),
+  extraParams: z.record(z.string(), z.unknown()).optional(),
+  customHeaders: z.record(z.string(), z.string()).optional(),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
@@ -20,7 +22,7 @@ export const AgentSettingsSchema = z.object({
   activeProviderId: z.string().default('anthropic'),
   activeModelId: z.string().default('claude-sonnet-4-20250514'),
   maxTurns: z.number().default(50),
-  thinkingLevel: z.enum(['off', 'minimal', 'low', 'medium', 'high']).default('medium'),
+  thinkingLevel: z.enum(['off', 'low', 'medium', 'high', 'xhigh']).default('medium'),
   providerConfigs: z.array(ProviderConfigSchema).default([]),
   exaApiKey: z.string().default(''),
 });
@@ -120,6 +122,11 @@ function migrateSettings(data: unknown): unknown {
   // Remove old agent fields that don't exist in new schema
   delete agent.thinkingBudget;
   delete agent.customSystemPrompt;
+
+  // Migrate thinkingLevel: 'minimal' → 'low'
+  if (agent.thinkingLevel === 'minimal') {
+    agent.thinkingLevel = 'low';
+  }
 
   raw.agent = agent;
 

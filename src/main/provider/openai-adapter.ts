@@ -9,6 +9,11 @@ import type {
   NormalizedStreamEvent,
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
+import {
+  getModelDefaults,
+  THINKING_LEVEL_TO_REASONING_EFFORT,
+  filterBlockedHeaders,
+} from '@shared/constants';
 
 // ---------------------------------------------------------------------------
 // Message conversion: ProviderMessage[] -> OpenAI.ChatCompletionMessageParam[]
@@ -185,22 +190,43 @@ export class OpenAIAdapter implements ProviderAdapter {
         });
       }
 
-      const params: OpenAI.ChatCompletionCreateParamsStreaming = {
+      // --- Build params with three-layer merging ---
+      const modelDefaults = getModelDefaults(request.model);
+      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens;
+
+      const params: Record<string, unknown> = {
         model: request.model,
         messages,
         stream: true,
-        ...(request.maxTokens
-          ? { max_tokens: request.maxTokens }
-          : {}),
+        ...(maxTokens ? { max_tokens: maxTokens } : {}),
         ...(request.tools && request.tools.length > 0
           ? { tools: toOpenAITools(request.tools) }
           : {}),
-        // thinkingBudget is ignored for OpenAI
       };
 
-      const response = await this.client.chat.completions.create(params, {
-        signal: request.signal ?? undefined,
-      });
+      // thinkingLevel -> reasoning_effort mapping
+      if (request.thinkingLevel && request.thinkingLevel !== 'off') {
+        const effort = THINKING_LEVEL_TO_REASONING_EFFORT[request.thinkingLevel];
+        if (effort) {
+          params.reasoning_effort = effort;
+        }
+      }
+
+      // extraParams override (highest priority)
+      if (request.extraParams) {
+        Object.assign(params, request.extraParams);
+      }
+
+      // customHeaders injection
+      const safeHeaders = filterBlockedHeaders(request.customHeaders);
+
+      const response = await this.client.chat.completions.create(
+        params as unknown as OpenAI.ChatCompletionCreateParamsStreaming,
+        {
+          signal: request.signal ?? undefined,
+          ...(safeHeaders ? { headers: safeHeaders } : {}),
+        },
+      );
 
       for await (const chunk of response) {
         const choice = chunk.choices[0];

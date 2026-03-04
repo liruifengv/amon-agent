@@ -90,7 +90,7 @@ export class ProviderRegistry {
         );
       } else if (type === 'gemini') {
         this.register(
-          new GeminiAdapter(apiKey, config.baseUrl, config.id),
+          new GeminiAdapter(apiKey, config.baseUrl, config.id, config.customHeaders),
         );
       } else {
         this.register(

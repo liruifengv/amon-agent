@@ -33,10 +33,10 @@ interface AgentRuntimeDeps {
 
 const THINKING_BUDGET_MAP: Record<string, number> = {
   off: 0,
-  minimal: 1024,
   low: 4096,
   medium: DEFAULT_MAX_THINKING_TOKENS,
   high: 32000,
+  xhigh: 32000,
 };
 
 export class AgentRuntime {
@@ -136,13 +136,19 @@ export class AgentRuntime {
           throw new Error(`Provider "${agentSettings.activeProviderId}" not found or not configured. Please check your API key settings.`);
         }
         const adapter = providerRegistry.getAdapter(agentSettings.activeProviderId);
+        const activeProviderConfig = agentSettings.providerConfigs.find(
+          c => c.id === agentSettings.activeProviderId,
+        );
         const stream = adapter.stream({
           model: agentSettings.activeModelId,
           messages: providerMessages,
           tools: toolDefs.length > 0 ? toolDefs : undefined,
           systemPrompt,
           thinkingBudget,
+          thinkingLevel: agentSettings.thinkingLevel,
           signal: ac.signal,
+          extraParams: activeProviderConfig?.extraParams,
+          customHeaders: activeProviderConfig?.customHeaders,
         });
 
         // 3c. Process stream
