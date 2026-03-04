@@ -15,7 +15,7 @@ import type { StreamNormalizer } from './stream-normalizer';
 import type { PushService } from '../ipc/push';
 import type { ConfigStore } from '../store/config-store';
 import { SkillsStore, formatSkillsForPrompt } from '../skills';
-import { ensureBootstrapFiles, loadWorkspaceBootstrapFiles, loadProjectAgentsFile } from '../workspace';
+import { loadGlobalUserFiles, loadProjectAgentsFile } from '../workspace';
 import { buildSystemPrompt } from './system-prompt';
 import { DEFAULT_MAX_THINKING_TOKENS } from '@shared/constants';
 
@@ -29,6 +29,8 @@ interface AgentRuntimeDeps {
   pushService: PushService;
   configStore: ConfigStore;
   skillsStore: SkillsStore;
+  dataDir: string;
+  defaultWorkspace: string;
 }
 
 const THINKING_BUDGET_MAP: Record<string, number> = {
@@ -54,6 +56,7 @@ export class AgentRuntime {
     const {
       sessionStore, persistence, providerRegistry, toolRegistry,
       contextManager, streamNormalizer, pushService, configStore, skillsStore,
+      dataDir, defaultWorkspace,
     } = this.deps;
 
     // 1. Get config
@@ -71,18 +74,17 @@ export class AgentRuntime {
     await skillsStore.load(session.workspace);
     const skillsPrompt = formatSkillsForPrompt(skillsStore.getSkills());
 
-    // Ensure workspace bootstrap files are seeded, then load them
-    await ensureBootstrapFiles();
-    const workspaceFiles = await loadWorkspaceBootstrapFiles();
+    // Load global user files (~/.amon/AGENTS.md, SOUL.md) if they exist
+    const globalUserFiles = await loadGlobalUserFiles(dataDir);
 
     // Load project-level AGENTS.md from workspace root
-    const projectAgentsFile = await loadProjectAgentsFile(session.workspace);
+    const projectAgentsFile = await loadProjectAgentsFile(session.workspace, defaultWorkspace);
 
     const systemPrompt = buildSystemPrompt({
       workspace: session.workspace,
       tools: toolRegistry.getAll(),
       skillsPrompt,
-      workspaceFiles,
+      globalUserFiles,
       projectAgentsFile: projectAgentsFile ?? undefined,
     });
 

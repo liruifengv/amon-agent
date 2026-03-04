@@ -2,15 +2,15 @@ import os from 'node:os';
 import { app } from 'electron';
 import { DEFAULT_SYSTEM_PROMPT } from '@shared/constants';
 import type { Tool } from '@shared/tool-types';
-import type { WorkspaceBootstrapFile } from '../workspace/workspace-bootstrap';
+import type { UserFile } from '../workspace/user-files';
 
 export interface SystemPromptOptions {
   workspace: string;
   tools: Tool[];
   skillsPrompt?: string;
   customInstructions?: string;
-  workspaceFiles?: WorkspaceBootstrapFile[];
-  projectAgentsFile?: WorkspaceBootstrapFile;
+  globalUserFiles?: UserFile[];
+  projectAgentsFile?: UserFile;
 }
 
 function buildToolsSection(tools: Tool[]): string {
@@ -73,23 +73,22 @@ function escapeXml(text: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function buildProjectContext(files: WorkspaceBootstrapFile[]): string {
+function buildUserFilesSection(files: UserFile[]): string {
   if (files.length === 0) return '';
 
   const hasSoulFile = files.some(f => f.name === 'SOUL.md');
   const lines = [
-    '# Project Context',
+    '# User Context',
     '',
-    'The following workspace files have been loaded:',
   ];
 
   if (hasSoulFile) {
     lines.push(
       'If SOUL.md is present, embody its persona and tone. Follow its guidance unless higher-priority instructions override it.',
+      '',
     );
   }
 
-  lines.push('');
   for (const file of files) {
     lines.push(`## ${file.name}`, '', file.content, '');
   }
@@ -97,7 +96,7 @@ function buildProjectContext(files: WorkspaceBootstrapFile[]): string {
   return lines.join('\n');
 }
 
-function buildProjectInstructions(file: WorkspaceBootstrapFile): string {
+function buildProjectInstructions(file: UserFile): string {
   return [
     '# Project Instructions',
     '',
@@ -123,9 +122,9 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     parts.push(options.customInstructions);
   }
 
-  // Project Context 放在最后（最靠近对话内容的位置，优先级更高）
-  if (options.workspaceFiles && options.workspaceFiles.length > 0) {
-    parts.push(buildProjectContext(options.workspaceFiles));
+  // 全局用户文件（~/.amon/AGENTS.md, SOUL.md）
+  if (options.globalUserFiles && options.globalUserFiles.length > 0) {
+    parts.push(buildUserFilesSection(options.globalUserFiles));
   }
 
   // 项目级 AGENTS.md 放在最末尾（最高优先级）

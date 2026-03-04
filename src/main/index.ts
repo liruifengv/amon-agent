@@ -366,6 +366,8 @@ app.on('ready', async () => {
     pushService,
     configStore,
     skillsStore,
+    dataDir: DATA_DIR,
+    defaultWorkspace: DEFAULT_WORKSPACE,
   });
 
   // Register IPC handlers
