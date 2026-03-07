@@ -1,7 +1,7 @@
 import { constants } from 'fs';
 import { access as fsAccess, readFile as fsReadFile } from 'fs/promises';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { resolveReadPath } from './utils/path-utils';
 import {
   DEFAULT_MAX_BYTES,

@@ -1,10 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UserMessage as UserMessageType } from '../../types';
+import type { UserMessage as UserMessageType, TextContent, ImageContent } from '../../types';
 import { useSessionStore } from '../../store/sessionStore';
 
 export interface UserMessageProps {
   message: UserMessageType;
+}
+
+/** Extract the text string from a UserMessage's content field */
+function extractText(content: string | (TextContent | ImageContent)[]): string {
+  if (typeof content === 'string') return content;
+  return content
+    .filter((c): c is TextContent => c.type === 'text')
+    .map((c) => c.text)
+    .join('\n');
+}
+
+/** Extract image data URIs from a UserMessage's content field */
+function extractImages(content: string | (TextContent | ImageContent)[]): { data: string; mimeType: string }[] {
+  if (typeof content === 'string') return [];
+  return content
+    .filter((c): c is ImageContent => c.type === 'image')
+    .map((c) => ({ data: c.data, mimeType: c.mimeType }));
 }
 
 /**
@@ -83,10 +100,13 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
   const [validPaths, setValidPaths] = useState<string[]>([]);
   const { currentSessionId } = useSessionStore();
 
+  const text = useMemo(() => extractText(message.content), [message.content]);
+  const images = useMemo(() => extractImages(message.content), [message.content]);
+
   // 提取消息中的所有 @path
   const mentionedPaths = useMemo(
-    () => extractMentionedPaths(message.content || ''),
-    [message.content]
+    () => extractMentionedPaths(text),
+    [text]
   );
 
   // 验证路径是否存在
@@ -122,21 +142,21 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
 
   // 渲染高亮内容
   const highlightedContent = useMemo(
-    () => renderHighlightedContent(message.content || '', validPaths),
-    [message.content, validPaths]
+    () => renderHighlightedContent(text, validPaths),
+    [text, validPaths]
   );
 
   return (
     <div className="px-4 py-3 bg-user-bubble text-user-bubble-foreground rounded-2xl rounded-br-md text-[15px] leading-relaxed overflow-hidden">
       {/* 图片预览 */}
-      {message.images && message.images.length > 0 && (
+      {images.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
-          {message.images.map(img => (
+          {images.map((img, idx) => (
             <img
-              key={img.id}
-              src={`data:${img.mimeType};base64,${img.base64Data}`}
-              alt={img.filename}
-              onClick={() => setExpandedImage(`data:${img.mimeType};base64,${img.base64Data}`)}
+              key={idx}
+              src={`data:${img.mimeType};base64,${img.data}`}
+              alt={`image-${idx}`}
+              onClick={() => setExpandedImage(`data:${img.mimeType};base64,${img.data}`)}
               className="max-w-48 max-h-48 rounded-lg cursor-pointer hover:opacity-90 transition-opacity object-cover"
             />
           ))}
@@ -144,7 +164,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
       )}
 
       {/* 文本内容 */}
-      {message.content && (
+      {text && (
         <div className="whitespace-pre-wrap break-words">{highlightedContent}</div>
       )}
 

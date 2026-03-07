@@ -1,25 +1,25 @@
 import { create } from 'zustand';
-import type { Message, ImageAttachment, StreamingState, ToolCallState } from '../types';
+import type { Message, ImageAttachment, AgentRunState, ToolExecutionState } from '../types';
 
 interface ChatState {
   // 按会话缓存消息（来自主进程推送）
   sessionMessages: Record<string, Message[]>;
-  // 各会话的流式状态
-  streamingStates: Record<string, StreamingState>;
+  // 各会话的 Agent 运行状态
+  agentStates: Record<string, AgentRunState>;
   // 各会话的错误信息
   sessionErrors: Record<string, string | null>;
 
   // Getters
   getMessages: (sessionId: string | null) => Message[];
   isSessionLoading: (sessionId: string | null) => boolean;
-  getStreamingState: (sessionId: string | null) => StreamingState | null;
-  getToolCallState: (sessionId: string | null, toolCallId: string) => ToolCallState | undefined;
+  getAgentState: (sessionId: string | null) => AgentRunState | null;
+  getToolExecution: (sessionId: string | null, toolCallId: string) => ToolExecutionState | undefined;
   getSessionError: (sessionId: string | null) => string | null;
 
-  // Actions（仅用于更新本地缓存，实际数据由主进程管理）
+  // Actions
   setMessages: (sessionId: string, messages: Message[]) => void;
-  setStreamingState: (sessionId: string, state: StreamingState) => void;
-  updateToolCallState: (sessionId: string, toolCallId: string, state: ToolCallState) => void;
+  setAgentState: (sessionId: string, state: AgentRunState) => void;
+  updateToolExecution: (sessionId: string, toolCallId: string, state: ToolExecutionState) => void;
   setSessionError: (sessionId: string, error: string | null) => void;
   clearSessionError: (sessionId: string) => void;
   clearSessionCache: (sessionId: string) => void;
@@ -32,7 +32,7 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   sessionMessages: {},
-  streamingStates: {},
+  agentStates: {},
   sessionErrors: {},
 
   getMessages: (sessionId) => {
@@ -42,17 +42,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   isSessionLoading: (sessionId) => {
     if (!sessionId) return false;
-    return get().streamingStates[sessionId]?.isStreaming || false;
+    return get().agentStates[sessionId]?.isRunning || false;
   },
 
-  getStreamingState: (sessionId) => {
+  getAgentState: (sessionId) => {
     if (!sessionId) return null;
-    return get().streamingStates[sessionId] || null;
+    return get().agentStates[sessionId] || null;
   },
 
-  getToolCallState: (sessionId, toolCallId) => {
+  getToolExecution: (sessionId, toolCallId) => {
     if (!sessionId) return undefined;
-    return get().streamingStates[sessionId]?.toolCallStates?.[toolCallId];
+    return get().agentStates[sessionId]?.toolExecutions?.[toolCallId];
   },
 
   getSessionError: (sessionId) => {
@@ -65,36 +65,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
       sessionMessages: { ...state.sessionMessages, [sessionId]: messages },
     })),
 
-  setStreamingState: (sessionId, streamState) =>
+  setAgentState: (sessionId, agentState) =>
     set((state) => {
-      const current = state.streamingStates[sessionId];
-      // When streaming ends, preserve accumulated tool call states
-      // so completed tools don't revert to 'pending' spinners
-      const toolCallStates = !streamState.isStreaming && current?.toolCallStates
-        ? { ...current.toolCallStates, ...streamState.toolCallStates }
-        : streamState.toolCallStates;
+      const current = state.agentStates[sessionId];
+      // When agent stops, preserve accumulated tool executions
+      const toolExecutions = !agentState.isRunning && current?.toolExecutions
+        ? { ...current.toolExecutions, ...agentState.toolExecutions }
+        : agentState.toolExecutions;
       return {
-        streamingStates: {
-          ...state.streamingStates,
-          [sessionId]: { ...streamState, toolCallStates },
+        agentStates: {
+          ...state.agentStates,
+          [sessionId]: { ...agentState, toolExecutions },
         },
       };
     }),
 
-  updateToolCallState: (sessionId, toolCallId, toolState) =>
+  updateToolExecution: (sessionId, toolCallId, toolState) =>
     set((state) => {
-      const current = state.streamingStates[sessionId] || {
-        isStreaming: false,
-        blockCompletionMap: {},
-        toolCallStates: {},
+      const current = state.agentStates[sessionId] || {
+        isRunning: false,
+        toolExecutions: {},
       };
       return {
-        streamingStates: {
-          ...state.streamingStates,
+        agentStates: {
+          ...state.agentStates,
           [sessionId]: {
             ...current,
-            toolCallStates: {
-              ...current.toolCallStates,
+            toolExecutions: {
+              ...current.toolExecutions,
               [toolCallId]: toolState,
             },
           },
@@ -115,21 +113,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
   clearSessionCache: (sessionId) =>
     set((state) => {
       const { [sessionId]: _removedMessages, ...restMessages } = state.sessionMessages;
-      const { [sessionId]: _removedState, ...restStreaming } = state.streamingStates;
+      const { [sessionId]: _removedState, ...restAgent } = state.agentStates;
       const { [sessionId]: _removedError, ...restErrors } = state.sessionErrors;
       void _removedMessages;
       void _removedState;
       void _removedError;
       return {
         sessionMessages: restMessages,
-        streamingStates: restStreaming,
+        agentStates: restAgent,
         sessionErrors: restErrors,
       };
     }),
 
   sendMessage: async (content, sessionId, images) => {
     try {
-      // 清除之前的错误
       set((state) => ({
         sessionErrors: { ...state.sessionErrors, [sessionId]: null },
       }));
@@ -171,14 +168,14 @@ if (typeof window !== 'undefined' && window.push) {
     useChatStore.getState().setMessages(sessionId, messages);
   });
 
-  // 监听流式状态变化（替代旧的 messageState + messageComplete）
-  window.push.on('push:streamingState', ({ sessionId, state }) => {
-    useChatStore.getState().setStreamingState(sessionId, state);
+  // 监听 Agent 状态变化
+  window.push.on('push:agentState', ({ sessionId, state }) => {
+    useChatStore.getState().setAgentState(sessionId, state);
   });
 
-  // 监听工具调用状态
-  window.push.on('push:toolCallState', ({ sessionId, toolCallId, state }) => {
-    useChatStore.getState().updateToolCallState(sessionId, toolCallId, state);
+  // 监听工具执行状态
+  window.push.on('push:toolExecution', ({ sessionId, toolCallId, state }) => {
+    useChatStore.getState().updateToolExecution(sessionId, toolCallId, state);
   });
 
   // 监听错误

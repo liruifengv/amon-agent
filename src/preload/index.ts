@@ -14,8 +14,6 @@ const ipc = {
   agent: {
     sendMessage: (...args: unknown[]) => invoke('agent.sendMessage', ...args),
     interrupt: (...args: unknown[]) => invoke('agent.interrupt', ...args),
-    getProviders: () => invoke('agent.getProviders'),
-    getModels: (...args: unknown[]) => invoke('agent.getModels', ...args),
   },
   session: {
     list: () => invoke('session.list'),

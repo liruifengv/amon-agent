@@ -1,41 +1,31 @@
 // ==================== 从 shared 重新导出类型 ====================
 
 export type {
-  Id,
   ImageAttachment,
   ImageMimeType,
-  TextBlock,
-  ThinkingBlock,
-  ToolUseBlock,
-  ToolResultBlock,
-  ServerToolUseBlock,
-  ServerToolResultBlock,
-  CodeExecutionResultContent,
-  WebFetchResultContent,
-  WebSearchResultItem,
-  WebSearchResultContent,
-  ContentBlock,
-  StopReason,
-  TokenUsage,
-  UserMessage,
-  AssistantMessage,
-  Message,
   Session,
   SessionState,
-  ToolCallStatus,
-  ToolCallState,
-  StreamingState,
-  AgentConfig,
-  MessageParams,
+  AgentRunState,
+  ToolExecutionState,
   FileInfo,
 } from '../../shared/types';
 
+// 从 ai 类型重新导出（经由 shared/types）
 export type {
-  ProviderConfig,
-  ProviderInfo,
-} from '../../shared/provider-types';
+  TextContent,
+  ThinkingContent,
+  ImageContent,
+  ToolCall,
+  UserMessage,
+  AssistantMessage,
+  ToolResultMessage,
+  Message,
+  Usage,
+  StopReason,
+} from '../../ai/types';
 
 export type {
+  ProviderConfig,
   AgentSettings,
   Settings,
   Workspace,
@@ -54,7 +44,6 @@ import type { PushEventMap } from '../../shared/ipc-types';
 export type { PushEventMap };
 
 // IPC Proxy 类型 — 由 preload 中的 createProxy 生成
-// 每个方法对应 ipcMain.handle(prefix.method, handler) 的调用
 type IpcProxy = Record<string, (...args: any[]) => Promise<any>>;
 
 export interface IpcAPI {

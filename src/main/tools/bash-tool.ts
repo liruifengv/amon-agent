@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'child_process';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { buildEnhancedPath } from '../runtime/bundledPaths';
 import {
   DEFAULT_MAX_BYTES,

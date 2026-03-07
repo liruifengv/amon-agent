@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import TurndownService from 'turndown';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { truncateHead, formatSize, DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES } from './utils/truncate';
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024; // 5MB

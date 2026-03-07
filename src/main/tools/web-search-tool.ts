@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import Exa from 'exa-js';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 
 const DEFAULT_TIMEOUT = 25_000; // 25s
 

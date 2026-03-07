@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'child_process';
 import { readFileSync, statSync } from 'fs';
 import path from 'path';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { resolveToCwd } from './utils/path-utils';
 import {
   DEFAULT_MAX_BYTES,

@@ -1,7 +1,7 @@
 import os from 'node:os';
 import { app } from 'electron';
 import { DEFAULT_SYSTEM_PROMPT } from '@shared/constants';
-import type { Tool } from '@shared/tool-types';
+import type { Tool } from '../tools/types';
 import type { UserFile } from '../workspace/user-files';
 
 export interface SystemPromptOptions {

@@ -1,11 +1,10 @@
 import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
 import type { Session, ImageAttachment } from '@shared/types';
 import type { Settings } from '@shared/schemas';
-import type { AgentRuntime } from '../agent/agent-runtime';
+import type { AgentService } from '../agent/agent-service';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
-import type { ProviderRegistry } from '../provider/provider-registry';
 import type { PushService } from './push';
 import { nanoid } from 'nanoid';
 import path from 'path';
@@ -22,8 +21,7 @@ function handle(channel: string, handler: IpcHandler): void {
 // ==================== 依赖注入接口 ====================
 
 export interface IpcDependencies {
-  runtime: AgentRuntime;
-  providerRegistry: ProviderRegistry;
+  agentService: AgentService;
   sessionStore: SessionStore;
   persistence: Persistence;
   configStore: ConfigStore;
@@ -48,7 +46,7 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
 
 function registerAgentHandlers(deps: IpcDependencies): void {
   handle('agent.sendMessage', async (prompt: unknown, sessionId: unknown, images?: unknown) => {
-    await deps.runtime.run(
+    await deps.agentService.sendMessage(
       sessionId as string,
       prompt as string,
       images as ImageAttachment[] | undefined,
@@ -56,11 +54,7 @@ function registerAgentHandlers(deps: IpcDependencies): void {
   });
 
   handle('agent.interrupt', async (sessionId: unknown) => {
-    deps.runtime.abort(sessionId as string);
-  });
-
-  handle('agent.getProviders', async () => {
-    return deps.providerRegistry.listProviders();
+    deps.agentService.abort(sessionId as string);
   });
 }
 
@@ -74,7 +68,6 @@ function registerSessionHandlers(deps: IpcDependencies): void {
   handle('session.create', async (workspace?: unknown) => {
     let ws = workspace as string | undefined;
     if (!ws) {
-      // 从设置中查找用户标记为默认的工作空间
       const settings = await deps.configStore.getSettings();
       const defaultWs = settings.workspaces.find(w => w.isDefault);
       ws = defaultWs?.path ?? path.join(os.homedir(), '.amon', 'workspace');
@@ -92,6 +85,7 @@ function registerSessionHandlers(deps: IpcDependencies): void {
   });
 
   handle('session.delete', async (sessionId: unknown) => {
+    deps.agentService.removeAgent(sessionId as string);
     deps.sessionStore.deleteSession(sessionId as string);
     await deps.persistence.deleteSession(sessionId as string);
   });
@@ -120,9 +114,6 @@ function registerSettingsHandlers(deps: IpcDependencies): void {
 
   handle('settings.set', async (updates: unknown) => {
     const result = await deps.configStore.updateSettings(updates as Partial<Settings>);
-    // 同步 provider registry
-    await deps.providerRegistry.syncFromConfig(deps.configStore);
-    // Broadcast to all windows
     deps.pushService.pushSettingsChanged();
     return { success: true, data: result };
   });
@@ -162,7 +153,6 @@ function registerSystemHandlers(deps: IpcDependencies): void {
 
 function registerWorkspaceHandlers(deps: IpcDependencies): void {
   handle('workspace.listFiles', async (workspacePath: unknown, query?: unknown) => {
-    // Delegate to workspace service (to be wired in integration phase)
     return [];
   });
 
@@ -206,7 +196,7 @@ function registerDialogHandlers(): void {
 
 export function removeIpcHandlers(): void {
   const channels = [
-    'agent.sendMessage', 'agent.interrupt', 'agent.getProviders', 'agent.getModels',
+    'agent.sendMessage', 'agent.interrupt',
     'session.list', 'session.create', 'session.delete', 'session.rename',
     'session.getMessages', 'session.updateWorkspace',
     'settings.get', 'settings.set',

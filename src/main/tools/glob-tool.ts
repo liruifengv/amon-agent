@@ -1,7 +1,7 @@
 import { existsSync } from 'fs';
 import glob from 'glob';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { resolveToCwd } from './utils/path-utils';
 import { DEFAULT_MAX_BYTES, formatSize, truncateHead } from './utils/truncate';
 

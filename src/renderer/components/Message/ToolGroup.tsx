@@ -1,29 +1,24 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronRight, Wrench } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { ToolUseBlock, ToolResultBlock } from '../../types';
+import type { ToolCall } from '../../types';
 import ToolCallBlock from './ContentBlocks/ToolCallBlock';
 
 export interface ToolGroupProps {
-  blocks: ToolUseBlock[];
+  blocks: ToolCall[];
   isStreaming?: boolean;
-  /** Whether the group should be collapsed by default (for historical messages) */
   defaultCollapsed?: boolean;
-  /** Current session ID for accessing tool call state */
   sessionId: string | null;
-  /** Map from toolUseId to ToolResultBlock for status derivation */
-  toolResultMap?: Map<string, ToolResultBlock>;
 }
 
 /**
  * 工具调用组容器 - 支持折叠和自动滚动
  */
-const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false, sessionId, toolResultMap }) => {
+const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultCollapsed = false, sessionId }) => {
   const { t } = useTranslation('message');
   const [isExpanded, setIsExpanded] = useState(!defaultCollapsed);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 流式输出时自动滚动到底部
   useEffect(() => {
     if (containerRef.current && isStreaming && isExpanded) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
@@ -34,7 +29,6 @@ const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultColla
 
   return (
     <div className="my-3 rounded-lg border border-border bg-muted/50 overflow-hidden">
-      {/* 折叠标题 */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-tool-foreground hover:text-tool hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-left"
@@ -54,14 +48,13 @@ const ToolGroup: React.FC<ToolGroupProps> = ({ blocks, isStreaming, defaultColla
         </span>
       </button>
 
-      {/* 工具调用列表 */}
       {isExpanded && (
         <div
           ref={containerRef}
           className="p-2 space-y-2 border-t border-border max-h-96 overflow-y-auto"
         >
           {blocks.map((block) => (
-            <ToolCallBlock key={`tool-${block.id}`} toolCall={block} sessionId={sessionId} toolResult={toolResultMap?.get(block.id)} />
+            <ToolCallBlock key={`tool-${block.id}`} toolCall={block} sessionId={sessionId} />
           ))}
         </div>
       )}

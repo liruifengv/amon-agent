@@ -3,13 +3,13 @@
  * Transforms to Message[] only at the LLM call boundary.
  */
 
+import { z } from "zod";
 import {
 	type AssistantMessage,
 	type Context,
 	EventStream,
 	streamSimple,
 	type ToolResultMessage,
-	validateToolArguments,
 } from "../ai";
 import type {
 	AgentContext,
@@ -56,11 +56,6 @@ export function agentLoop(
 
 /**
  * Continue an agent loop from the current context without adding a new message.
- * Used for retries - context already has user message or tool results.
- *
- * **Important:** The last message in context must convert to a `user` or `toolResult` message
- * via `convertToLlm`. If it doesn't, the LLM provider will reject the request.
- * This cannot be validated here since `convertToLlm` is only called once per turn.
  */
 export function agentLoopContinue(
 	context: AgentContext,
@@ -158,6 +153,7 @@ async function runLoop(
 				const toolExecution = await executeToolCalls(
 					currentContext.tools,
 					message,
+					config,
 					signal,
 					stream,
 					config.getSteeringMessages,
@@ -201,6 +197,7 @@ async function runLoop(
 /**
  * Stream an assistant response from the LLM.
  * This is where AgentMessage[] gets transformed to Message[] for the LLM.
+ * Zod schemas are converted to JSON Schema at this boundary.
  */
 async function streamAssistantResponse(
 	context: AgentContext,
@@ -218,11 +215,18 @@ async function streamAssistantResponse(
 	// Convert to LLM-compatible messages (AgentMessage[] → Message[])
 	const llmMessages = await config.convertToLlm(messages);
 
+	// Convert AgentTool[] to LLM Tool[] (Zod → JSON Schema at boundary)
+	const llmTools = context.tools?.map((t) => ({
+		name: t.name,
+		description: t.description,
+		parameters: z.toJSONSchema(t.inputSchema) as Record<string, unknown>,
+	}));
+
 	// Build LLM context
 	const llmContext: Context = {
 		systemPrompt: context.systemPrompt,
 		messages: llmMessages,
-		tools: context.tools,
+		tools: llmTools,
 	};
 
 	const streamFunction = streamFn || streamSimple;
@@ -291,10 +295,12 @@ async function streamAssistantResponse(
 
 /**
  * Execute tool calls from an assistant message.
+ * Uses Zod validation instead of AJV.
  */
 async function executeToolCalls(
 	tools: AgentTool<any>[] | undefined,
 	assistantMessage: AssistantMessage,
+	config: AgentLoopConfig,
 	signal: AbortSignal | undefined,
 	stream: EventStream<AgentEvent, AgentMessage[]>,
 	getSteeringMessages?: AgentLoopConfig["getSteeringMessages"],
@@ -320,16 +326,27 @@ async function executeToolCalls(
 		try {
 			if (!tool) throw new Error(`Tool ${toolCall.name} not found`);
 
-			const validatedArgs = validateToolArguments(tool, toolCall);
+			// Zod validation
+			const parsed = tool.inputSchema.safeParse(toolCall.arguments);
+			if (!parsed.success) {
+				throw new Error(
+					`Validation failed for tool "${toolCall.name}":\n${parsed.error.message}`,
+				);
+			}
 
-			result = await tool.execute(toolCall.id, validatedArgs, signal, (partialResult) => {
-				stream.push({
-					type: "tool_execution_update",
-					toolCallId: toolCall.id,
-					toolName: toolCall.name,
-					args: toolCall.arguments,
-					partialResult,
-				});
+			const cwd = config.cwd ?? process.cwd();
+			result = await tool.execute(toolCall.id, parsed.data, {
+				cwd,
+				signal,
+				onUpdate: (partialResult) => {
+					stream.push({
+						type: "tool_execution_update",
+						toolCallId: toolCall.id,
+						toolName: toolCall.name,
+						args: toolCall.arguments,
+						partialResult,
+					});
+				},
 			});
 		} catch (e) {
 			result = {

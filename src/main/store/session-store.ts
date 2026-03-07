@@ -1,13 +1,6 @@
 import { EventEmitter } from 'events';
-import type {
-  Session,
-  SessionState,
-  Message,
-  AssistantMessage,
-  ContentBlock,
-  TokenUsage,
-  StopReason,
-} from '@shared/types';
+import type { Session, SessionState } from '@shared/types';
+import type { Message } from '../../ai/types';
 import { STREAM_THROTTLE_MS } from '@shared/constants';
 
 function throttle<A extends unknown[]>(fn: (...args: A) => void, ms: number): (...args: A) => void {
@@ -99,50 +92,14 @@ export class SessionStore extends EventEmitter {
     this.emit('messages:updated', sessionId, [...msgs]);
   }
 
-  setContentBlocks(sessionId: string, messageId: string, blocks: ContentBlock[]): void {
+  /**
+   * Update a message at a specific index (used for streaming updates).
+   */
+  updateMessageAt(sessionId: string, index: number, message: Message): void {
     const msgs = this.messages.get(sessionId);
-    if (!msgs) return;
-    const msg = msgs.find(m => m.id === messageId);
-    if (msg && msg.role === 'assistant') {
-      (msg as AssistantMessage).content = blocks;
+    if (msgs && index >= 0 && index < msgs.length) {
+      msgs[index] = message;
       this.throttledMessagesEmit(sessionId);
-    }
-  }
-
-  appendContentBlock(sessionId: string, messageId: string, block: ContentBlock): void {
-    const msgs = this.messages.get(sessionId);
-    if (!msgs) return;
-    const msg = msgs.find(m => m.id === messageId);
-    if (msg && msg.role === 'assistant') {
-      (msg as AssistantMessage).content.push(block);
-      this.emit('messages:updated', sessionId, [...msgs]);
-    }
-  }
-
-  updateMessageUsage(sessionId: string, messageId: string, usage: TokenUsage): void {
-    const msgs = this.messages.get(sessionId);
-    if (!msgs) return;
-    const msg = msgs.find(m => m.id === messageId);
-    if (msg && msg.role === 'assistant') {
-      const existing = (msg as AssistantMessage).usage;
-      if (existing) {
-        // 累加多轮 turn 的 token 用量
-        existing.inputTokens += usage.inputTokens;
-        existing.outputTokens += usage.outputTokens;
-        existing.cacheReadTokens += usage.cacheReadTokens;
-        existing.cacheWriteTokens += usage.cacheWriteTokens;
-      } else {
-        (msg as AssistantMessage).usage = { ...usage };
-      }
-    }
-  }
-
-  updateMessageStopReason(sessionId: string, messageId: string, stopReason: StopReason): void {
-    const msgs = this.messages.get(sessionId);
-    if (!msgs) return;
-    const msg = msgs.find(m => m.id === messageId);
-    if (msg && msg.role === 'assistant') {
-      (msg as AssistantMessage).stopReason = stopReason;
     }
   }
 

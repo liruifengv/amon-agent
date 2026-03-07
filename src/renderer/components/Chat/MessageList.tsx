@@ -153,7 +153,7 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
       <div ref={contentRef}>
         {/* 消息列表 */}
         {messages.map((message, index) => (
-          <div key={message.id} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
+          <div key={`${message.role}-${message.timestamp}-${index}`} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
             <MessageItem message={message} isLastMessage={index === messages.length - 1} />
           </div>
         ))}

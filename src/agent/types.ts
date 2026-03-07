@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import type {
 	AssistantMessageEvent,
 	ImageContent,
@@ -5,7 +6,6 @@ import type {
 	Model,
 	SimpleStreamOptions,
 	TextContent,
-	Tool,
 	ToolResultMessage,
 } from "../ai";
 import type { streamSimple } from "../ai/stream";
@@ -21,70 +21,42 @@ export type StreamFn = (
 export interface AgentLoopConfig extends SimpleStreamOptions {
 	model: Model<any>;
 
+	/** Working directory for tool execution */
+	cwd?: string;
+
 	/**
 	 * Converts AgentMessage[] to LLM-compatible Message[] before each LLM call.
-	 *
-	 * Each AgentMessage must be converted to a UserMessage, AssistantMessage, or ToolResultMessage
-	 * that the LLM can understand. AgentMessages that cannot be converted (e.g., UI-only notifications,
-	 * status messages) should be filtered out.
 	 */
 	convertToLlm: (messages: AgentMessage[]) => Message[] | Promise<Message[]>;
 
 	/**
 	 * Optional transform applied to the context before `convertToLlm`.
-	 *
-	 * Use this for operations that work at the AgentMessage level:
-	 * - Context window management (pruning old messages)
-	 * - Injecting context from external sources
 	 */
 	transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
 
 	/**
 	 * Resolves an API key dynamically for each LLM call.
-	 *
-	 * Useful for short-lived OAuth tokens (e.g., GitHub Copilot) that may expire
-	 * during long-running tool execution phases.
 	 */
 	getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
 
 	/**
 	 * Returns steering messages to inject into the conversation mid-run.
-	 *
-	 * Called after each tool execution to check for user interruptions.
-	 * If messages are returned, remaining tool calls are skipped and
-	 * these messages are added to the context before the next LLM call.
 	 */
 	getSteeringMessages?: () => Promise<AgentMessage[]>;
 
 	/**
 	 * Returns follow-up messages to process after the agent would otherwise stop.
-	 *
-	 * Called when the agent has no more tool calls and no steering messages.
-	 * If messages are returned, they're added to the context and the agent
-	 * continues with another turn.
 	 */
 	getFollowUpMessages?: () => Promise<AgentMessage[]>;
 }
 
 /**
  * Thinking/reasoning level for models that support it.
- * Note: "xhigh" is only supported by OpenAI gpt-5.1-codex-max, gpt-5.2, gpt-5.2-codex, gpt-5.3, and gpt-5.3-codex models.
  */
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
 
 /**
  * Extensible interface for custom app messages.
- * Apps can extend via declaration merging:
- *
- * @example
- * ```typescript
- * declare module "../agent" {
- *   interface CustomAgentMessages {
- *     artifact: ArtifactMessage;
- *     notification: NotificationMessage;
- *   }
- * }
- * ```
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface CustomAgentMessages {
@@ -93,8 +65,6 @@ export interface CustomAgentMessages {
 
 /**
  * AgentMessage: Union of LLM messages + custom messages.
- * This abstraction allows apps to add custom message types while maintaining
- * type safety and compatibility with the base LLM messages.
  */
 export type AgentMessage = Message | CustomAgentMessages[keyof CustomAgentMessages];
 
@@ -106,7 +76,7 @@ export interface AgentState {
 	model: Model<any>;
 	thinkingLevel: ThinkingLevel;
 	tools: AgentTool<any>[];
-	messages: AgentMessage[]; // Can include attachments + custom message types
+	messages: AgentMessage[];
 	isStreaming: boolean;
 	streamMessage: AgentMessage | null;
 	pendingToolCalls: Set<string>;
@@ -114,24 +84,34 @@ export interface AgentState {
 }
 
 export interface AgentToolResult<T> {
-	// Content blocks supporting text and images
 	content: (TextContent | ImageContent)[];
-	// Details to be displayed in a UI or logged
 	details: T;
 }
 
-// Callback for streaming tool execution updates
 export type AgentToolUpdateCallback<T = any> = (partialResult: AgentToolResult<T>) => void;
 
-// AgentTool extends Tool but adds the execute function
-export interface AgentTool<TParams = any, TDetails = any> extends Tool {
-	// A human-readable label for the tool to be displayed in UI
+/**
+ * Tool execution context passed to tool.execute().
+ */
+export interface ToolExecutionContext {
+	cwd: string;
+	signal?: AbortSignal;
+	onUpdate?: AgentToolUpdateCallback<any>;
+}
+
+/**
+ * AgentTool uses Zod schema for validation.
+ * JSON Schema conversion happens at the LLM call boundary.
+ */
+export interface AgentTool<TInput = any, TDetails = any> {
+	name: string;
+	description: string;
 	label: string;
+	inputSchema: z.ZodType<TInput>;
 	execute: (
 		toolCallId: string,
-		params: TParams,
-		signal?: AbortSignal,
-		onUpdate?: AgentToolUpdateCallback<TDetails>,
+		input: TInput,
+		context: ToolExecutionContext,
 	) => Promise<AgentToolResult<TDetails>>;
 }
 
@@ -144,18 +124,16 @@ export interface AgentContext {
 
 /**
  * Events emitted by the Agent for UI updates.
- * These events provide fine-grained lifecycle information for messages, turns, and tool executions.
  */
 export type AgentEvent =
 	// Agent lifecycle
 	| { type: "agent_start" }
 	| { type: "agent_end"; messages: AgentMessage[] }
-	// Turn lifecycle - a turn is one assistant response + any tool calls/results
+	// Turn lifecycle
 	| { type: "turn_start" }
 	| { type: "turn_end"; message: AgentMessage; toolResults: ToolResultMessage[] }
-	// Message lifecycle - emitted for user, assistant, and toolResult messages
+	// Message lifecycle
 	| { type: "message_start"; message: AgentMessage }
-	// Only emitted for assistant messages during streaming
 	| { type: "message_update"; message: AgentMessage; assistantMessageEvent: AssistantMessageEvent }
 	| { type: "message_end"; message: AgentMessage }
 	// Tool execution lifecycle

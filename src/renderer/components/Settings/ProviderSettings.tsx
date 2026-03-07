@@ -28,7 +28,8 @@ const ProviderSettings: React.FC = () => {
     setShowPicker(false);
     const newConfig: ProviderConfig = {
       id: nanoid(10),
-      type: preset.type,
+      apiType: preset.apiType,
+      provider: preset.provider,
       icon: preset.icon,
       name: preset.name,
       apiKey: '',

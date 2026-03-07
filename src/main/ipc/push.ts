@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron';
-import type { Message, Session, StreamingState, ToolCallState } from '@shared/types';
+import type { Session, AgentRunState, ToolExecutionState } from '@shared/types';
+import type { Message } from '../../ai/types';
 import type { PushEventMap } from '@shared/ipc-types';
 import type { SessionStore } from '../store/session-store';
 
@@ -20,12 +21,12 @@ export class PushService {
     this.push('push:messagesUpdated', { sessionId, messages });
   }
 
-  pushStreamingState(sessionId: string, state: StreamingState): void {
-    this.push('push:streamingState', { sessionId, state });
+  pushAgentState(sessionId: string, state: AgentRunState): void {
+    this.push('push:agentState', { sessionId, state });
   }
 
-  pushToolCallState(sessionId: string, toolCallId: string, state: ToolCallState): void {
-    this.push('push:toolCallState', { sessionId, toolCallId, state });
+  pushToolExecution(sessionId: string, toolCallId: string, state: ToolExecutionState): void {
+    this.push('push:toolExecution', { sessionId, toolCallId, state });
   }
 
   pushSessionCreated(session: Session): void {

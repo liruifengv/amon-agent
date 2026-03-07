@@ -25,7 +25,8 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
   const { t } = useTranslation(['settings', 'common']);
   const [form, setForm] = useState<ProviderConfig>({
     id: '',
-    type: 'openai',
+    apiType: 'openai-completions',
+    provider: '',
     icon: '',
     name: '',
     apiKey: '',

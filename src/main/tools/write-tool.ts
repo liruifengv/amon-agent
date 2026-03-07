@@ -1,7 +1,7 @@
 import { mkdir as fsMkdir, writeFile as fsWriteFile } from 'fs/promises';
 import { dirname } from 'path';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { resolveToCwd } from './utils/path-utils';
 
 const writeInputSchema = z.object({

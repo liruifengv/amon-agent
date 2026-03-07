@@ -1,6 +1,4 @@
-import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
-import type { ProviderToolDef } from '@shared/provider-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import { bashTool } from './bash-tool';
 import { readTool } from './read-tool';
 import { writeTool } from './write-tool';
@@ -39,18 +37,6 @@ export class ToolRegistry {
 
   get size(): number {
     return this.tools.size;
-  }
-
-  /**
-   * Convert all registered tools to provider-compatible tool definitions.
-   * Uses Zod 4's z.toJSONSchema() to convert Zod schemas to JSON Schema.
-   */
-  toProviderToolDefs(): ProviderToolDef[] {
-    return this.getAll().map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: z.toJSONSchema(tool.inputSchema) as Record<string, unknown>,
-    }));
   }
 
   /**

@@ -9,15 +9,16 @@ import { SessionStore } from './store/session-store';
 import { Persistence } from './store/persistence';
 import { ConfigStore } from './store/config-store';
 import { createDefaultToolRegistry } from './tools/tool-registry';
-import { createDefaultProviderRegistry } from './provider/provider-registry';
-import { AgentRuntime } from './agent/agent-runtime';
-import { StreamNormalizer } from './agent/stream-normalizer';
-import { ContextManager } from './agent/context-manager';
+import { AgentService } from './agent/agent-service';
+import { EventAdapter } from './agent/event-adapter';
 import { PushService, bridgeSessionStoreToPush } from './ipc/push';
 import { SkillsStore } from './skills';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import type { Shortcuts } from '@shared/schemas';
 import type { Session } from '@shared/types';
+
+// Register built-in AI providers
+import '../ai/providers/register-builtins';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -40,15 +41,14 @@ const persistence = new Persistence(SESSIONS_DIR);
 const configStore = new ConfigStore(SETTINGS_PATH);
 const skillsStore = new SkillsStore(configStore);
 const toolRegistry = createDefaultToolRegistry(configStore);
-const contextManager = new ContextManager();
 const pushService = new PushService();
-const streamNormalizer = new StreamNormalizer(sessionStore, pushService);
+const eventAdapter = new EventAdapter(sessionStore, pushService);
 
 // Bridge SessionStore events → PushService (before any window is created)
 bridgeSessionStoreToPush(sessionStore, pushService);
 
 // These are initialized async in app.on('ready')
-let agentRuntime: AgentRuntime;
+let agentService: AgentService;
 
 // ==================== CLI Workspace ====================
 
@@ -240,7 +240,6 @@ async function createAppMenu(shortcuts?: Shortcuts): Promise<void> {
           label: mainI18n.t('newSession'),
           accelerator: shortcutConfig.newSession,
           click: async () => {
-            // Create session directly in main process
             const session: Session = {
               id: nanoid(),
               title: 'New Session',
@@ -353,27 +352,22 @@ app.on('ready', async () => {
     }
   }
 
-  // Create async services
-  const providerRegistry = await createDefaultProviderRegistry(configStore);
-
-  agentRuntime = new AgentRuntime({
+  // Create AgentService
+  agentService = new AgentService({
     sessionStore,
     persistence,
-    providerRegistry,
-    toolRegistry,
-    contextManager,
-    streamNormalizer,
-    pushService,
     configStore,
+    toolRegistry,
     skillsStore,
+    eventAdapter,
+    pushService,
     dataDir: DATA_DIR,
     defaultWorkspace: DEFAULT_WORKSPACE,
   });
 
   // Register IPC handlers
   registerIpcHandlers({
-    runtime: agentRuntime,
-    providerRegistry,
+    agentService,
     sessionStore,
     persistence,
     configStore,

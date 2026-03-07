@@ -4,14 +4,13 @@ import { z } from 'zod';
 
 export const ProviderConfigSchema = z.object({
   id: z.string(),
-  type: z.enum(['anthropic', 'openai', 'openai-responses', 'gemini']).default('openai'),
+  apiType: z.string().default('openai-completions'),  // Api: 'anthropic-messages' | 'openai-completions' | 'openai-responses' | 'google-generative-ai'
+  provider: z.string().default(''),                     // Provider: 'anthropic' | 'openai' | 'google' | ...
   icon: z.string().default(''),
   name: z.string().min(1),
   apiKey: z.string().default(''),
   baseUrl: z.string().optional(),
   modelId: z.string().default(''),
-  extraParams: z.record(z.string(), z.unknown()).optional(),
-  customHeaders: z.record(z.string(), z.string()).optional(),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
@@ -80,10 +79,24 @@ export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 
 // ==================== 设置迁移 ====================
 
+/** Provider type → apiType 映射 */
+const TYPE_TO_API_TYPE: Record<string, string> = {
+  anthropic: 'anthropic-messages',
+  openai: 'openai-completions',
+  'openai-responses': 'openai-responses',
+  gemini: 'google-generative-ai',
+};
+
+/** Provider id → provider 映射 */
+const ID_TO_PROVIDER: Record<string, string> = {
+  anthropic: 'anthropic',
+  openai: 'openai',
+  google: 'google',
+  deepseek: 'openai',   // DeepSeek uses OpenAI-compatible API
+};
+
 /**
  * Migrate old settings format to new format.
- * Old format: top-level `providers[]`, `agent.provider`, `agent.model`, `agent.thinkingBudget`
- * New format: `agent.providerConfigs[]`, `agent.activeProviderId`, `agent.activeModelId`, `agent.thinkingLevel`
  */
 function migrateSettings(data: unknown): unknown {
   if (!data || typeof data !== 'object') return data;
@@ -142,35 +155,43 @@ function migrateSettings(data: unknown): unknown {
   // Remove old top-level fields
   delete raw.defaultWorkspace;
 
-  // Migrate provider configs: add `type`, `icon`, `modelId` if missing
+  // Migrate provider configs: old `type` → new `apiType`+`provider`
   if (Array.isArray(agent.providerConfigs)) {
     const activeModelId = (agent.activeModelId as string) || '';
     const activeProviderId = (agent.activeProviderId as string) || '';
 
     agent.providerConfigs = (agent.providerConfigs as Record<string, unknown>[]).map(c => {
-      if (c.type && c.icon !== undefined) return c; // already migrated
+      // Already migrated to new format
+      if (c.apiType) return c;
 
       const id = (c.id as string) || '';
-      let type = 'openai';
-      let icon = '';
+      const oldType = (c.type as string) || 'openai';
 
-      if (id === 'anthropic') {
-        type = 'anthropic';
-        icon = 'Anthropic';
-      } else if (id === 'openai') {
-        type = 'openai';
-        icon = 'OpenAI';
-      } else if (id === 'google') {
-        type = 'openai';
-        icon = 'Gemini';
-      } else if (id === 'deepseek') {
-        type = 'openai';
-        icon = 'DeepSeek';
+      // Convert old type → apiType
+      const apiType = TYPE_TO_API_TYPE[oldType] || 'openai-completions';
+
+      // Determine provider from id
+      const provider = ID_TO_PROVIDER[id] || id;
+
+      // Determine icon
+      let icon = (c.icon as string) || '';
+      if (!icon) {
+        if (id === 'anthropic') icon = 'Anthropic';
+        else if (id === 'openai') icon = 'OpenAI';
+        else if (id === 'google') icon = 'Gemini';
+        else if (id === 'deepseek') icon = 'DeepSeek';
       }
 
+      // Remove old fields
+      const { type: _type, extraParams: _extra, customHeaders: _headers, ...rest } = c;
+      void _type;
+      void _extra;
+      void _headers;
+
       return {
-        ...c,
-        type,
+        ...rest,
+        apiType,
+        provider,
         icon,
         modelId: c.modelId || (id === activeProviderId ? activeModelId : ''),
       };

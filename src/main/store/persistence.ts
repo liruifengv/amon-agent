@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { Session, SessionState, Message } from '@shared/types';
+import type { Session, SessionState } from '@shared/types';
+import type { Message } from '../../ai/types';
 import { createLogger } from './logger';
 
 const log = createLogger('Persistence');
@@ -104,6 +105,53 @@ export class Persistence {
   }
 
   /**
+   * Rewrite session file with fresh messages (used after agent runs).
+   * Preserves the session meta and replaces all messages.
+   */
+  async rewriteMessages(sessionId: string, messages: Message[]): Promise<void> {
+    const filePath = this.getPath(sessionId);
+
+    // Read existing meta
+    let content: string;
+    try {
+      content = await fs.readFile(filePath, 'utf-8');
+    } catch {
+      log.warn('Cannot rewrite: session file not found', undefined, sessionId);
+      return;
+    }
+
+    const lines = content.split('\n').filter((line) => line.trim() !== '');
+    if (lines.length === 0) return;
+
+    // Keep session_meta and meta_update records
+    const metaLines: string[] = [];
+    for (const line of lines) {
+      try {
+        const record = JSON.parse(line) as SessionRecord;
+        if (record.type === 'session_meta' || record.type === 'meta_update') {
+          metaLines.push(line);
+        }
+      } catch {
+        // skip malformed
+      }
+    }
+
+    // Build new file content
+    const messageParts = messages.map((message) => {
+      const record: MessageRecord = {
+        type: 'message',
+        message,
+        ts: message.timestamp,
+      };
+      return JSON.stringify(record);
+    });
+
+    const newContent = [...metaLines, ...messageParts].join('\n') + '\n';
+    await fs.writeFile(filePath, newContent, 'utf-8');
+    log.debug('Messages rewritten', { count: messages.length }, sessionId);
+  }
+
+  /**
    * Load a full session state by replaying all records.
    */
   async loadSession(sessionId: string): Promise<SessionState | null> {
@@ -138,12 +186,17 @@ export class Persistence {
             };
             break;
 
-          case 'message':
-            messages.push(record.message);
-            if (session) {
-              session.updatedAt = record.ts;
+          case 'message': {
+            // Validate that message has a known role
+            const msg = record.message;
+            if (msg && (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult')) {
+              messages.push(msg);
+              if (session) {
+                session.updatedAt = record.ts;
+              }
             }
             break;
+          }
 
           case 'meta_update':
             if (session) {
@@ -169,8 +222,7 @@ export class Persistence {
   }
 
   /**
-   * Load metadata for all sessions (reads first line + scans for meta updates).
-   * Returns sessions sorted by updatedAt descending.
+   * Load metadata for all sessions.
    */
   async loadAllSessionMetas(): Promise<Session[]> {
     await fs.mkdir(this.sessionsDir, { recursive: true });
@@ -219,7 +271,6 @@ export class Persistence {
                 session.workspace = record.updates.workspace;
               }
             }
-            // Track latest ts from any record for updatedAt
             if (record.ts > session.updatedAt) {
               session.updatedAt = record.ts;
             }

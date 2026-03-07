@@ -116,6 +116,7 @@ export class Agent {
 	private followUpMode: "all" | "one-at-a-time";
 	public streamFn: StreamFn;
 	private _sessionId?: string;
+	private _cwd: string | undefined;
 	public getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
 	private runningPrompt?: Promise<void>;
 	private resolveRunningPrompt?: () => void;
@@ -135,6 +136,14 @@ export class Agent {
 		this._thinkingBudgets = opts.thinkingBudgets;
 		this._transport = opts.transport ?? "sse";
 		this._maxRetryDelayMs = opts.maxRetryDelayMs;
+	}
+
+	set cwd(value: string | undefined) {
+		this._cwd = value;
+	}
+
+	get cwd(): string | undefined {
+		return this._cwd;
 	}
 
 	/**
@@ -428,6 +437,7 @@ export class Agent {
 		const config: AgentLoopConfig = {
 			model,
 			reasoning,
+			cwd: this._cwd,
 			sessionId: this._sessionId,
 			transport: this._transport,
 			thinkingBudgets: this._thinkingBudgets,

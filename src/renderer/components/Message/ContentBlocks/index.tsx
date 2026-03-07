@@ -1,22 +1,17 @@
 import React from 'react';
-import { ContentBlock, ToolResultBlock, ServerToolResultBlock } from '../../../types';
+import type { TextContent, ThinkingContent, ToolCall } from '../../../types';
 import TextBlock from './TextBlock';
 import ThinkingBlock from './ThinkingBlock';
 import ToolCallBlock from './ToolCallBlock';
-import ServerToolBlock from './ServerToolBlock';
+
+type ContentItem = TextContent | ThinkingContent | ToolCall;
 
 export interface ContentBlockRendererProps {
-  block: ContentBlock;
+  block: ContentItem;
   isStreaming?: boolean;
   isLastBlock?: boolean;
-  /** Whether collapsible blocks should be collapsed by default (for historical messages) */
   defaultCollapsed?: boolean;
-  /** Current session ID for accessing tool call state */
   sessionId: string | null;
-  /** Map from toolUseId to ToolResultBlock for status derivation */
-  toolResultMap?: Map<string, ToolResultBlock>;
-  /** Map from server toolUseId to ServerToolResultBlock */
-  serverToolResultMap?: Map<string, ServerToolResultBlock>;
 }
 
 /**
@@ -28,8 +23,6 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
   isLastBlock,
   defaultCollapsed = false,
   sessionId,
-  toolResultMap,
-  serverToolResultMap,
 }) => {
   switch (block.type) {
     case 'text':
@@ -49,24 +42,10 @@ const ContentBlockRenderer: React.FC<ContentBlockRendererProps> = ({
         />
       );
 
-    case 'tool_use':
-      return <ToolCallBlock toolCall={block} sessionId={sessionId} toolResult={toolResultMap?.get(block.id)} />;
-
-    case 'server_tool_use':
-      return (
-        <ServerToolBlock
-          block={block}
-          sessionId={sessionId}
-          resultBlock={serverToolResultMap?.get(block.id)}
-        />
-      );
-
-    case 'server_tool_result':
-      // Rendered as part of its parent ServerToolBlock via serverToolResultMap
-      return null;
+    case 'toolCall':
+      return <ToolCallBlock toolCall={block} sessionId={sessionId} />;
 
     default:
-      // 未知类型（包括 tool_result），静默忽略
       return null;
   }
 };

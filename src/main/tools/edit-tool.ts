@@ -1,7 +1,7 @@
 import { constants } from 'fs';
 import { access as fsAccess, readFile as fsReadFile, writeFile as fsWriteFile } from 'fs/promises';
 import { z } from 'zod';
-import type { Tool, ToolContext, ToolResult } from '@shared/tool-types';
+import type { Tool, ToolContext, ToolResult } from './types';
 import {
   detectLineEnding,
   fuzzyFindText,
