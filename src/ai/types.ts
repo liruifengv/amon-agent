@@ -16,7 +16,11 @@ export type Api = KnownApi | (string & {});
 export type KnownProvider =
 	| "anthropic"
 	| "openai"
-	| "google";
+	| "google"
+	| "minimax"
+	| "minimax-cn"
+	| "kimi-coding"
+	| "zai";
 
 export type Provider = KnownProvider | string;
 

@@ -147,8 +147,8 @@ export const streamAnthropic: StreamFunction<"anthropic-messages", AnthropicOpti
 				if (event.type === "message_start") {
 					output.usage.input = event.message.usage.input_tokens || 0;
 					output.usage.output = event.message.usage.output_tokens || 0;
-					output.usage.cacheRead = (event.message.usage as any).cache_read_input_tokens || 0;
-					output.usage.cacheWrite = (event.message.usage as any).cache_creation_input_tokens || 0;
+					output.usage.cacheRead = event.message.usage.cache_read_input_tokens || 0;
+					output.usage.cacheWrite = event.message.usage.cache_creation_input_tokens || 0;
 					output.usage.totalTokens =
 						output.usage.input + output.usage.output + output.usage.cacheRead + output.usage.cacheWrite;
 					calculateCost(model, output.usage);
@@ -275,17 +275,17 @@ export const streamAnthropic: StreamFunction<"anthropic-messages", AnthropicOpti
 					if (event.delta.stop_reason) {
 						output.stopReason = mapStopReason(event.delta.stop_reason);
 					}
-					if ((event.usage as any).input_tokens != null) {
-						output.usage.input = (event.usage as any).input_tokens;
+					if (event.usage.input_tokens != null) {
+						output.usage.input = event.usage.input_tokens;
 					}
 					if (event.usage.output_tokens != null) {
 						output.usage.output = event.usage.output_tokens;
 					}
-					if ((event.usage as any).cache_read_input_tokens != null) {
-						output.usage.cacheRead = (event.usage as any).cache_read_input_tokens;
+					if (event.usage.cache_read_input_tokens != null) {
+						output.usage.cacheRead = event.usage.cache_read_input_tokens;
 					}
-					if ((event.usage as any).cache_creation_input_tokens != null) {
-						output.usage.cacheWrite = (event.usage as any).cache_creation_input_tokens;
+					if (event.usage.cache_creation_input_tokens != null) {
+						output.usage.cacheWrite = event.usage.cache_creation_input_tokens;
 					}
 					output.usage.totalTokens =
 						output.usage.input + output.usage.output + output.usage.cacheRead + output.usage.cacheWrite;

@@ -91,6 +91,125 @@ Renderer Process (src/renderer/)
     └── Settings/               - Settings window
 ```
 
+### AI 模块 (`src/ai/`)
+
+多 provider AI 调用抽象层，对齐 pi-mono `packages/ai` 架构。Provider 无关的统一接口。
+
+```
+src/ai/
+├── types.ts                        - 核心类型定义
+├── stream.ts                       - 入口：stream/complete/streamSimple/completeSimple
+├── api-registry.ts                 - Provider 注册表（按 Api 分发）
+├── models.ts                       - 模型注册表（getModel/calculateCost/supportsXhigh）
+├── models.generated.ts             - 内置模型数据（anthropic/openai/google）
+├── index.ts                        - 公开导出
+├── utils/
+│   ├── event-stream.ts             - EventStream<T,R> 泛型异步迭代 + AssistantMessageEventStream
+│   ├── json-parse.ts               - parseStreamingJson（流式不完整 JSON 解析）
+│   ├── sanitize-unicode.ts         - sanitizeSurrogates（清理未配对代理字符）
+│   └── overflow.ts                 - isContextOverflow（多 provider 上下文溢出检测）
+└── providers/
+    ├── register-builtins.ts        - 注册 4 个内置 provider（模块加载时自动执行）
+    ├── simple-options.ts           - buildBaseOptions/clampReasoning/adjustMaxTokensForThinking
+    ├── transform-messages.ts       - transformMessages（公共预处理：thinking 签名、孤儿 tool call）
+    ├── anthropic.ts                - streamAnthropic + streamSimpleAnthropic
+    ├── google.ts                   - streamGoogle + streamSimpleGoogle
+    ├── openai-completions.ts       - streamOpenAICompletions + streamSimpleOpenAICompletions
+    └── openai-responses.ts         - streamOpenAIResponses + streamSimpleOpenAIResponses
+```
+
+**核心类型**：
+
+```typescript
+// 统一消息格式
+type Message = UserMessage | AssistantMessage | ToolResultMessage;
+
+// 内容块
+AssistantMessage.content = (TextContent | ThinkingContent | ToolCall)[];
+
+// ToolCall 字段：type:"toolCall", id, name, arguments（不是 input）
+// StopReason: "stop" | "length" | "toolUse" | "error" | "aborted"
+
+// 统一上下文（替代旧的多参数签名）
+interface Context { systemPrompt?: string; messages: Message[]; tools?: Tool[] }
+
+// 流函数签名：(model, context, options?) → AssistantMessageEventStream
+```
+
+**12 种语义事件**（`AssistantMessageEvent`）：
+
+```
+start → thinking_start/delta/end → text_start/delta/end → toolcall_start/delta/end → done | error
+```
+
+**调用链路**：
+
+```
+stream.ts: streamSimple(model, context, options)
+  → api-registry: resolveApiProvider(model.api)
+  → provider.streamSimple(model, context, options)
+    → transform-messages.ts: transformMessages()   // 公共预处理
+    → provider 内部: convertMessages()              // 转成 SDK 格式（MessageParam[] / Content[] / ...）
+    → SDK 调用 → SSE stream → 语义事件 → AssistantMessageEventStream
+```
+
+**Provider 注册**（4 个 Api）：
+
+| Api | Provider 文件 | SDK |
+|-----|--------------|-----|
+| `anthropic-messages` | anthropic.ts | `@anthropic-ai/sdk` |
+| `google-generative-ai` | google.ts | `@google/genai` |
+| `openai-completions` | openai-completions.ts | `openai` |
+| `openai-responses` | openai-responses.ts | `openai` |
+
+**KnownProvider**：`anthropic` / `openai` / `google` / `minimax` / `minimax-cn` / `kimi-coding` / `zai`（其他通过 `string` 扩展）
+
+### Agent 模块 (`src/agent/`)
+
+基于 `src/ai/` 构建的 agentic loop，处理多轮 tool call、steering、follow-up。
+
+```
+src/agent/
+├── agent.ts          - Agent 类：prompt/abort/steer/followUp/waitForIdle
+├── agent-loop.ts     - agentLoop/agentLoopContinue：双循环（内循环 tool call，外循环 follow-up）
+├── types.ts          - AgentTool/AgentEvent/AgentState/AgentLoopConfig
+├── validation.ts     - validateToolArguments（轻量 JSON Schema 校验）
+└── index.ts          - 公开导出
+```
+
+**Agent 事件**（`AgentEvent`，由 agent-loop 发出，Agent 类转发给 listeners）：
+
+```
+message_start → message_update* → message_end → tool_execution_start → tool_execution_update* → tool_execution_end → turn_end → agent_end
+```
+
+**消息流**：
+
+```
+Agent.prompt(input)
+  → agentLoop(prompts, context, config, signal)
+    → runLoop():
+        ① getSteeringMessages() → 注入 steering
+        ② streamAssistantResponse():
+            transformContext(messages)     // 可选：裁剪/注入（外部注入）
+            convertToLlm(contextMessages) // 格式转换（外部注入）
+            构建 Context { systemPrompt, messages, tools }
+            streamSimple(model, context, options)  ← 调用 ai 层
+            消费 AssistantMessageEvent → 映射为 AgentEvent
+        ③ error/aborted → 终止循环
+        ④ extractToolCalls() → content.filter(type === "toolCall")
+        ⑤ executeToolCalls():
+            validate → execute → makeToolResult(ToolResultMessage) → push to messages
+            steering 中断 → 为剩余 tool calls 生成 skip 结果
+        ⑥ follow-up 检查 → 外循环继续或结束
+```
+
+**关键设计**：
+- `AgentMessage = Message`（统一类型，不再有独立的 `AgentToolResultMessage`）
+- `convertToLlm` / `transformContext` 是外部注入的钩子，可异步
+- Tool 执行后自动检查 steering，中断时为未执行的 tool call 生成 skip 结果
+- `EventStream.result()` 返回 `Promise<R>`（异步）
+
 ### Data Flow
 
 Main process is the single source of truth. Renderer subscribes to push events:

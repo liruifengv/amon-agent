@@ -44,18 +44,3 @@ export function adjustMaxTokensForThinking(
 
 	return { maxTokens, thinkingBudget };
 }
-
-/** Amon-specific: filter headers to prevent API key leaks */
-export function filterBlockedHeaders(
-	headers: Record<string, string> | undefined,
-	blockedKeys: string[] = ["authorization", "x-api-key", "api-key"],
-): Record<string, string> | undefined {
-	if (!headers) return undefined;
-	const filtered: Record<string, string> = {};
-	for (const [key, value] of Object.entries(headers)) {
-		if (!blockedKeys.includes(key.toLowerCase())) {
-			filtered[key] = value;
-		}
-	}
-	return Object.keys(filtered).length > 0 ? filtered : undefined;
-}
