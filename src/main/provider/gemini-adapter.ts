@@ -17,7 +17,6 @@ import type {
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
 import {
-  getModelDefaults,
   THINKING_LEVEL_TO_GEMINI,
   filterBlockedHeaders,
 } from '@shared/constants';
@@ -228,9 +227,7 @@ export class GeminiAdapter implements ProviderAdapter {
       const tools = request.tools?.length ? toGeminiTools(request.tools) : undefined;
       const thinkingConfig = buildThinkingConfig(request);
 
-      // Three-layer merging: adapter defaults -> model defaults -> extraParams
-      const modelDefaults = getModelDefaults(request.model);
-      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens;
+      const maxTokens = request.maxTokens ?? 16_000;
 
       const config: Record<string, unknown> = {
         ...(request.systemPrompt ? { systemInstruction: request.systemPrompt } : {}),

@@ -11,7 +11,6 @@ import type {
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
 import {
-  getModelDefaults,
   THINKING_LEVEL_TO_REASONING_EFFORT,
   filterBlockedHeaders,
 } from '@shared/constants';
@@ -176,9 +175,8 @@ export class OpenAIResponsesAdapter implements ProviderAdapter {
     try {
       const input = toResponseInput(request.messages);
 
-      // --- Build params with three-layer merging ---
-      const modelDefaults = getModelDefaults(request.model);
-      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens;
+      // --- Build params ---
+      const maxTokens = request.maxTokens ?? 16_000;
 
       // Determine reasoning configuration from thinkingLevel
       let reasoning: { effort: ReasoningEffort; summary: 'auto' } | undefined;

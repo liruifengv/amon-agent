@@ -13,7 +13,6 @@ import type {
 } from '@shared/provider-types';
 import type { StopReason } from '@shared/types';
 import {
-  getModelDefaults,
   ADAPTIVE_THINKING_MODEL_PREFIXES,
   THINKING_LEVEL_TO_EFFORT,
   THINKING_LEVEL_TO_BUDGET,
@@ -315,9 +314,8 @@ export class AnthropicAdapter implements ProviderAdapter {
       const filteredCustomTools = customTools.filter(t => !replacedNames.has(t.name));
       const allTools = [...filteredCustomTools, ...builtServerTools];
 
-      // --- Build params with three-layer merging ---
-      const modelDefaults = getModelDefaults(request.model);
-      const maxTokens = request.maxTokens ?? modelDefaults.maxTokens ?? 16_000;
+      // --- Build params ---
+      const maxTokens = request.maxTokens ?? 16_000;
 
       // Build thinking config based on thinkingLevel
       let thinkingConfig: Record<string, unknown> = {};

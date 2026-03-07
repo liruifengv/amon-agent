@@ -9,57 +9,6 @@ export const COMMAND_TIMEOUT_MS = 120000;
 export const MAX_OUTPUT_TOKENS = 16384;
 export const DEFAULT_MAX_THINKING_TOKENS = 10000;
 
-// ==================== 模型默认参数 ====================
-
-/**
- * 模型默认参数表。key 为模型 ID 前缀，匹配时取最长前缀。
- * 这些值覆盖 Adapter 的硬编码默认值，但可被 extraParams 进一步覆盖。
- *
- * 数据来源：各厂商官方文档（2026-03 调研）
- * - temperature: 所有模型默认均为 1.0，GPT-5 推理模式不支持设置
- * - maxTokens: 设置为合理的 Agent 场景默认值（非模型最大值）
- */
-export const MODEL_DEFAULTS: Record<string, { temperature?: number; maxTokens?: number }> = {
-  // Anthropic Claude — temperature 0-1, 默认 1.0, thinking 启用时不可修改
-  // opus-4-6 最大输出 128K, 其余 64K
-  'claude-opus-4-6':     { temperature: 1.0, maxTokens: 16384 },
-  'claude-opus-4-5':     { temperature: 1.0, maxTokens: 16384 },
-  'claude-sonnet-4-5':   { temperature: 1.0, maxTokens: 16384 },
-  'claude-haiku-4-5':    { temperature: 1.0, maxTokens: 8192 },
-
-  // OpenAI GPT-5 — 推理模型不支持 temperature
-  // 最大输出 128K, 必须用 max_completion_tokens
-  'gpt-5':               { maxTokens: 16384 },
-
-  // Google Gemini 3 — temperature 0-2, 默认 1.0 (官方强烈建议保持 1.0)
-  // 最大输出 65,536
-  'gemini-3':            { temperature: 1.0, maxTokens: 16384 },
-
-  // 智谱 GLM — temperature 0-1, 默认 1.0, 最大输出 128K
-  'glm-5':               { temperature: 1.0, maxTokens: 16384 },
-  'glm-4':               { temperature: 1.0, maxTokens: 8192 },
-
-  // MiniMax — temperature (0,1], 默认 1.0 (不支持 0.0)
-  // M2.5 最大输出 ~131K, M2.1 ~66K
-  'MiniMax-M2':          { temperature: 1.0, maxTokens: 8192 },
-
-  // Kimi (月之暗面) — temperature 0-2, 思考模式建议 1.0, 最大输出 32K
-  'kimi':                { temperature: 1.0, maxTokens: 8192 },
-};
-
-/**
- * 根据 modelId 查找模型默认参数。采用最长前缀匹配。
- */
-export function getModelDefaults(modelId: string): { temperature?: number; maxTokens?: number } {
-  let bestMatch = '';
-  for (const prefix of Object.keys(MODEL_DEFAULTS)) {
-    if (modelId.startsWith(prefix) && prefix.length > bestMatch.length) {
-      bestMatch = prefix;
-    }
-  }
-  return bestMatch ? MODEL_DEFAULTS[bestMatch] : {};
-}
-
 // ==================== Anthropic Adaptive Thinking ====================
 
 /**
