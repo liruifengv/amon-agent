@@ -10,12 +10,14 @@
   <a href="https://www.electronjs.org/"><img src="https://img.shields.io/badge/Electron-39-47848F?logo=electron&logoColor=white" alt="Electron"></a>
   <a href="https://react.dev/"><img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white" alt="React"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
-  <a href="https://github.com/anthropics/claude-code"><img src="https://img.shields.io/badge/Claude-Agent%20SDK-CC785C?logo=anthropic&logoColor=white" alt="Claude"></a>
+  <a href="https://zod.dev/"><img src="https://img.shields.io/badge/Zod-4-3E67B1?logo=zod&logoColor=white" alt="Zod"></a>
 </div>
 
 ## 关于 Amon
 
-Amon 是运行在本地的智能 AI Coworker，基于 [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) 构建。它不仅能与你对话，还能真正帮你完成工作：编写代码、执行命令、搜索信息、管理文件。
+Amon 是运行在本地的智能 AI Coworker。它不仅能与你对话，还能真正帮你完成工作：编写代码、执行命令、搜索信息、管理文件。
+
+Amon 采用自研的三层 Agent 架构，内置 Provider 无关的 AI 流式调用层，开箱即用支持 Anthropic Claude、OpenAI、Google Gemini 以及任何 API 兼容的供应商。
 
 
 ## 功能速览
@@ -44,7 +46,7 @@ Amon 支持发送图片消息。
 
 ![自定义多供应商](./screenshots/img6.png)
 
-Amon 可以自定义添加多个 API 供应商。注意：目前只支持 Claude API 兼容格式的 API。
+Amon 可以自定义添加多个 API 供应商，内置支持 Anthropic Claude、OpenAI、Google Gemini，以及 API 兼容的供应商（GLM、MiniMax、Kimi 等）。
 
 ![智能体配置](./screenshots/img7.png)
 
@@ -71,6 +73,9 @@ Amon 支持 Agent Skills，你可以通过安装 Skills 为 Amon 添加专业能
 - 前端设计 — 创建精美的 Web 界面和组件
 - 算法艺术 — 使用 p5.js 生成创意艺术作品
 - MCP 构建 — 开发 MCP 服务器
+- 文档协作 — 协同文档编辑
+- Web 组件构建 — 创建交互式 Web 组件
+- 以及更多（共 16 个内置技能）
 
 
 ## 快速开始
@@ -155,21 +160,50 @@ bun run make               # 创建平台安装包
 ```
 amon-agent/
 ├── src/
-│   ├── main/           # Electron 主进程
-│   │   ├── agent/      # Claude SDK 集成
-│   │   ├── store/      # 状态管理和持久化
-│   │   └── ipc/        # IPC 通信处理
-│   ├── renderer/       # React 渲染进程
-│   │   ├── components/ # UI 组件
-│   │   └── store/      # 前端状态管理
-│   ├── preload/        # Preload 脚本
-│   └── shared/         # 共享类型和工具
+│   ├── ai/            # Provider 无关的 AI 流式调用层
+│   │   ├── providers/ # 内置 Provider（Anthropic、OpenAI、Google）
+│   │   └── utils/     # 事件流、JSON 解析、溢出检测
+│   ├── agent/         # 框架无关的 Agent 类和循环
+│   ├── main/          # Electron 主进程
+│   │   ├── agent/     # Electron 特定的 Agent 集成
+│   │   ├── ipc/       # IPC 通信处理
+│   │   ├── store/     # 状态管理和持久化
+│   │   ├── tools/     # 8 个内置工具（bash、read、write、edit 等）
+│   │   ├── skills/    # Skill 加载与解析
+│   │   └── workspace/ # 用户文件加载（AGENTS.md、SOUL.md）
+│   ├── renderer/      # React 渲染进程
+│   │   ├── components/# UI 组件
+│   │   └── store/     # Zustand 状态管理
+│   ├── preload/       # contextBridge IPC 桥接
+│   ├── shared/        # 共享类型、Schema、常量
+│   └── locales/       # 国际化文件（en、zh）
 ├── resources/
-│   ├── skills/         # 内置 Skills
-│   ├── icons/          # 应用图标
-│   └── [bun, uv]       # 运行时二进制文件
-└── forge.config.ts     # Electron Forge 配置
+│   ├── skills/        # 16 个内置 Skills
+│   ├── icons/         # 应用图标
+│   └── [bun, uv]     # 运行时二进制文件
+└── forge.config.ts    # Electron Forge 配置
 ```
+
+## 架构
+
+Amon 采用三层 Agent 架构，各层之间解耦清晰：
+
+```
+┌─────────────────────────────────────────────┐
+│  src/ai/        AI 流式调用层                │  Provider 无关，多供应商支持
+│                 (Anthropic / OpenAI / Google)│  统一的流式事件模型
+├─────────────────────────────────────────────┤
+│  src/agent/     Agent 核心层                 │  框架无关的 Agent + 循环
+│                 (状态、工具、消息)             │  双循环：工具执行 + 后续跟进
+├─────────────────────────────────────────────┤
+│  src/main/agent/ Electron 集成层            │  AgentService、EventAdapter
+│                 (IPC、推送、持久化)           │  会话管理、系统提示词
+└─────────────────────────────────────────────┘
+```
+
+- **AI 层** (`src/ai/`) — Provider 无关的流式抽象。全局 Provider 注册表，内置 4 个 Provider。将所有响应标准化为统一的 `AssistantMessageEvent` 流。
+- **Agent 层** (`src/agent/`) — 框架无关的 `Agent` 类。双循环架构：内循环（LLM 调用 -> 工具执行 -> 转向检查），外循环（后续队列 -> 重复）。工具输入使用 Zod Schema 验证。
+- **集成层** (`src/main/agent/`) — 将 Agent 接入 Electron。`AgentService` 管理每个会话的 Agent 实例。`EventAdapter` 将 Agent 事件桥接到会话存储和推送通知。
 
 ## 技术栈
 
@@ -181,13 +215,16 @@ amon-agent/
 - Electron — 跨平台桌面应用
 - React 19 — UI 框架
 - TypeScript — 类型安全
-- Claude Agent SDK — AI 能力
+
+**AI 层**
+- 自研 Provider 无关的流式调用层
+- Anthropic SDK / OpenAI SDK / Google GenAI SDK
+- 双循环 Agent 架构（工具执行 + 后续跟进）
 
 **前端技术**
 - Tailwind CSS + Shadcn/ui — 界面设计
 - Zustand — 状态管理
 - Streamdown — Markdown 流式渲染
-- Motion — 动画效果
 
 </td>
 <td valign="top" width="50%">
@@ -197,9 +234,10 @@ amon-agent/
 - Electron Forge — 打包分发
 - Bun — 运行时和包管理
 
-**数据处理**
-- Zod — 运行时类型验证
+**数据与验证**
+- Zod v4 — 运行时类型验证和工具输入 Schema
 - Shiki — 代码语法高亮
+- i18next — 国际化（en、zh）
 
 </td>
 </tr>
