@@ -32,6 +32,7 @@
     "thinking_low": "低",
     "thinking_medium": "中",
     "thinking_high": "高",
+    "thinking_xhigh": "极高",
     "maxTurns": "最大轮数",
     "maxTurnsHint": "每条消息的最大工具调用轮数",
     "exaApiKey": "Exa API Key",

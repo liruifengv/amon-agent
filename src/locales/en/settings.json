@@ -32,6 +32,7 @@
     "thinking_low": "Low",
     "thinking_medium": "Medium",
     "thinking_high": "High",
+    "thinking_xhigh": "X-High",
     "maxTurns": "Max Turns",
     "maxTurnsHint": "Maximum number of tool call turns per message",
     "exaApiKey": "Exa API Key",

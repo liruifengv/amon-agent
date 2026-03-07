@@ -151,10 +151,10 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
       className="flex-1 overflow-y-auto bg-background"
     >
       <div ref={contentRef}>
-        {/* 消息列表 */}
-        {messages.map((message, index) => (
+        {/* 消息列表 — toolResult messages are agent-internal and not rendered */}
+        {messages.filter(m => m.role !== 'toolResult').map((message, index, visible) => (
           <div key={`${message.role}-${message.timestamp}-${index}`} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
-            <MessageItem message={message} isLastMessage={index === messages.length - 1} />
+            <MessageItem message={message} isLastMessage={index === visible.length - 1} />
           </div>
         ))}
 
