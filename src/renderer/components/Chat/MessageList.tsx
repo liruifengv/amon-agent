@@ -1,9 +1,11 @@
-import React, { useRef, useCallback, useEffect, useImperativeHandle } from 'react';
+import React, { useRef, useCallback, useEffect, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { MessageItem } from '../Message';
+import AssistantTurn from '../Message/AssistantTurn';
+import type { Message, AssistantMessage as AssistantMessageType } from '../../types';
 
 export interface MessageListRef {
   scrollToBottom: () => void;
@@ -22,6 +24,9 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
   const error = getSessionError(currentSessionId);
   const { formData } = useSettingsStore();
   const maxWidthClass = formData.chatWidth === 'wide' ? 'max-w-5xl' : 'max-w-3xl';
+
+  // Group messages into visual blocks: user messages standalone, consecutive assistant messages as turns
+  const groups = useMemo(() => groupMessagesIntoTurns(messages), [messages]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -151,12 +156,21 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
       className="flex-1 overflow-y-auto bg-background"
     >
       <div ref={contentRef}>
-        {/* 消息列表 — toolResult messages are agent-internal and not rendered */}
-        {messages.filter(m => m.role !== 'toolResult').map((message, index, visible) => (
-          <div key={`${message.role}-${message.timestamp}-${index}`} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
-            <MessageItem message={message} isLastMessage={index === visible.length - 1} />
-          </div>
-        ))}
+        {/* 消息列表 — grouped by turn */}
+        {groups.map((group, gi) => {
+          if (group.type === 'user') {
+            return (
+              <div key={`user-${group.message.timestamp}-${gi}`} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
+                <MessageItem message={group.message} />
+              </div>
+            );
+          }
+          return (
+            <div key={`turn-${group.messages[0].timestamp}-${gi}`} className={`${maxWidthClass} mx-auto px-4 py-2.5`}>
+              <AssistantTurn messages={group.messages} isLastTurn={gi === groups.length - 1} />
+            </div>
+          );
+        })}
 
         {/* Footer 内容 */}
         <div className={`${maxWidthClass} mx-auto px-4 pb-6`}>
@@ -184,3 +198,40 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
 MessageList.displayName = 'MessageList';
 
 export default MessageList;
+
+// ==================== Message grouping ====================
+
+type MessageGroup =
+  | { type: 'user'; message: Message }
+  | { type: 'assistant_turn'; messages: AssistantMessageType[] };
+
+/**
+ * Group a flat message list into visual turns:
+ * - User messages are standalone
+ * - Consecutive assistant messages between user messages form one turn
+ * - toolResult messages are skipped (agent-internal)
+ */
+function groupMessagesIntoTurns(messages: Message[]): MessageGroup[] {
+  const groups: MessageGroup[] = [];
+  let currentTurn: AssistantMessageType[] = [];
+
+  for (const msg of messages) {
+    if (msg.role === 'toolResult') continue;
+
+    if (msg.role === 'user') {
+      if (currentTurn.length > 0) {
+        groups.push({ type: 'assistant_turn', messages: currentTurn });
+        currentTurn = [];
+      }
+      groups.push({ type: 'user', message: msg });
+    } else if (msg.role === 'assistant') {
+      currentTurn.push(msg as AssistantMessageType);
+    }
+  }
+
+  if (currentTurn.length > 0) {
+    groups.push({ type: 'assistant_turn', messages: currentTurn });
+  }
+
+  return groups;
+}

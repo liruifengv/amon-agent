@@ -4,6 +4,7 @@
 export { default as MessageItem } from './MessageItem';
 export { default as UserMessage } from './UserMessage';
 export { default as AssistantMessage } from './AssistantMessage';
+export { default as AssistantTurn } from './AssistantTurn';
 
 // 内容块渲染器
 export { default as ContentBlockRenderer } from './ContentBlocks';
@@ -20,6 +21,7 @@ export { default as TodoList } from './TodoList';
 export type { MessageItemProps } from './MessageItem';
 export type { UserMessageProps } from './UserMessage';
 export type { AssistantMessageProps } from './AssistantMessage';
+export type { AssistantTurnProps } from './AssistantTurn';
 export type { ContentBlockRendererProps } from './ContentBlocks';
 export type { TextBlockProps } from './ContentBlocks/TextBlock';
 export type { ThinkingBlockProps } from './ContentBlocks/ThinkingBlock';
