@@ -67,6 +67,7 @@ export { stream, streamSimple, complete, completeSimple } from "./stream";
 export { isContextOverflow, getOverflowPatterns } from "./utils/overflow";
 export { parseStreamingJson } from "./utils/json-parse";
 export { sanitizeSurrogates } from "./utils/sanitize-unicode";
+export { validateToolArguments, validateToolCall } from "./utils/validation";
 
 // ==================== Built-in Provider Registration ====================
 
