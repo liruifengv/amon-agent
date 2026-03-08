@@ -3,11 +3,16 @@ import { escapeXml, compactPath } from './utils';
 
 /**
  * Format skills list into a system prompt section.
- * Skills with disableModelInvocation=true are excluded.
+ * Skills with disableModelInvocation=true or in disabledSkills are excluded.
  * Returns empty string if no eligible skills.
  */
-export function formatSkillsForPrompt(skills: Skill[]): string {
-  const eligible = skills.filter(s => !s.disableModelInvocation);
+export function formatSkillsForPrompt(
+  skills: Skill[],
+  disabledSkills: string[] = [],
+): string {
+  const eligible = skills.filter(
+    s => !s.disableModelInvocation && !disabledSkills.includes(s.name),
+  );
   if (eligible.length === 0) return '';
 
   const skillEntries = eligible.map(s =>

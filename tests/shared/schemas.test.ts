@@ -37,7 +37,11 @@ describe("DEFAULT_SETTINGS", () => {
 	});
 
 	it("has default skills settings", () => {
-		expect(DEFAULT_SETTINGS.skills).toEqual({ extraDirs: [".claude"] });
+		expect(DEFAULT_SETTINGS.skills).toEqual({
+			extraDirs: [".claude"],
+			disabledSkills: [],
+			initialized: false,
+		});
 	});
 });
 

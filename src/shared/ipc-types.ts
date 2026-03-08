@@ -11,4 +11,5 @@ export interface PushEventMap {
   'push:sessionUpdated': Session;
   'push:error': { sessionId: string; error: string };
   'push:settingsChanged': void;
+  'push:skillsChanged': void;
 }

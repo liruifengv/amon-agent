@@ -1,12 +1,20 @@
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import type { Skill, SkillDiagnostic, SkillsLoadResult } from '@shared/types';
+import { app } from 'electron';
+import type { Skill, SkillDiagnostic, SkillsLoadResult, BuiltinSkillMeta } from '@shared/types';
 import type { ConfigStore } from '../store/config-store';
 import { loadSkillsFromDir } from './skills-loader';
+import { parseFrontmatter } from './frontmatter';
 import { createLogger } from '../store/logger';
 
 const log = createLogger('SkillsStore');
+
+/** Entry in resources/skills/index.json */
+interface BuiltinSkillEntry {
+  name: string;
+  defaultInstall: boolean;
+}
 
 export class SkillsStore {
   private skillMap = new Map<string, Skill>();
@@ -105,5 +113,145 @@ export class SkillsStore {
 
   getDiagnostics(): SkillDiagnostic[] {
     return this.diagnostics;
+  }
+
+  /** Invalidate cache so next load() re-scans the file system */
+  invalidateCache(): void {
+    this.cachedWorkspace = null;
+    this.skillMap.clear();
+  }
+
+  /** Get the built-in skills resource directory path (handles asar packaging) */
+  private getBuiltinSkillsDir(): string {
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'skills');
+    }
+    return path.join(app.getAppPath(), 'resources', 'skills');
+  }
+
+  /** Read the built-in skills index */
+  private readBuiltinIndex(): BuiltinSkillEntry[] {
+    try {
+      const indexPath = path.join(this.getBuiltinSkillsDir(), 'index.json');
+      const raw = fs.readFileSync(indexPath, 'utf-8');
+      return JSON.parse(raw) as BuiltinSkillEntry[];
+    } catch (err) {
+      log.error(`Failed to read built-in skills index: ${(err as Error).message}`);
+      return [];
+    }
+  }
+
+  /** Get built-in skill metadata list (from resources/skills/index.json) */
+  getBuiltinSkills(): BuiltinSkillMeta[] {
+    const entries = this.readBuiltinIndex();
+    const builtinDir = this.getBuiltinSkillsDir();
+    const installedDir = path.join(os.homedir(), '.amon', 'skills');
+
+    return entries.map(entry => {
+      let description = '';
+      try {
+        const skillFile = path.join(builtinDir, entry.name, 'SKILL.md');
+        if (fs.existsSync(skillFile)) {
+          const content = fs.readFileSync(skillFile, 'utf-8');
+          const { frontmatter } = parseFrontmatter(content);
+          description = frontmatter.description || '';
+        }
+      } catch {
+        // Ignore read errors
+      }
+
+      const installed = fs.existsSync(path.join(installedDir, entry.name, 'SKILL.md'));
+
+      return {
+        name: entry.name,
+        description,
+        installed,
+        defaultInstall: entry.defaultInstall,
+        dirPath: path.join(builtinDir, entry.name),
+      };
+    });
+  }
+
+  /** Install a built-in skill: copy resources/skills/<name> to ~/.amon/skills/<name> */
+  async installBuiltinSkill(name: string): Promise<void> {
+    const entries = this.readBuiltinIndex();
+    const exists = entries.some(e => e.name === name);
+    if (!exists) {
+      throw new Error(`Built-in skill "${name}" not found in index`);
+    }
+
+    const srcDir = path.join(this.getBuiltinSkillsDir(), name);
+    const destDir = path.join(os.homedir(), '.amon', 'skills', name);
+
+    // Idempotent: skip if already installed
+    if (fs.existsSync(destDir)) {
+      log.info(`Skill "${name}" already installed, skipping`);
+      return;
+    }
+
+    // Ensure parent directory exists
+    await fs.promises.mkdir(path.join(os.homedir(), '.amon', 'skills'), { recursive: true });
+
+    // Copy recursively
+    await fs.promises.cp(srcDir, destDir, { recursive: true });
+    log.info(`Installed built-in skill: ${name}`);
+
+    this.invalidateCache();
+  }
+
+  /** Uninstall a skill: delete ~/.amon/skills/<name> directory */
+  async uninstallSkill(name: string): Promise<void> {
+    const destDir = path.join(os.homedir(), '.amon', 'skills', name);
+
+    // Silent return if not found
+    if (!fs.existsSync(destDir)) {
+      log.info(`Skill "${name}" not found for uninstall, skipping`);
+      return;
+    }
+
+    // Safety: only allow deleting from ~/.amon/skills/
+    const skillsRoot = path.join(os.homedir(), '.amon', 'skills');
+    const resolved = path.resolve(destDir);
+    if (!resolved.startsWith(skillsRoot)) {
+      throw new Error(`Cannot uninstall skill outside of ${skillsRoot}`);
+    }
+
+    await fs.promises.rm(destDir, { recursive: true, force: true });
+    log.info(`Uninstalled skill: ${name}`);
+
+    this.invalidateCache();
+  }
+
+  /** Read SKILL.md content from a given path */
+  readSkillContent(skillFilePath: string): string {
+    try {
+      return fs.readFileSync(skillFilePath, 'utf-8');
+    } catch (err) {
+      log.error(`Failed to read skill content: ${(err as Error).message}`);
+      return '';
+    }
+  }
+
+  /** First-time initialization: install defaultInstall=true built-in skills */
+  async initializeBuiltinSkills(): Promise<void> {
+    const settings = await this.configStore.getSettings();
+    if (settings.skills.initialized) {
+      return;
+    }
+
+    log.info('First launch: installing default built-in skills...');
+    const entries = this.readBuiltinIndex();
+    const defaultSkills = entries.filter(e => e.defaultInstall);
+
+    await Promise.all(
+      defaultSkills.map(entry => this.installBuiltinSkill(entry.name))
+    );
+
+    // Mark as initialized
+    await this.configStore.updateSettings({
+      skills: { ...settings.skills, initialized: true },
+    });
+
+    log.info(`First-launch skill installation complete (${defaultSkills.length} skills installed)`);
   }
 }

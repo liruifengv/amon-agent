@@ -372,6 +372,7 @@ app.on('ready', async () => {
     persistence,
     configStore,
     pushService,
+    skillsStore,
     getMainWindow: () => mainWindow,
     getSettingsWindow: () => settingsWindow,
     createSettingsWindow: (tab?: string) => openSettingsWindow(tab),
@@ -396,6 +397,9 @@ app.on('ready', async () => {
       item.cancel();
     }
   });
+
+  // First-launch: install default built-in skills
+  await skillsStore.initializeBuiltinSkills();
 
   // Create main window
   createWindow();

@@ -130,7 +130,8 @@ export class AgentService {
 
     // Load skills
     await skillsStore.load(session.workspace);
-    const skillsPrompt = formatSkillsForPrompt(skillsStore.getSkills());
+    const disabledSkills = settings.skills?.disabledSkills ?? [];
+    const skillsPrompt = formatSkillsForPrompt(skillsStore.getSkills(), disabledSkills);
 
     // Load user files
     const globalUserFiles = await loadGlobalUserFiles(dataDir);

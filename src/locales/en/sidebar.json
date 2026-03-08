@@ -5,5 +5,7 @@
   "noSessions": "No Sessions",
   "yesterday": "Yesterday",
   "confirmDeleteSession": "Are you sure you want to delete session \"{{name}}\"?",
-  "deleteSession": "Delete Session"
+  "deleteSession": "Delete Session",
+  "skills": "Skills",
+  "conversations": "Conversations"
 }

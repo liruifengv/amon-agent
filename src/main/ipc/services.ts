@@ -1,10 +1,11 @@
 import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
-import type { Session, ImageAttachment } from '@shared/types';
+import type { Session, ImageAttachment, SkillInfo } from '@shared/types';
 import type { Settings } from '@shared/schemas';
 import type { AgentService } from '../agent/agent-service';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
+import type { SkillsStore } from '../skills';
 import type { PushService } from './push';
 import { nanoid } from 'nanoid';
 import path from 'path';
@@ -26,6 +27,7 @@ export interface IpcDependencies {
   persistence: Persistence;
   configStore: ConfigStore;
   pushService: PushService;
+  skillsStore: SkillsStore;
   getMainWindow: () => BrowserWindow | null;
   getSettingsWindow: () => BrowserWindow | null;
   createSettingsWindow: (tab?: string) => void;
@@ -40,6 +42,7 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   registerSystemHandlers(deps);
   registerWorkspaceHandlers(deps);
   registerDialogHandlers();
+  registerSkillsHandlers(deps);
 }
 
 // ==================== Agent Handlers ====================
@@ -181,6 +184,78 @@ function registerDialogHandlers(): void {
 
 }
 
+// ==================== Skills Handlers ====================
+
+function registerSkillsHandlers(deps: IpcDependencies): void {
+  // skills.list -- get installed skills + built-in skills metadata
+  handle('skills.list', async (workspace?: unknown) => {
+    const ws = workspace as string | undefined;
+    const settings = await deps.configStore.getSettings();
+    const disabledSkills = settings.skills.disabledSkills;
+
+    // Load installed skills (needs workspace)
+    if (ws) {
+      await deps.skillsStore.load(ws);
+    }
+    const installed = deps.skillsStore.getSkills();
+    const installedInfo: SkillInfo[] = installed.map(s => ({
+      name: s.name,
+      description: s.description,
+      source: s.source,
+      dirPath: s.baseDir,
+      disabled: disabledSkills.includes(s.name),
+      sourceLabel: s.source === 'project-amon'
+        ? path.basename(path.dirname(path.dirname(s.baseDir)))
+        : 'global',
+    }));
+
+    // Get built-in skills list
+    const builtin = deps.skillsStore.getBuiltinSkills();
+
+    return { installed: installedInfo, builtin };
+  });
+
+  // skills.getContent -- get SKILL.md content
+  handle('skills.getContent', async (dirPath: unknown) => {
+    const skillFile = path.join(dirPath as string, 'SKILL.md');
+    return deps.skillsStore.readSkillContent(skillFile);
+  });
+
+  // skills.install -- install a built-in skill
+  handle('skills.install', async (name: unknown) => {
+    await deps.skillsStore.installBuiltinSkill(name as string);
+    deps.pushService.pushSkillsChanged();
+  });
+
+  // skills.uninstall -- uninstall a skill
+  handle('skills.uninstall', async (name: unknown) => {
+    await deps.skillsStore.uninstallSkill(name as string);
+    deps.pushService.pushSkillsChanged();
+  });
+
+  // skills.toggleDisable -- toggle skill disable state
+  handle('skills.toggleDisable', async (name: unknown, disabled: unknown) => {
+    const settings = await deps.configStore.getSettings();
+    let disabledSkills = [...settings.skills.disabledSkills];
+    if (disabled) {
+      if (!disabledSkills.includes(name as string)) {
+        disabledSkills.push(name as string);
+      }
+    } else {
+      disabledSkills = disabledSkills.filter(n => n !== (name as string));
+    }
+    await deps.configStore.updateSettings({
+      skills: { ...settings.skills, disabledSkills },
+    });
+    deps.pushService.pushSettingsChanged();
+  });
+
+  // skills.openFolder -- open skill directory in system file manager
+  handle('skills.openFolder', async (dirPath: unknown) => {
+    await shell.openPath(dirPath as string);
+  });
+}
+
 // ==================== 清理 ====================
 
 export function removeIpcHandlers(): void {
@@ -193,6 +268,8 @@ export function removeIpcHandlers(): void {
     'system.openPath', 'system.openExternal', 'system.getVersion',
     'workspace.listFiles', 'workspace.validatePaths',
     'dialog.selectFolder', 'dialog.selectImages',
+    'skills.list', 'skills.getContent', 'skills.install',
+    'skills.uninstall', 'skills.toggleDisable', 'skills.openFolder',
   ];
   for (const ch of channels) {
     ipcMain.removeHandler(ch);

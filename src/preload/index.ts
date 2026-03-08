@@ -43,6 +43,14 @@ const ipc = {
     selectFolder: () => invoke('dialog.selectFolder'),
     selectImages: () => invoke('dialog.selectImages'),
   },
+  skills: {
+    list: (...args: unknown[]) => invoke('skills.list', ...args),
+    getContent: (...args: unknown[]) => invoke('skills.getContent', ...args),
+    install: (...args: unknown[]) => invoke('skills.install', ...args),
+    uninstall: (...args: unknown[]) => invoke('skills.uninstall', ...args),
+    toggleDisable: (...args: unknown[]) => invoke('skills.toggleDisable', ...args),
+    openFolder: (...args: unknown[]) => invoke('skills.openFolder', ...args),
+  },
 };
 
 // ==================== Push Layer (Main -> Renderer) ====================

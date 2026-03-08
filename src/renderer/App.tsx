@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsStore, initSettingsListeners } from './store/settingsStore';
 import { useSessionStore } from './store/sessionStore';
 import { useChatStore } from './store/chatStore';
+import { useSkillsStore } from './store/skillsStore';
 import Sidebar from './components/Sidebar/Sidebar';
 import ChatView from './components/Chat/ChatView';
+import { SkillsView } from './components/Skills';
 import Onboarding from './components/Onboarding/Onboarding';
 import { Toaster } from './components/ui/sonner';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -15,6 +17,7 @@ const App: React.FC = () => {
   const { loadSessions, isLoading: sessionsLoading, currentSessionId } = useSessionStore();
   const { loadMessages } = useChatStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeView, setActiveView] = useState<'chat' | 'skills'>('chat');
 
   // 初始化加载设置和会话
   useEffect(() => {
@@ -55,11 +58,18 @@ const App: React.FC = () => {
       });
     });
 
+    // 监听 skills 变更事件，刷新技能列表
+    const cleanupSkillsChanged = window.push.on('push:skillsChanged', () => {
+      const workspace = useSessionStore.getState().getCurrentWorkspace();
+      useSkillsStore.getState().loadSkills(workspace);
+    });
+
     return () => {
       cleanupSettingsListeners();
       cleanupSessionUpdated();
       cleanupSessionCreated();
       cleanupSessionDeleted();
+      cleanupSkillsChanged();
     };
   }, []);
 
@@ -99,10 +109,19 @@ const App: React.FC = () => {
   return (
     <div className="h-screen flex bg-sidebar-background">
       {/* 侧边栏 */}
-      <Sidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        activeView={activeView}
+        onNavigate={setActiveView}
+      />
 
-      {/* 聊天主区域 */}
-      <ChatView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      {/* 主内容区 */}
+      {activeView === 'chat' ? (
+        <ChatView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      ) : (
+        <SkillsView />
+      )}
 
       {/* Toast 通知 */}
       <Toaster position="top-center" />

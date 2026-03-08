@@ -1,0 +1,21 @@
+{
+  "title": "Skills",
+  "installed": "Installed",
+  "recommended": "Recommended",
+  "noInstalledSkills": "No skills installed",
+  "noRecommendedSkills": "All recommended skills are installed",
+  "install": "Install",
+  "installSkill": "Install Skill",
+  "uninstall": "Uninstall",
+  "disable": "Disable",
+  "enable": "Enable",
+  "enabled": "Enabled",
+  "disabled": "Disabled",
+  "openFolder": "Open Folder",
+  "sourceGlobal": "Global",
+  "sourceWorkspace": "Workspace",
+  "confirmUninstall": "Are you sure you want to uninstall skill \"{{name}}\"?",
+  "uninstallSkill": "Uninstall Skill",
+  "installing": "Installing...",
+  "uninstalling": "Uninstalling..."
+}

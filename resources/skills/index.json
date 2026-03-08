@@ -1,1 +1,18 @@
-["algorithmic-art", "brand-guidelines", "canvas-design", "doc-coauthoring", "docx", "frontend-design", "internal-comms", "mcp-builder", "pdf", "pptx", "skill-creator", "slack-gif-creator", "theme-factory", "web-artifacts-builder", "webapp-testing", "xlsx"]
+[
+  { "name": "algorithmic-art", "defaultInstall": false },
+  { "name": "brand-guidelines", "defaultInstall": false },
+  { "name": "canvas-design", "defaultInstall": false },
+  { "name": "doc-coauthoring", "defaultInstall": true },
+  { "name": "docx", "defaultInstall": false },
+  { "name": "frontend-design", "defaultInstall": true },
+  { "name": "internal-comms", "defaultInstall": false },
+  { "name": "mcp-builder", "defaultInstall": false },
+  { "name": "pdf", "defaultInstall": true },
+  { "name": "pptx", "defaultInstall": false },
+  { "name": "skill-creator", "defaultInstall": false },
+  { "name": "slack-gif-creator", "defaultInstall": false },
+  { "name": "theme-factory", "defaultInstall": false },
+  { "name": "web-artifacts-builder", "defaultInstall": false },
+  { "name": "webapp-testing", "defaultInstall": false },
+  { "name": "xlsx", "defaultInstall": false }
+]

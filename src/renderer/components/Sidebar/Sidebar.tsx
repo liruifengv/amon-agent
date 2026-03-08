@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, PanelLeftClose } from 'lucide-react';
+import { Settings, PanelLeftClose, Blocks } from 'lucide-react';
 import { Button } from '../ui/button';
 import SessionList from './SessionList';
 import NewSessionButton from './NewSessionButton';
@@ -8,9 +8,11 @@ import NewSessionButton from './NewSessionButton';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  activeView: 'chat' | 'skills';
+  onNavigate: (view: 'chat' | 'skills') => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeView, onNavigate }) => {
   const { t } = useTranslation('sidebar');
   const handleOpenSettings = () => {
     window.ipc.system.openSettings();
@@ -38,13 +40,36 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
           </Button>
           <div className="no-drag">
-            <NewSessionButton />
+            <NewSessionButton onCreated={() => onNavigate('chat')} />
           </div>
+        </div>
+
+        {/* 固定入口区域 */}
+        <div className="px-2 py-1">
+          <Button
+            variant="ghost"
+            onClick={() => onNavigate('skills')}
+            className={`w-full justify-start gap-2 text-sm ${
+              activeView === 'skills'
+                ? 'bg-sidebar-accent text-foreground'
+                : 'text-foreground'
+            }`}
+          >
+            <Blocks className="h-4 w-4" />
+            <span>{t('skills')}</span>
+          </Button>
+        </div>
+
+        {/* 对话标题 */}
+        <div className="px-4 py-1">
+          <span className="text-xs text-muted-foreground uppercase tracking-wider">
+            {t('conversations')}
+          </span>
         </div>
 
         {/* 会话列表 */}
         <div className="flex-1 overflow-y-auto">
-          <SessionList />
+          <SessionList onSelectSession={() => onNavigate('chat')} />
         </div>
 
         {/* 底部设置按钮 */}

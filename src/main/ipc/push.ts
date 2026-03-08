@@ -48,6 +48,10 @@ export class PushService {
   pushSettingsChanged(): void {
     this.push('push:settingsChanged', undefined as never);
   }
+
+  pushSkillsChanged(): void {
+    this.push('push:skillsChanged', undefined as never);
+  }
 }
 
 /**

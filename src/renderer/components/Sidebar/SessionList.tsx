@@ -38,7 +38,11 @@ function formatTime(timestamp: number, yesterdayLabel: string): string {
   }
 }
 
-const SessionList: React.FC = () => {
+interface SessionListProps {
+  onSelectSession?: () => void;
+}
+
+const SessionList: React.FC<SessionListProps> = ({ onSelectSession }) => {
   const { t } = useTranslation('sidebar');
   const { sessions, currentSessionId, setCurrentSessionId, deleteSession, renameSession } =
     useSessionStore();
@@ -47,11 +51,16 @@ const SessionList: React.FC = () => {
   const [editName, setEditName] = useState('');
 
   const handleSelectSession = async (sessionId: string) => {
-    if (sessionId === currentSessionId) return;
+    if (sessionId === currentSessionId) {
+      // Even if same session, trigger navigation back to chat view
+      onSelectSession?.();
+      return;
+    }
 
     // 先加载消息，再切换会话，避免闪烁
     await loadMessages(sessionId);
     setCurrentSessionId(sessionId);
+    onSelectSession?.();
   };
 
   const handleStartRename = (id: string, name: string) => {

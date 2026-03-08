@@ -130,3 +130,30 @@ export interface SkillsLoadResult {
   skills: Skill[];
   diagnostics: SkillDiagnostic[];
 }
+
+/** 前端展示用的技能信息（序列化安全，不含 filePath 等后端字段） */
+export interface SkillInfo {
+  name: string;
+  description: string;
+  source: SkillSource;
+  /** 技能所在目录的绝对路径（用于"打开文件夹"） */
+  dirPath: string;
+  /** 是否已禁用 */
+  disabled: boolean;
+  /** 来源标签显示文本（如 workspace 名称） */
+  sourceLabel: string;
+  /** SKILL.md 完整内容（仅详情对话框使用，列表请求时可不填） */
+  content?: string;
+}
+
+/** 内置技能元信息 */
+export interface BuiltinSkillMeta {
+  name: string;
+  description: string;
+  /** 是否已安装到 ~/.amon/skills/ */
+  installed: boolean;
+  /** 是否默认安装 */
+  defaultInstall: boolean;
+  /** 内置技能资源目录路径（用于读取 SKILL.md） */
+  dirPath: string;
+}

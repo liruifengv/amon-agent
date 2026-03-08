@@ -1,0 +1,21 @@
+{
+  "title": "技能",
+  "installed": "已安装",
+  "recommended": "推荐",
+  "noInstalledSkills": "暂无已安装技能",
+  "noRecommendedSkills": "所有推荐技能已安装",
+  "install": "安装",
+  "installSkill": "安装技能",
+  "uninstall": "卸载",
+  "disable": "禁用",
+  "enable": "启用",
+  "enabled": "已启用",
+  "disabled": "已禁用",
+  "openFolder": "打开文件夹",
+  "sourceGlobal": "全局",
+  "sourceWorkspace": "工作空间",
+  "confirmUninstall": "确定要卸载技能 \"{{name}}\" 吗？",
+  "uninstallSkill": "卸载技能",
+  "installing": "安装中...",
+  "uninstalling": "卸载中..."
+}
