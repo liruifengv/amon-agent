@@ -101,6 +101,17 @@ export class AgentService {
     const session = sessionStore.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
+    // Auto-set title from first user message if still default
+    if (session.title === 'New Session') {
+      const maxLen = 50;
+      const firstLine = prompt.split('\n')[0].trim();
+      const title = firstLine.length > maxLen ? firstLine.slice(0, maxLen) + '...' : firstLine;
+      if (title) {
+        sessionStore.renameSession(sessionId, title);
+        await persistence.appendMetaUpdate(sessionId, { title });
+      }
+    }
+
     const settings = await configStore.getSettings();
     const agentSettings = settings.agent;
 
@@ -160,7 +171,7 @@ export class AgentService {
     });
 
     // Notify UI: agent running
-    pushService.pushAgentState(sessionId, { isRunning: true, toolExecutions: {} });
+    pushService.pushAgentState(sessionId, { isRunning: true, toolExecutions: {}, contextWindow: model.contextWindow });
 
     try {
       // Build user message (ai format)
@@ -185,7 +196,7 @@ export class AgentService {
       unsubscribe();
 
       // Notify UI: agent stopped
-      pushService.pushAgentState(sessionId, { isRunning: false, toolExecutions: {} });
+      pushService.pushAgentState(sessionId, { isRunning: false, toolExecutions: {}, contextWindow: model.contextWindow });
 
       // Persist all messages
       await this.persistMessages(sessionId);

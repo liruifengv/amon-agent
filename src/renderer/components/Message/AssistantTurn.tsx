@@ -60,7 +60,7 @@ const AssistantTurn: React.FC<AssistantTurnProps> = ({ messages, isLastTurn }) =
 
   return (
     <div className="flex flex-col items-start">
-      <div className="max-w-[80%] space-y-2 items-start">
+      <div className="space-y-2 items-start">
         {messages.map((msg, i) => {
           const isLastInTurn = i === messages.length - 1;
           // Only the last message of the last (active) turn is non-historical

@@ -89,9 +89,16 @@ const ChatView: React.FC<ChatViewProps> = ({ sidebarCollapsed, onToggleSidebar }
           <h2 className="text-xl font-medium text-muted-foreground mb-2">
             {t('startNewChat')}
           </h2>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-6">
             {t('selectOrCreateSession')}
           </p>
+          <button
+            onClick={handleCreateSession}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            <SquarePen className="w-4 h-4" />
+            {t('newSession')}
+          </button>
         </div>
       </div>
     );

@@ -219,6 +219,10 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
   return (
     <div className="bg-background px-4 pb-4">
       <div className={`${maxWidthClass} mx-auto`}>
+        {/* 上下文使用量指示器 */}
+        <div className="flex justify-end pb-1.5">
+          <ContextUsageIndicator />
+        </div>
         {/* 输入框容器 */}
         <div
           ref={containerRef}
@@ -377,5 +381,6 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
 
 // 导入所需的组件
 import ProviderSelector from './ProviderSelector';
+import ContextUsageIndicator from './ContextUsageIndicator';
 
 export default InputArea;

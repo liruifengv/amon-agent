@@ -53,6 +53,7 @@ export interface SessionState {
 export interface AgentRunState {
   isRunning: boolean;
   toolExecutions: Record<string, ToolExecutionState>;
+  contextWindow?: number;
 }
 
 export interface ToolExecutionState {

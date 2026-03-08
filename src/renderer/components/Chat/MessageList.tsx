@@ -1,5 +1,7 @@
 import React, { useRef, useCallback, useEffect, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MessageSquare } from 'lucide-react';
+
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -17,7 +19,7 @@ interface MessageListProps {
 }
 
 const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNearBottom }, ref) => {
-  const { t } = useTranslation('message');
+  const { t } = useTranslation(['message', 'chat']);
   const { currentSessionId } = useSessionStore();
   const { getMessages, getSessionError, clearSessionError } = useChatStore();
   const messages = getMessages(currentSessionId);
@@ -155,7 +157,20 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
       onScroll={handleScroll}
       className="flex-1 overflow-y-auto bg-background"
     >
-      <div ref={contentRef}>
+      <div ref={contentRef} className={groups.length === 0 ? 'min-h-full flex flex-col' : ''}>
+        {/* 空状态引导 */}
+        {groups.length === 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center text-muted-foreground">
+            <MessageSquare className="w-10 h-10 opacity-30 mb-4" />
+            <p className="text-sm mb-3">{t('chat:emptyChat.hint')}</p>
+            <div className="flex flex-col gap-1.5 text-xs">
+              {(t('chat:emptyChat.examples', { returnObjects: true }) as string[]).map((example) => (
+                <span key={example} className="text-muted-foreground/70">"{example}"</span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 消息列表 — grouped by turn */}
         {groups.map((group, gi) => {
           if (group.type === 'user') {

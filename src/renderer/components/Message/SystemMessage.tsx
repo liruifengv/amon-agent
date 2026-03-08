@@ -18,7 +18,7 @@ const SystemMessage: React.FC<SystemMessageProps> = ({ message }) => {
 
   return (
     <div className="flex flex-col items-start">
-      <div className="max-w-[80%]">
+      <div>
         {blocks.map((block, index) => (
           <ContentBlockRenderer
             key={`block-${index}`}

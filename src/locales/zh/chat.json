@@ -43,5 +43,15 @@
     "select": "选择",
     "confirm": "确认",
     "cancel": "取消"
+  },
+  "contextUsage": {
+    "title": "上下文使用量",
+    "usedPercent": "已使用 {{used}}%（剩余 {{remaining}}%）",
+    "tokenDetail": "已用 {{used}} tokens，总计 {{total}}",
+    "autoCompression": "接近上限时将自动压缩上下文"
+  },
+  "emptyChat": {
+    "hint": "试试问我：",
+    "examples": ["帮我写一个 React 组件", "总结一下这篇文章", "解释一下量子计算"]
   }
 }

@@ -42,5 +42,15 @@
     "select": "Select",
     "confirm": "Confirm",
     "cancel": "Cancel"
+  },
+  "contextUsage": {
+    "title": "Context Usage",
+    "usedPercent": "Used {{used}}% ({{remaining}}% remaining)",
+    "tokenDetail": "{{used}} tokens used, {{total}} total",
+    "autoCompression": "Context will be auto-compressed near limit"
+  },
+  "emptyChat": {
+    "hint": "Try asking:",
+    "examples": ["Write a React component", "Summarize this article", "Explain quantum computing"]
   }
 }

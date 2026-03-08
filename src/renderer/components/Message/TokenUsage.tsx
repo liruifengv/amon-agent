@@ -2,19 +2,10 @@ import React, { useState } from 'react';
 import { Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { Usage } from '../../types';
+import { formatTokenCount } from '../../lib/utils';
 
 export interface TokenUsageProps {
   usage: Usage;
-}
-
-function formatTokenCount(count: number): string {
-  if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1)}M`;
-  }
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}K`;
-  }
-  return count.toString();
 }
 
 const TokenUsage: React.FC<TokenUsageProps> = ({ usage }) => {
