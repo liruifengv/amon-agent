@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { Folder, Star, Trash2, Edit2, FolderOpen, Plus, Check, X, Home } from 'lucide-react';
 import type { Workspace } from '../../types';
 import { DEFAULT_WORKSPACE_PATH } from '../../../shared/constants';
+import { confirm } from '../../store/confirmStore';
 import { formatPathWithTilde, getPathName } from '../../utils/path';
 
 const WorkspaceSettings: React.FC = () => {
@@ -51,7 +52,7 @@ const WorkspaceSettings: React.FC = () => {
   };
 
   const handleDeleteWorkspace = async (workspace: Workspace) => {
-    const confirmed = await window.ipc.dialog.confirm({
+    const confirmed = await confirm({
       title: t('common:confirmDelete'),
       message: t('settings:workspace.confirmDeleteMessage', { name: workspace.name }),
     });

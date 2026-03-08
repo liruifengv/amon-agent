@@ -179,17 +179,6 @@ function registerDialogHandlers(): void {
     return result.canceled ? [] : result.filePaths;
   });
 
-  handle('dialog.confirm', async (options: unknown) => {
-    const opts = options as { title?: string; message: string };
-    const result = await dialog.showMessageBox({
-      type: 'question',
-      buttons: ['Cancel', 'OK'],
-      defaultId: 1,
-      title: opts.title,
-      message: opts.message,
-    });
-    return result.response === 1;
-  });
 }
 
 // ==================== 清理 ====================
@@ -203,7 +192,7 @@ export function removeIpcHandlers(): void {
     'system.openSettings', 'system.closeSettings', 'system.openConfigDir',
     'system.openPath', 'system.openExternal', 'system.getVersion',
     'workspace.listFiles', 'workspace.validatePaths',
-    'dialog.selectFolder', 'dialog.selectImages', 'dialog.confirm',
+    'dialog.selectFolder', 'dialog.selectImages',
   ];
   for (const ch of channels) {
     ipcMain.removeHandler(ch);

@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import i18n from '../../i18n';
 import { useSessionStore } from '../../store/sessionStore';
 import { useChatStore } from '../../store/chatStore';
+import { confirm } from '../../store/confirmStore';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
@@ -67,7 +68,7 @@ const SessionList: React.FC = () => {
 
   const handleDelete = async (e: React.MouseEvent, id: string, name: string) => {
     e.stopPropagation();
-    const confirmed = await window.ipc.dialog.confirm({
+    const confirmed = await confirm({
       title: t('deleteSession'),
       message: t('confirmDeleteSession', { name }),
     });

@@ -8,6 +8,7 @@ import ShortcutsSettings from './ShortcutsSettings';
 import WorkspaceSettings from './WorkspaceSettings';
 import AboutSettings from './AboutSettings';
 import { Settings, MessageCircle, Info, Keyboard, Folder, Server } from 'lucide-react';
+import ConfirmDialog from '../ConfirmDialog';
 
 type SettingsTab = 'general' | 'provider' | 'workspace' | 'agent' | 'shortcuts' | 'about';
 
@@ -184,6 +185,7 @@ const SettingsWindow: React.FC = () => {
           </div>
         )}
       </div>
+      <ConfirmDialog />
     </div>
   );
 };

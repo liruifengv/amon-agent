@@ -42,7 +42,6 @@ const ipc = {
   dialog: {
     selectFolder: () => invoke('dialog.selectFolder'),
     selectImages: () => invoke('dialog.selectImages'),
-    confirm: (...args: unknown[]) => invoke('dialog.confirm', ...args),
   },
 };
 

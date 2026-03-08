@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar/Sidebar';
 import ChatView from './components/Chat/ChatView';
 import Onboarding from './components/Onboarding/Onboarding';
 import { Toaster } from './components/ui/sonner';
+import ConfirmDialog from './components/ConfirmDialog';
 
 const App: React.FC = () => {
   const { t } = useTranslation();
@@ -105,6 +106,7 @@ const App: React.FC = () => {
 
       {/* Toast 通知 */}
       <Toaster position="top-center" />
+      <ConfirmDialog />
     </div>
   );
 };
