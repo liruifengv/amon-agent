@@ -5,8 +5,6 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import { PublisherGithub } from '@electron-forge/publisher-github';
-import { cpSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 import { spawnSync } from 'child_process';
 
 const config: ForgeConfig = {
@@ -37,6 +35,8 @@ const config: ForgeConfig = {
       ...(process.platform === 'win32' ? ['./resources/msys2'] : []),
       // workspace 模板文件
       './resources/templates',
+      // 内置 skills
+      './skills',
     ],
   },
   rebuildConfig: {},

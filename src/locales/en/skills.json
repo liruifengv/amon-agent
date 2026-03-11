@@ -17,5 +17,6 @@
   "confirmUninstall": "Are you sure you want to uninstall skill \"{{name}}\"?",
   "uninstallSkill": "Uninstall Skill",
   "installing": "Installing...",
-  "uninstalling": "Uninstalling..."
+  "uninstalling": "Uninstalling...",
+  "refresh": "Refresh"
 }

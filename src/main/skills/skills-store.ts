@@ -10,7 +10,7 @@ import { createLogger } from '../store/logger';
 
 const log = createLogger('SkillsStore');
 
-/** Entry in resources/skills/index.json */
+/** Entry in skills/index.json */
 interface BuiltinSkillEntry {
   name: string;
   defaultInstall: boolean;
@@ -121,12 +121,12 @@ export class SkillsStore {
     this.skillMap.clear();
   }
 
-  /** Get the built-in skills resource directory path (handles asar packaging) */
+  /** Get the built-in skills directory path (handles asar packaging) */
   private getBuiltinSkillsDir(): string {
     if (app.isPackaged) {
       return path.join(process.resourcesPath, 'skills');
     }
-    return path.join(app.getAppPath(), 'resources', 'skills');
+    return path.join(app.getAppPath(), 'skills');
   }
 
   /** Read the built-in skills index */
@@ -141,7 +141,7 @@ export class SkillsStore {
     }
   }
 
-  /** Get built-in skill metadata list (from resources/skills/index.json) */
+  /** Get built-in skill metadata list (from skills/index.json) */
   getBuiltinSkills(): BuiltinSkillMeta[] {
     const entries = this.readBuiltinIndex();
     const builtinDir = this.getBuiltinSkillsDir();
@@ -172,7 +172,7 @@ export class SkillsStore {
     });
   }
 
-  /** Install a built-in skill: copy resources/skills/<name> to ~/.amon/skills/<name> */
+  /** Install a built-in skill: copy skills/<name> to ~/.amon/skills/<name> */
   async installBuiltinSkill(name: string): Promise<void> {
     const entries = this.readBuiltinIndex();
     const exists = entries.some(e => e.name === name);

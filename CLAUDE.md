@@ -72,5 +72,5 @@ Zustand stores in `src/renderer/store/`: `chatStore` (messages, agent state, pus
 - **UI**: React 19 + Radix UI primitives + Tailwind CSS v4 + Shadcn components in `src/renderer/components/ui/`
 - **Settings migration**: Old format (`providers[]`, `agent.provider`) → new format (`agent.providerConfigs[]`, `agent.activeProviderId`). Migration in `parseSettings()` via `migrateSettings()` in `src/shared/schemas.ts`
 - **App data**: `~/.amon/` — `settings.json`, `sessions/` (JSONL persistence), `workspace/`
-- **Skills**: Loaded from multiple directories (built-in `resources/skills/`, user-installed). YAML frontmatter metadata, formatted into system prompt via `formatSkillsForPrompt()`
+- **Skills**: Loaded from multiple directories (built-in `skills/`, user-installed). YAML frontmatter metadata, formatted into system prompt via `formatSkillsForPrompt()`
 - **Tools**: 8 built-in tools registered in `createDefaultToolRegistry()` at `src/main/tools/tool-registry.ts` (bash, read, write, edit, glob, grep, web-fetch, web-search)

@@ -1,13 +1,20 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PanelLeft, RefreshCw } from 'lucide-react';
 import { useSkillsStore } from '../../store/skillsStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { Separator } from '../ui/separator';
+import { Button } from '../ui/button';
 import SkillCard from './SkillCard';
 import SkillDetailDialog from './SkillDetailDialog';
 import type { SkillInfo, BuiltinSkillMeta } from '../../../shared/types';
 
-const SkillsView: React.FC = () => {
+interface SkillsViewProps {
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}
+
+const SkillsView: React.FC<SkillsViewProps> = ({ sidebarCollapsed, onToggleSidebar }) => {
   const { t } = useTranslation('skills');
   const {
     installed,
@@ -63,17 +70,70 @@ const SkillsView: React.FC = () => {
     setDetailOpen(true);
   };
 
+  const handleRefresh = () => {
+    const workspace = getCurrentWorkspace();
+    loadSkills(workspace);
+  };
+
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      <div className="flex-1 flex flex-col bg-background">
+        {/* Header */}
+        <div className="h-14 drag-region flex items-center px-4 shrink-0">
+          {sidebarCollapsed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleSidebar}
+              className="no-drag h-8 w-8 ml-16"
+              title={t('expandSidebar', { ns: 'chat' })}
+            >
+              <PanelLeft className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          )}
+          <div className="flex-1 flex items-center justify-center">
+            <h2 className="text-sm font-medium text-foreground">{t('title')}</h2>
+          </div>
+          {sidebarCollapsed && <div className="w-8 h-8 ml-16" />}
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-background">
-      <h1 className="text-xl font-semibold mb-6">{t('title')}</h1>
+    <div className="flex-1 flex flex-col bg-background overflow-hidden">
+      {/* Header */}
+      <div className="h-14 drag-region flex items-center px-4 shrink-0">
+        {sidebarCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggleSidebar}
+            className="no-drag h-8 w-8 ml-16"
+            title={t('expandSidebar', { ns: 'chat' })}
+          >
+            <PanelLeft className="h-4 w-4 text-muted-foreground" />
+          </Button>
+        )}
+        <div className="flex-1 flex items-center justify-center">
+          <h2 className="text-sm font-medium text-foreground">{t('title')}</h2>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleRefresh}
+          className="no-drag h-8 w-8"
+          title={t('refresh')}
+        >
+          <RefreshCw className="h-4 w-4 text-muted-foreground" />
+        </Button>
+        {sidebarCollapsed && <div className="w-16 h-8" />}
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6">
 
       {/* Installed section */}
       <div className="mb-6">
@@ -143,6 +203,7 @@ const SkillsView: React.FC = () => {
           onToggleDisable={(disabled) => toggleDisable(selectedSkill.name, disabled)}
         />
       )}
+      </div>
     </div>
   );
 };

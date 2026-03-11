@@ -120,7 +120,7 @@ const App: React.FC = () => {
       {activeView === 'chat' ? (
         <ChatView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
       ) : (
-        <SkillsView />
+        <SkillsView sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)} />
       )}
 
       {/* Toast 通知 */}

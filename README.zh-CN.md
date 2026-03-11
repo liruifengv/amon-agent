@@ -178,9 +178,9 @@ amon-agent/
 │   ├── shared/        # 共享类型、Schema、常量
 │   └── locales/       # 国际化文件（en、zh）
 ├── resources/
-│   ├── skills/        # 16 个内置 Skills
 │   ├── icons/         # 应用图标
 │   └── [bun, uv]     # 运行时二进制文件
+├── skills/           # 16 个内置 Skills
 └── forge.config.ts    # Electron Forge 配置
 ```
 

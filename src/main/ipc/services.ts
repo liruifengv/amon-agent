@@ -1,12 +1,13 @@
+
 import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
-import type { Session, ImageAttachment, SkillInfo } from '@shared/types';
+import type { Session, ImageAttachment, Skill, SkillInfo } from '@shared/types';
 import type { Settings } from '@shared/schemas';
 import type { AgentService } from '../agent/agent-service';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
-import type { SkillsStore } from '../skills';
 import type { PushService } from './push';
+import type { SkillsStore } from '../skills';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -31,6 +32,48 @@ export interface IpcDependencies {
   getMainWindow: () => BrowserWindow | null;
   getSettingsWindow: () => BrowserWindow | null;
   createSettingsWindow: (tab?: string) => void;
+}
+
+async function resolveWorkspacePath(
+  deps: IpcDependencies,
+  workspace?: string,
+): Promise<string> {
+  if (workspace) {
+    return workspace;
+  }
+
+  const settings = await deps.configStore.getSettings();
+  const defaultWorkspace = settings.workspaces.find(item => item.isDefault);
+  return defaultWorkspace?.path ?? path.join(os.homedir(), '.amon', 'workspace');
+}
+
+function getSkillSourceLabel(skill: Skill, workspace: string): string {
+  if (skill.source === 'system-amon') {
+    return 'global';
+  }
+
+  const resolvedWorkspace = path.resolve(workspace);
+  const resolvedSkillDir = path.resolve(skill.baseDir);
+
+  if (
+    resolvedSkillDir === resolvedWorkspace ||
+    resolvedSkillDir.startsWith(`${resolvedWorkspace}${path.sep}`)
+  ) {
+    return path.basename(resolvedWorkspace) || 'workspace';
+  }
+
+  return 'global';
+}
+
+function toSkillInfo(skill: Skill, disabledSkills: string[], workspace: string): SkillInfo {
+  return {
+    name: skill.name,
+    description: skill.description,
+    source: skill.source,
+    dirPath: skill.baseDir,
+    disabled: disabledSkills.includes(skill.name),
+    sourceLabel: getSkillSourceLabel(skill, workspace),
+  };
 }
 
 // ==================== 注册所有 IPC Handlers ====================
@@ -182,75 +225,73 @@ function registerDialogHandlers(): void {
     return result.canceled ? [] : result.filePaths;
   });
 
+  handle('dialog.confirm', async (options: unknown) => {
+    const opts = options as { title?: string; message: string };
+    const result = await dialog.showMessageBox({
+      type: 'question',
+      buttons: ['Cancel', 'OK'],
+      defaultId: 1,
+      title: opts.title,
+      message: opts.message,
+    });
+    return result.response === 1;
+  });
 }
 
 // ==================== Skills Handlers ====================
 
 function registerSkillsHandlers(deps: IpcDependencies): void {
-  // skills.list -- get installed skills + built-in skills metadata
   handle('skills.list', async (workspace?: unknown) => {
-    const ws = workspace as string | undefined;
+    const resolvedWorkspace = await resolveWorkspacePath(deps, workspace as string | undefined);
     const settings = await deps.configStore.getSettings();
     const disabledSkills = settings.skills.disabledSkills;
+    const { skills } = await deps.skillsStore.load(resolvedWorkspace);
 
-    // Load installed skills (needs workspace)
-    if (ws) {
-      await deps.skillsStore.load(ws);
-    }
-    const installed = deps.skillsStore.getSkills();
-    const installedInfo: SkillInfo[] = installed.map(s => ({
-      name: s.name,
-      description: s.description,
-      source: s.source,
-      dirPath: s.baseDir,
-      disabled: disabledSkills.includes(s.name),
-      sourceLabel: s.source === 'project-amon'
-        ? path.basename(path.dirname(path.dirname(s.baseDir)))
-        : 'global',
-    }));
-
-    // Get built-in skills list
-    const builtin = deps.skillsStore.getBuiltinSkills();
-
-    return { installed: installedInfo, builtin };
+    return {
+      installed: skills
+        .map(skill => toSkillInfo(skill, disabledSkills, resolvedWorkspace))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      builtin: deps.skillsStore
+        .getBuiltinSkills()
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
   });
 
-  // skills.getContent -- get SKILL.md content
   handle('skills.getContent', async (dirPath: unknown) => {
-    const skillFile = path.join(dirPath as string, 'SKILL.md');
-    return deps.skillsStore.readSkillContent(skillFile);
+    const skillFilePath = path.join(dirPath as string, 'SKILL.md');
+    return deps.skillsStore.readSkillContent(skillFilePath);
   });
 
-  // skills.install -- install a built-in skill
   handle('skills.install', async (name: unknown) => {
     await deps.skillsStore.installBuiltinSkill(name as string);
     deps.pushService.pushSkillsChanged();
   });
 
-  // skills.uninstall -- uninstall a skill
   handle('skills.uninstall', async (name: unknown) => {
     await deps.skillsStore.uninstallSkill(name as string);
     deps.pushService.pushSkillsChanged();
   });
 
-  // skills.toggleDisable -- toggle skill disable state
   handle('skills.toggleDisable', async (name: unknown, disabled: unknown) => {
     const settings = await deps.configStore.getSettings();
-    let disabledSkills = [...settings.skills.disabledSkills];
+    const disabledSkills = new Set(settings.skills.disabledSkills);
+
     if (disabled) {
-      if (!disabledSkills.includes(name as string)) {
-        disabledSkills.push(name as string);
-      }
+      disabledSkills.add(name as string);
     } else {
-      disabledSkills = disabledSkills.filter(n => n !== (name as string));
+      disabledSkills.delete(name as string);
     }
+
     await deps.configStore.updateSettings({
-      skills: { ...settings.skills, disabledSkills },
+      skills: {
+        ...settings.skills,
+        disabledSkills: Array.from(disabledSkills).sort(),
+      },
     });
     deps.pushService.pushSettingsChanged();
+    deps.pushService.pushSkillsChanged();
   });
 
-  // skills.openFolder -- open skill directory in system file manager
   handle('skills.openFolder', async (dirPath: unknown) => {
     await shell.openPath(dirPath as string);
   });
@@ -267,7 +308,7 @@ export function removeIpcHandlers(): void {
     'system.openSettings', 'system.closeSettings', 'system.openConfigDir',
     'system.openPath', 'system.openExternal', 'system.getVersion',
     'workspace.listFiles', 'workspace.validatePaths',
-    'dialog.selectFolder', 'dialog.selectImages',
+    'dialog.selectFolder', 'dialog.selectImages', 'dialog.confirm',
     'skills.list', 'skills.getContent', 'skills.install',
     'skills.uninstall', 'skills.toggleDisable', 'skills.openFolder',
   ];

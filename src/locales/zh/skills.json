@@ -17,5 +17,6 @@
   "confirmUninstall": "确定要卸载技能 \"{{name}}\" 吗？",
   "uninstallSkill": "卸载技能",
   "installing": "安装中...",
-  "uninstalling": "卸载中..."
+  "uninstalling": "卸载中...",
+  "refresh": "刷新"
 }

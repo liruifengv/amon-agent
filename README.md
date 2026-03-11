@@ -178,9 +178,9 @@ amon-agent/
 │   ├── shared/        # Shared types, schemas, constants
 │   └── locales/       # i18n files (en, zh)
 ├── resources/
-│   ├── skills/        # 16 built-in Skills
 │   ├── icons/         # App icons
 │   └── [bun, uv]     # Runtime binaries
+├── skills/           # 16 built-in Skills
 └── forge.config.ts    # Electron Forge configuration
 ```
 
