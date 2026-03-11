@@ -20,7 +20,15 @@
 
 Amon is an intelligent AI coworker that runs locally on your desktop. It doesn't just chat with you — it actually helps you get work done: writing code, executing commands, searching for information, and managing files.
 
-Amon features a custom three-layer agent architecture with a provider-agnostic AI streaming layer, supporting multiple LLM providers including Anthropic Claude, OpenAI, Google Gemini, and any API-compatible providers out of the box.
+Amon features a custom three-layer agent architecture with a provider-agnostic AI streaming layer, supporting multiple LLM providers including Anthropic Claude, OpenAI, Google Gemini, and API-compatible providers out of the box.
+
+Starting with `0.3.0`, Amon no longer depends on Claude Agent SDK. The runtime is implemented in-repo with a provider-agnostic AI layer, a framework-agnostic agent core, and Electron-specific integration.
+
+## Breaking Changes in 0.3.0
+
+- Claude Agent SDK has been removed and replaced by Amon's own agent core and runtime.
+- Settings and provider configuration moved to the new `agent.providerConfigs[]` / `agent.activeProviderId` / `agent.activeModelId` schema.
+- Existing settings are migrated on a best-effort basis. Older provider-specific fields and deprecated options may need to be reconfigured manually after upgrading.
 
 ## Feature Overview
 
@@ -29,10 +37,6 @@ Let's take a look at Amon's features through screenshots.
 ![Thinking / Tool Calls](./screenshots/img1.png)
 
 Amon can think through your messages, execute tool calls, and complete your tasks.
-
-![Plan Mode](./screenshots/img2.jpg)
-
-Amon has a plan mode that creates a TODO task list first, then executes according to the plan.
 
 ![Dark Theme](./screenshots/img3.jpg)
 
@@ -50,34 +54,11 @@ Amon supports sending image messages.
 
 Amon allows you to add multiple API providers with built-in support for Anthropic Claude, OpenAI, Google Gemini, and API-compatible providers (GLM, MiniMax, Kimi, etc.).
 
-![Agent Configuration](./screenshots/img7.png)
-
-Amon lets you configure Agent execution permissions with different permission levels.
-
-You can customize the system prompt.
-
-If you have Claude Code installed with an API Key configured, you can enable `Claude Code Mode` for enhanced coding capabilities.
-
-With Claude Code Mode enabled, Amon will use Claude Code's global settings and system prompts, and automatically load global Skills, etc.
-
-Once enabled, you can use Amon as a visual client for Claude Code.
-
 ![Workspaces](./screenshots/img8.png)
 
-Amon works on a per-workspace (folder) basis. You can set up multiple workspaces. Default workspace: `~/.amon/workspaces`
-
-![Skills](./screenshots/img9.png)
+Amon works on a per-workspace (folder) basis. You can set up multiple workspaces. Default workspace: `~/.amon/workspace`
 
 Amon supports Agent Skills — you can install Skills to add specialized capabilities to Amon.
-
-Several recommended skills are built in, including:
-- PDF Tools — Text extraction, form filling, document merging
-- Frontend Design — Create beautiful web interfaces and components
-- Algorithmic Art — Generate creative artwork with p5.js
-- MCP Builder — Develop MCP servers
-- Docs Coauthoring — Collaborative document editing
-- Web Artifacts Builder — Create interactive web components
-- And more (16 built-in skills in total)
 
 ## Getting Started
 
@@ -95,41 +76,21 @@ xattr -cr /Applications/Amon.app
 
 ### Configuration
 
-Amon offers two usage modes — choose based on your needs:
-
-#### Option 1: Standalone Mode (Recommended for New Users)
-
 After first launch, follow these steps to configure:
 
 1. **Configure AI Provider**
 
-   Go to `Settings` → `Providers`, create and enable the AI provider you want to use
+   Go to `Settings` → `Provider`, create and enable the AI provider you want to use
 
 2. **Create a Workspace**
 
-   Go to `Settings` → `Workspaces`, create a new workspace and select a local folder as the project root
+   Go to `Settings` → `Workspace`, create a new workspace and select a local folder as the project root
 
-   Default workspace: `~/.amon/workspaces`
+   Default workspace: `~/.amon/workspace`
 
 3. **Start Using**
 
    Return to the main screen, click `New Session`, select a workspace and start chatting
-
-#### Option 2: Claude Code Mode (Recommended for Development)
-
-If you have [Claude Code](https://github.com/anthropics/claude-code) installed with an API Key configured, you can enable Claude Code Mode for enhanced coding capabilities.
-
-**How to enable**: `Settings` → `Agent` → Enable `Claude Code Mode`
-
-**Mode Comparison**:
-
-| Feature | Standalone Mode | Claude Code Mode |
-|---------|----------------|-----------------|
-| Prompts | Amon default prompts | Inherits Claude Code prompts |
-| API Config | Manual configuration | Prioritizes Claude Code global config |
-| Skills | Local Skills | Shares Claude Code installed Skills |
-| Tool Permissions | Amon permission settings | Claude Code permission settings |
-| Use Case | General chat and tasks | Code development and engineering tasks |
 
 ## Development Guide
 
@@ -145,6 +106,9 @@ bun install            # Install dependencies
 bun start              # Start dev server (with hot reload)
 bun run lint           # Lint code
 bun run typecheck      # Type check
+bun run test           # Run tests
+bun run changeset      # Create a changeset
+bun run version        # Apply changesets and update CHANGELOG
 ```
 
 ### Build and Package
@@ -180,7 +144,7 @@ amon-agent/
 ├── resources/
 │   ├── icons/         # App icons
 │   └── [bun, uv]     # Runtime binaries
-├── skills/           # 16 built-in Skills
+├── skills/           # Built-in skills packaged with the app
 └── forge.config.ts    # Electron Forge configuration
 ```
 
@@ -203,7 +167,7 @@ Amon adopts a three-layer agent architecture, with each layer cleanly decoupled:
 
 - **AI Layer** (`src/ai/`) — Provider-agnostic streaming abstraction. Global provider registry with 4 built-in providers. Normalizes all responses into a unified `AssistantMessageEvent` stream.
 - **Agent Layer** (`src/agent/`) — Framework-agnostic `Agent` class. Dual-loop architecture: inner loop (LLM call -> tool execution -> steering check), outer loop (follow-up queue -> repeat). Tool input validated with Zod schemas.
-- **Integration Layer** (`src/main/agent/`) — Wires Agent into Electron. `AgentService` manages per-session agents. `EventAdapter` bridges agent events to session store mutations and push notifications.
+- **Integration Layer** (`src/main/agent/`) — Wires Agent into Electron. `AgentService` resolves providers, models, skills, and workspace bootstrap files per session. `EventAdapter` bridges agent events to session store mutations and push notifications.
 
 ## Tech Stack
 

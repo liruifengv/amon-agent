@@ -11,6 +11,8 @@ bun run lint               # ESLint
 bun run typecheck          # tsc --noEmit
 bun run test               # vitest run (tests in tests/**/*.test.ts)
 bun run test:watch         # vitest watch mode
+bun run changeset          # Create a release changeset
+bun run version            # Apply changesets and update CHANGELOG
 bun run package            # Build app package
 bun run make               # Build platform installers
 bun run download:binaries  # Download bundled runtime binaries (bun, uv) before packaging
@@ -35,6 +37,8 @@ Amon is an Electron desktop app (AI coding assistant) with four build targets, e
 
 **`src/main/agent/`** — Electron-specific integration. `AgentService` creates Agent instances per session, wires dependencies. `EventAdapter` bridges `AgentEvent` → `SessionStore` mutations → `PushService` calls.
 
+This architecture replaces the previous Claude Agent SDK-based runtime. Do not look for SDK orchestration code in the main process; the agent core now lives in `src/ai/` and `src/agent/`.
+
 ### IPC Pattern
 
 Two-direction communication between main and renderer:
@@ -46,16 +50,17 @@ The preload script exposes `window.ipc` (request/response) and `window.push` (ev
 
 ### Service Wiring
 
-Manual constructor-based DI in `src/main/index.ts`. Services instantiated in order: `SessionStore` → `Persistence` → `ConfigStore` → `SkillsStore` → `ToolRegistry` → `PushService` → `EventAdapter` → `AgentService`. All injected into `registerIpcHandlers()` via `IpcDependencies` interface.
+Manual constructor-based DI in `src/main/index.ts`. Services instantiated in order: `SessionStore` → `Persistence` → `ConfigStore` → `SkillsStore` → `ToolRegistry` → `PushService` → `EventAdapter` → `AgentService`. `bridgeSessionStoreToPush()` subscribes store events before windows are created. All shared services are injected into `registerIpcHandlers()` via `IpcDependencies`.
 
 ### Data Flow
 
 ```
 User input → chatStore.sendMessage() → window.ipc.agent.sendMessage
-→ AgentService.sendMessage() → Agent.prompt() → agentLoop()
-→ streamSimple() → tool execution → AgentEvent
-→ EventAdapter → SessionStore (EventEmitter)
+→ AgentService.sendMessage() → resolve provider/model → load skills + workspace files
+→ buildSystemPrompt() → Agent.prompt() → agentLoop()
+→ AgentEvent → EventAdapter → SessionStore (messages)
 → bridgeSessionStoreToPush() → PushService → webContents.send
+→ AgentService / EventAdapter → PushService (run state + tool execution)
 → Renderer push listener → chatStore → React re-render
 ```
 
@@ -70,7 +75,8 @@ Zustand stores in `src/renderer/store/`: `chatStore` (messages, agent state, pus
 - **Validation**: Zod v4 for schemas (`src/shared/schemas.ts` for settings, `src/agent/types.ts` for tool input)
 - **i18n**: `i18next` with namespace JSON files in `src/locales/{en,zh}/`
 - **UI**: React 19 + Radix UI primitives + Tailwind CSS v4 + Shadcn components in `src/renderer/components/ui/`
-- **Settings migration**: Old format (`providers[]`, `agent.provider`) → new format (`agent.providerConfigs[]`, `agent.activeProviderId`). Migration in `parseSettings()` via `migrateSettings()` in `src/shared/schemas.ts`
-- **App data**: `~/.amon/` — `settings.json`, `sessions/` (JSONL persistence), `workspace/`
-- **Skills**: Loaded from multiple directories (built-in `skills/`, user-installed). YAML frontmatter metadata, formatted into system prompt via `formatSkillsForPrompt()`
+- **Runtime break**: The old Claude Agent SDK runtime is gone; new work should target the provider-agnostic agent core and main-process integration described above.
+- **Settings migration**: Old format (`providers[]`, `agent.provider`, `agent.model`) → new format (`agent.providerConfigs[]`, `agent.activeProviderId`, `agent.activeModelId`). Migration in `parseSettings()` is best-effort; deprecated fields like `thinkingBudget` and `customSystemPrompt` are removed.
+- **App data**: `~/.amon/` — `settings.json`, `sessions/` (JSONL persistence), `skills/`, `workspace/`
+- **Skills**: Built-in skills live in repo `skills/` and are indexed by `skills/index.json`. Default built-ins are installed to `~/.amon/skills` on first launch. Load order is system/project extra dirs (default `.claude`), then `~/.amon/skills`, then `<workspace>/.amon/skills`, with later entries overriding earlier ones.
 - **Tools**: 8 built-in tools registered in `createDefaultToolRegistry()` at `src/main/tools/tool-registry.ts` (bash, read, write, edit, glob, grep, web-fetch, web-search)
