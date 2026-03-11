@@ -24,7 +24,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiType: 'openai-completions',
     provider: 'openai',
     icon: 'OpenAI',
-    defaultModels: ['gpt-5', 'gpt-5-mini', 'o4-mini', 'gpt-4.1'],
+    defaultModels: ['gpt-5.2', 'gpt-5.3-codex', 'gpt-5.4'],
   },
   {
     id: 'openai-responses',
@@ -32,7 +32,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiType: 'openai-responses',
     provider: 'openai',
     icon: 'OpenAI',
-    defaultModels: ['gpt-5', 'gpt-5-mini', 'o4-mini', 'gpt-4.1'],
+    defaultModels: ['gpt-5.2', 'gpt-5.3-codex', 'gpt-5.4'],
   },
   {
     id: 'gemini',

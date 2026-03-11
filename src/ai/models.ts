@@ -56,7 +56,7 @@ export function supportsXhigh<TApi extends Api>(model: Model<TApi>): boolean {
 	}
 
 	if (model.api === "openai-responses" || model.api === "openai-completions") {
-		return model.id.includes("gpt-5");
+		return model.id.startsWith("gpt-5");
 	}
 
 	return false;
