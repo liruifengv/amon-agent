@@ -1,5 +1,21 @@
 # amon-agent
 
+## 0.2.3
+
+### Patch Changes
+
+- [`e97da9f`](https://github.com/liruifengv/amon-agent/commit/e97da9f0f19a2477ed8756844d53e16dc8f00e4b) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix external image rendering in markdown and enable proper file download
+
+  - Updated CSP `img-src` to allow `https:` and `http:` sources so external markdown images render correctly
+  - Updated CSP `connect-src` to allow external fetch requests for image downloads
+  - Added CORS bypass via `session.webRequest.onHeadersReceived` to prevent cross-origin fetch failures
+  - Added `will-download` handler to show a save dialog instead of silently downloading or opening a new window
+
+- [`e98f3ed`](https://github.com/liruifengv/amon-agent/commit/e98f3ed3c16a3577f01f9dbb6be1dfd8c96b1153) Thanks [@liruifengv](https://github.com/liruifengv)! - Open external links in system default browser instead of Electron window
+
+  - Added `setWindowOpenHandler` to intercept `window.open()` and redirect http/https links to the system browser via `shell.openExternal`
+  - Disabled Streamdown's built-in link safety modal (`linkSafety: { enabled: false }`) since links are now handled by the OS
+
 ## 0.2.2
 
 ### Patch Changes
