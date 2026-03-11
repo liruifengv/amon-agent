@@ -6,6 +6,8 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses';
 import { FuseV1Options, FuseVersion } from '@electron/fuses';
 import { PublisherGithub } from '@electron-forge/publisher-github';
 import { spawnSync } from 'child_process';
+import { cpSync, mkdirSync } from 'fs';
+import path from 'path';
 
 const config: ForgeConfig = {
   packagerConfig: {
@@ -73,7 +75,27 @@ const config: ForgeConfig = {
       }
     },
     packageAfterCopy: async (_config, _buildPath) => {
-      // Reserved for future post-copy hooks
+      const buildPath = _buildPath;
+      const appNodeModules = path.join(buildPath, 'node_modules');
+      const sourceNodeModules = path.join(process.cwd(), 'node_modules');
+
+      mkdirSync(appNodeModules, { recursive: true });
+
+      const copyRuntimePackage = (packageName: string, runtimePaths: string[]) => {
+        const sourceDir = path.join(sourceNodeModules, packageName);
+        const targetDir = path.join(appNodeModules, packageName);
+        mkdirSync(targetDir, { recursive: true });
+        for (const runtimePath of runtimePaths) {
+          cpSync(
+            path.join(sourceDir, runtimePath),
+            path.join(targetDir, runtimePath),
+            { recursive: true },
+          );
+        }
+      };
+
+      copyRuntimePackage('turndown', ['package.json', 'lib']);
+      copyRuntimePackage('@mixmark-io/domino', ['package.json', 'lib']);
     },
   },
   plugins: [

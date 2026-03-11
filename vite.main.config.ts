@@ -14,6 +14,11 @@ export default defineConfig({
   build: {
     rollupOptions: {
       external: [
+        // Keep turndown as a runtime dependency so its Node-side parser deps
+        // are packaged instead of being hidden inside the main bundle.
+        'turndown',
+        // turndown lazily requires domino in the Electron main process
+        '@mixmark-io/domino',
         // ws optional native deps
         'bufferutil',
         'utf-8-validate',

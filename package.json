@@ -67,6 +67,7 @@
     "vitest": "^4.0.18"
   },
   "dependencies": {
+    "@mixmark-io/domino": "^2.2.0",
     "@anthropic-ai/sdk": "^0.78.0",
     "@google/genai": "^1.43.0",
     "@lobehub/icons": "^4.6.0",
