@@ -1,5 +1,25 @@
 # amon-agent
 
+## 0.3.2
+
+### Patch Changes
+
+- [`2c787ba`](https://github.com/liruifengv/amon-agent/commit/2c787ba9b6e79f94acecaae0f1d2069a1f1dcc2a) Thanks [@liruifengv](https://github.com/liruifengv)! - Tighten chat message layout so assistant content stays within the message column.
+
+  - constrain assistant turns and tool groups to the chat content width
+  - prevent long tool summaries and markdown content from stretching the message area
+
+- [`487b55f`](https://github.com/liruifengv/amon-agent/commit/487b55f2d8d6514779f0c55afe762bfc1abb6ffd) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix thinking blocks so completed reasoning collapses automatically in chat.
+
+  - treat only the actively streaming last thinking block as expanded
+  - collapse completed thinking content automatically after streaming ends
+
+- [`ac2df1c`](https://github.com/liruifengv/amon-agent/commit/ac2df1c9d7521b9e0a1292bf3bc592300b418be1) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix token usage accounting and display for assistant responses.
+
+  - Align OpenAI Completions and Gemini token mapping with the current app behavior
+  - Fix assistant turn token usage display so merged responses show the intended request usage
+  - Fix context window usage to avoid flashing to zero while streaming and use total context occupancy when available
+
 ## 0.3.1
 
 ### Patch Changes
