@@ -1,5 +1,27 @@
 # amon-agent
 
+## 0.3.3
+
+### Patch Changes
+
+- [`9dab963`](https://github.com/liruifengv/amon-agent/commit/9dab963eb0c3f6e1a3e67b538a22bb3845952020) Thanks [@liruifengv](https://github.com/liruifengv)! - Add tool approval modes and in-chat permission requests.
+
+  - add `ask`, `auto-edit`, and `yolo` approval modes for sessions, plus a global default approval mode in settings
+  - gate tool execution through the main-process approval flow and surface pending approvals in the chat input area
+  - show tool-specific permission details, including diff previews for `Write` and `Edit` requests
+
+- [`33bfeb5`](https://github.com/liruifengv/amon-agent/commit/33bfeb5ad6aa10edf90b0f7a37039228e5fa0f30) Thanks [@liruifengv](https://github.com/liruifengv)! - Add unit test coverage for the built-in tool stack.
+
+  - cover `ToolRegistry` registration, validation, and error handling paths
+  - add file-system tool tests for `Read`, `Write`, `Edit`, and `Glob`
+  - add mocked tests for `Grep`, `WebFetch`, and `WebSearch` behaviors
+
+- [`a3914b1`](https://github.com/liruifengv/amon-agent/commit/a3914b13e55f985854e8d99465d619366b0424ff) Thanks [@liruifengv](https://github.com/liruifengv)! - Add unit tests for main-process execution, persistence, and state bridging.
+
+  - cover `Bash` tool execution paths including abort, timeout, exit codes, and truncated output
+  - add tests for `Persistence`, `SessionStore`, `EventAdapter`, and push bridging behavior
+  - add `ConfigStore` tests for caching, deep merges, atomic writes, and API key resolution
+
 ## 0.3.2
 
 ### Patch Changes
