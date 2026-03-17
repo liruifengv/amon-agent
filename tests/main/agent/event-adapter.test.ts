@@ -87,6 +87,101 @@ describe('EventAdapter', () => {
     });
   });
 
+  it('maps question tool updates to push events and awaiting state', () => {
+    const store = createSessionStoreWithSession();
+    const pushToolExecution = vi.fn();
+    const pushQuestionRequested = vi.fn();
+    const pushQuestionResolved = vi.fn();
+    const adapter = new EventAdapter(store, {
+      pushToolExecution,
+      pushQuestionRequested,
+      pushQuestionResolved,
+    } as unknown as PushService);
+
+    adapter.handleEvent('s1', {
+      type: 'tool_execution_update',
+      toolCallId: 'tc-1',
+      toolName: 'AskUserQuestion',
+      args: {},
+      partialResult: {
+        details: {
+          type: 'question_request',
+          request: {
+            id: 'q-1',
+            sessionId: 's1',
+            toolCallId: 'tc-1',
+            toolName: 'AskUserQuestion',
+            question: 'Need an answer?',
+            allowCustomAnswer: true,
+            createdAt: 100,
+          },
+        },
+      },
+    });
+
+    adapter.handleEvent('s1', {
+      type: 'tool_execution_update',
+      toolCallId: 'tc-1',
+      toolName: 'AskUserQuestion',
+      args: {},
+      partialResult: {
+        details: {
+          type: 'question_resolved',
+          requestId: 'q-1',
+          outcome: 'answered',
+          answer: 'yes',
+        },
+      },
+    });
+
+    adapter.handleEvent('s1', {
+      type: 'tool_execution_update',
+      toolCallId: 'tc-2',
+      toolName: 'AskUserQuestion',
+      args: {},
+      partialResult: {
+        details: {
+          type: 'question_resolved',
+          requestId: 'q-2',
+          outcome: 'dismissed',
+        },
+      },
+    });
+
+    expect(pushQuestionRequested).toHaveBeenCalledWith(expect.objectContaining({
+      id: 'q-1',
+      sessionId: 's1',
+    }));
+    expect(pushToolExecution).toHaveBeenNthCalledWith(1, 's1', 'tc-1', {
+      toolName: 'AskUserQuestion',
+      status: 'awaiting_user_input',
+    });
+    expect(pushQuestionResolved).toHaveBeenNthCalledWith(1, {
+      requestId: 'q-1',
+      sessionId: 's1',
+      toolCallId: 'tc-1',
+      outcome: 'answered',
+      answer: 'yes',
+    });
+    expect(pushToolExecution).toHaveBeenNthCalledWith(2, 's1', 'tc-1', {
+      toolName: 'AskUserQuestion',
+      status: 'running',
+      isError: false,
+    });
+    expect(pushQuestionResolved).toHaveBeenNthCalledWith(2, {
+      requestId: 'q-2',
+      sessionId: 's1',
+      toolCallId: 'tc-2',
+      outcome: 'dismissed',
+      answer: undefined,
+    });
+    expect(pushToolExecution).toHaveBeenNthCalledWith(3, 's1', 'tc-2', {
+      toolName: 'AskUserQuestion',
+      status: 'error',
+      isError: true,
+    });
+  });
+
   it('clears streaming state on agent end so later updates are ignored', () => {
     const store = createSessionStoreWithSession();
     const adapter = new EventAdapter(store, { pushToolExecution: vi.fn() } as unknown as PushService);

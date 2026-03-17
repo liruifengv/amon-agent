@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ToolRegistry, createDefaultToolRegistry } from '@/main/tools/tool-registry';
+import { QuestionService } from '@/main/questions/question-service';
 import type { ToolContext } from '@/main/tools/types';
 
 function createContext(): ToolContext {
@@ -105,9 +106,10 @@ describe('createDefaultToolRegistry', () => {
   it('registers all built-in tools', () => {
     const registry = createDefaultToolRegistry({
       getSettings: vi.fn().mockResolvedValue({ agent: {} }),
-    });
+    }, new QuestionService());
 
     expect(registry.getAll().map((tool) => tool.name).sort()).toEqual([
+      'AskUserQuestion',
       'Bash',
       'Edit',
       'Glob',

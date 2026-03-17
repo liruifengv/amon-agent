@@ -16,6 +16,7 @@ import { SkillsStore } from './skills';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import { handleBeforeQuit, handleWindowAllClosed, shouldHideMainWindowOnClose } from './lifecycle';
 import { ApprovalService } from './permissions/approval-service';
+import { QuestionService } from './questions/question-service';
 import { AuthStore, OpenAICodexAuthStrategy, ProviderAuthService, SecureStorage } from './auth';
 import type { Shortcuts } from '@shared/schemas';
 import type { Session } from '@shared/types';
@@ -44,10 +45,11 @@ const sessionStore = new SessionStore();
 const persistence = new Persistence(SESSIONS_DIR);
 const configStore = new ConfigStore(SETTINGS_PATH);
 const skillsStore = new SkillsStore(configStore);
-const toolRegistry = createDefaultToolRegistry(configStore);
 const pushService = new PushService();
 const eventAdapter = new EventAdapter(sessionStore, pushService);
 const approvalService = new ApprovalService();
+const questionService = new QuestionService();
+const toolRegistry = createDefaultToolRegistry(configStore, questionService);
 const authStore = new AuthStore(new SecureStorage(AUTH_SESSIONS_PATH, safeStorage));
 const providerAuthService = new ProviderAuthService({
   configStore,
@@ -393,6 +395,7 @@ app.on('ready', async () => {
     eventAdapter,
     pushService,
     approvalService,
+    questionService,
     dataDir: DATA_DIR,
     defaultWorkspace: DEFAULT_WORKSPACE,
   });
@@ -407,6 +410,7 @@ app.on('ready', async () => {
     pushService,
     skillsStore,
     approvalService,
+    questionService,
     getMainWindow: () => mainWindow,
     getSettingsWindow: () => settingsWindow,
     createSettingsWindow: (tab?: string) => openSettingsWindow(tab),

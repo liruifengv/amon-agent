@@ -9,7 +9,7 @@ import {
   type Message,
 } from '../../ai';
 import type { ToolRegistry } from '../tools/tool-registry';
-import type { Tool } from '../tools/types';
+import type { Tool, ToolResult } from '../tools/types';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
@@ -21,11 +21,13 @@ import type { ProviderConfig } from '@shared/schemas';
 import type { ImageAttachment } from '@shared/types';
 import type { ApprovalMode } from '@shared/permission-types';
 import type { ResolvedRequestAuth } from '@shared/provider-auth';
+import type { QuestionToolUpdate } from '@shared/question-types';
 import { buildSystemPrompt } from './system-prompt';
 import { loadGlobalUserFiles, loadProjectAgentsFile } from '../workspace';
 import { formatSkillsForPrompt } from '../skills';
 import { ApprovalService } from '../permissions/approval-service';
 import { PermissionedToolExecutor } from '../permissions/tool-executor';
+import type { QuestionService } from '../questions/question-service';
 
 // ==================== Types ====================
 
@@ -39,6 +41,7 @@ interface AgentServiceDeps {
   eventAdapter: EventAdapter;
   pushService: PushService;
   approvalService: ApprovalService;
+  questionService: QuestionService;
   dataDir: string;
   defaultWorkspace: string;
 }
@@ -71,6 +74,29 @@ function resolveModel(config: ProviderConfig): Model<any> {
 
 // ==================== Tool Wrapping ====================
 
+function buildToolDetails(result: ToolResult): Record<string, unknown> {
+  if (result.details && typeof result.details === 'object' && !Array.isArray(result.details)) {
+    return {
+      ...(result.details as Record<string, unknown>),
+      output: result.output,
+      isError: result.isError,
+    };
+  }
+
+  if (result.details !== undefined) {
+    return {
+      output: result.output,
+      isError: result.isError,
+      data: result.details,
+    };
+  }
+
+  return {
+    output: result.output,
+    isError: result.isError,
+  };
+}
+
 function wrapTool(
   tool: Tool<any>,
   options: {
@@ -85,22 +111,35 @@ function wrapTool(
     label: tool.name,
     inputSchema: tool.inputSchema,
     execute: async (toolCallId, input, ctx) => {
-      const result = await options.toolExecutor.execute(tool, input, {
+      const toolContext = {
         sessionId: options.sessionId,
         toolCallId,
-        mode: options.defaultApprovalMode,
         cwd: ctx.cwd,
         signal: ctx.signal ?? new AbortController().signal,
-        onPermissionUpdate: (update) => {
+        onQuestionUpdate: (update: QuestionToolUpdate) => {
           ctx.onUpdate?.({
             content: [],
             details: update,
           });
         },
-      });
+      };
+
+      const result = tool.name === 'AskUserQuestion'
+        ? await tool.execute(input, toolContext)
+        : await options.toolExecutor.execute(tool, input, {
+          ...toolContext,
+          mode: options.defaultApprovalMode,
+          onPermissionUpdate: (update) => {
+            ctx.onUpdate?.({
+              content: [],
+              details: update,
+            });
+          },
+        });
+
       return {
         content: [{ type: 'text', text: result.output }],
-        details: { output: result.output, isError: result.isError },
+        details: buildToolDetails(result),
       };
     },
   };
@@ -248,6 +287,7 @@ export class AgentService {
 
   abort(sessionId: string): void {
     this.deps.approvalService.rejectAllForSession(sessionId);
+    this.deps.questionService.rejectAllForSession(sessionId);
     this.agents.get(sessionId)?.abort();
   }
 

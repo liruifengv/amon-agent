@@ -8,6 +8,8 @@ import { grepTool } from './grep-tool';
 import { webFetchTool } from './web-fetch-tool';
 import { createWebSearchTool } from './web-search-tool';
 import type { ConfigStoreLike } from './web-search-tool';
+import { createAskUserQuestionTool } from './ask-user-question-tool';
+import type { QuestionService } from '../questions/question-service';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTool = Tool<any>;
@@ -68,7 +70,10 @@ export class ToolRegistry {
 /**
  * Create a ToolRegistry pre-loaded with all built-in tools.
  */
-export function createDefaultToolRegistry(configStore: ConfigStoreLike): ToolRegistry {
+export function createDefaultToolRegistry(
+  configStore: ConfigStoreLike,
+  questionService: QuestionService,
+): ToolRegistry {
   const registry = new ToolRegistry();
   registry.register(bashTool);
   registry.register(readTool);
@@ -76,6 +81,7 @@ export function createDefaultToolRegistry(configStore: ConfigStoreLike): ToolReg
   registry.register(editTool);
   registry.register(globTool);
   registry.register(grepTool);
+  registry.register(createAskUserQuestionTool(questionService));
   registry.register(webFetchTool);
   registry.register(createWebSearchTool(configStore));
   return registry;

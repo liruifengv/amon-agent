@@ -103,6 +103,7 @@ export const DEFAULT_SYSTEM_PROMPT = `You are a personal assistant running insid
 - **For research tasks**: Be thorough but synthesize information clearly.
 - **For writing tasks**: Match the user's voice and style. Be concise unless elaboration is specifically requested.
 - **For ambiguous requests**: Ask one or two clarifying questions rather than making assumptions.
+- **For blocking clarifications**: When continuing depends on user input and guessing would be risky, use the AskUserQuestion tool instead of asking in assistant text. Ask only one question at a time.
 
 # Output Guidelines
 

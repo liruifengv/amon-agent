@@ -3,6 +3,7 @@ import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
 import type { Session, ImageAttachment, Skill, SkillInfo } from '@shared/types';
 import type { Settings } from '@shared/schemas';
 import type { ApprovalMode, PermissionDecision } from '@shared/permission-types';
+import type { QuestionResponse } from '@shared/question-types';
 import type { AgentService } from '../agent/agent-service';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
@@ -10,6 +11,7 @@ import type { ConfigStore } from '../store/config-store';
 import type { PushService } from './push';
 import type { SkillsStore } from '../skills';
 import type { ApprovalService } from '../permissions/approval-service';
+import type { QuestionService } from '../questions/question-service';
 import type { ProviderAuthService } from '../auth';
 import { nanoid } from 'nanoid';
 import path from 'path';
@@ -34,6 +36,7 @@ export interface IpcDependencies {
   pushService: PushService;
   skillsStore: SkillsStore;
   approvalService: ApprovalService;
+  questionService: QuestionService;
   getMainWindow: () => BrowserWindow | null;
   getSettingsWindow: () => BrowserWindow | null;
   createSettingsWindow: (tab?: string) => void;
@@ -89,6 +92,7 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   registerSettingsHandlers(deps);
   registerProviderAuthHandlers(deps);
   registerPermissionHandlers(deps);
+  registerQuestionHandlers(deps);
   registerSystemHandlers(deps);
   registerWorkspaceHandlers(deps);
   registerDialogHandlers();
@@ -202,6 +206,21 @@ function registerPermissionHandlers(deps: IpcDependencies): void {
     const request = deps.approvalService.respond(
       requestId as string,
       decision as PermissionDecision,
+    );
+
+    if (!request) {
+      return { success: false };
+    }
+
+    return { success: true };
+  });
+}
+
+function registerQuestionHandlers(deps: IpcDependencies): void {
+  handle('question.respond', async (requestId: unknown, response: unknown) => {
+    const request = deps.questionService.respond(
+      requestId as string,
+      response as QuestionResponse,
     );
 
     if (!request) {

@@ -55,6 +55,10 @@ export function evaluatePermissionPolicy(input: {
 }): PermissionPolicyDecision {
   const { mode, toolName, toolInput, cwd } = input;
 
+  if (toolName === 'AskUserQuestion') {
+    return 'allow';
+  }
+
   if (mode === 'yolo') {
     return 'allow';
   }

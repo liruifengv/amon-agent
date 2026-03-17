@@ -10,6 +10,7 @@
     "webSearch": "Web Search",
     "runTask": "Run Task",
     "updateTodos": "Update Todos",
+    "askUserQuestion": "Ask User",
     "unknownTool": "Unknown Tool",
     "input": "Input",
     "output": "Output",
@@ -18,6 +19,7 @@
     "executing": "Executing...",
     "waiting": "Waiting...",
     "awaitingApproval": "Awaiting approval...",
+    "awaitingUserInput": "Awaiting user input...",
     "toolUse": "Tool Use",
     "toolCount_one": "{{count}} tool",
     "toolCount_other": "{{count}} tools"
@@ -37,6 +39,14 @@
     "answer": "Answer:",
     "notAnswered": "Not Answered",
     "answerSummary": "{{answer}} and {{count}} more answers"
+  },
+  "questionResult": {
+    "question": "Question",
+    "context": "Context",
+    "options": "Options",
+    "answer": "Answer",
+    "noAnswer": "No answer",
+    "dismissedByUser": "Dismissed by user"
   },
   "planApproval": {
     "waitingApproval": "Waiting for Approval",

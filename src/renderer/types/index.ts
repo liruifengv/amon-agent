@@ -19,6 +19,12 @@ export type {
   PermissionRequest,
   PermissionResolved,
 } from '../../shared/permission-types';
+export type {
+  QuestionOption,
+  QuestionRequest,
+  QuestionResponse,
+  QuestionResolved,
+} from '../../shared/question-types';
 
 // 从 ai 类型重新导出（经由 shared/types）
 export type {
@@ -66,6 +72,7 @@ export interface IpcAPI {
   dialog: IpcProxy;
   skills: IpcProxy;
   permission: IpcProxy;
+  question: IpcProxy;
 }
 
 export interface PushAPI {

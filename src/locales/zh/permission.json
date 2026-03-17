@@ -23,7 +23,7 @@
   "allow": "允许",
   "userDeniedOperation": "用户拒绝了此操作",
   "askUserQuestion": {
-    "claudeNeedsInput": "Claude 需要您的输入",
+    "claudeNeedsInput": "Amon 需要您的输入",
     "questionProgress": "问题 {{current}}/{{total}}",
     "other": "其他",
     "enterAnswer": "输入回答...",

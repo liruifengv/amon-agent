@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron';
 import type { Session, AgentRunState, ToolExecutionState } from '@shared/types';
 import type { PermissionRequest, PermissionResolved } from '@shared/permission-types';
+import type { QuestionRequest, QuestionResolved } from '@shared/question-types';
 import type { Message } from '../../ai/types';
 import type { PushEventMap } from '@shared/ipc-types';
 import type { SessionStore } from '../store/session-store';
@@ -37,6 +38,14 @@ export class PushService {
 
   pushPermissionResolved(resolution: PermissionResolved): void {
     this.push('push:permissionResolved', resolution);
+  }
+
+  pushQuestionRequested(request: QuestionRequest): void {
+    this.push('push:questionRequested', request);
+  }
+
+  pushQuestionResolved(resolution: QuestionResolved): void {
+    this.push('push:questionResolved', resolution);
   }
 
   pushSessionCreated(session: Session): void {

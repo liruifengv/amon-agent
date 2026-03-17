@@ -60,6 +60,9 @@ const ipc = {
   permission: {
     respond: (...args: unknown[]) => invoke('permission.respond', ...args),
   },
+  question: {
+    respond: (...args: unknown[]) => invoke('question.respond', ...args),
+  },
 };
 
 // ==================== Push Layer (Main -> Renderer) ====================

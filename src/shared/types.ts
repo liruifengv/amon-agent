@@ -68,7 +68,7 @@ export interface AgentRunState {
 
 export interface ToolExecutionState {
   toolName: string;
-  status: 'pending' | 'awaiting_approval' | 'running' | 'completed' | 'error';
+  status: 'pending' | 'awaiting_approval' | 'awaiting_user_input' | 'running' | 'completed' | 'error';
   partialResult?: string;
   isError?: boolean;
 }

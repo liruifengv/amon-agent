@@ -13,6 +13,7 @@ import {
 	DEFAULT_WORKSPACE_PATH,
 	SCROLL_DELAY_MS,
 	LOG_DATA_TRUNCATE_LENGTH,
+  DEFAULT_SYSTEM_PROMPT,
 } from "@/shared/constants";
 
 describe("filterBlockedHeaders", () => {
@@ -122,4 +123,8 @@ describe("constant values", () => {
 	it("LOG_DATA_TRUNCATE_LENGTH is 1000", () => {
 		expect(LOG_DATA_TRUNCATE_LENGTH).toBe(1000);
 	});
+
+  it("DEFAULT_SYSTEM_PROMPT mentions AskUserQuestion for blocking clarifications", () => {
+    expect(DEFAULT_SYSTEM_PROMPT).toContain("AskUserQuestion tool");
+  });
 });

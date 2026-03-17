@@ -1,5 +1,6 @@
 import type { AgentEvent, AgentMessage } from '../../agent';
 import { isPermissionToolUpdate } from '@shared/permission-types';
+import { isQuestionToolUpdate } from '@shared/question-types';
 import type { SessionStore } from '../store/session-store';
 import type { PushService } from '../ipc/push';
 
@@ -79,6 +80,32 @@ export class EventAdapter {
             });
             break;
           }
+
+          const questionUpdate = getQuestionUpdateDetails(event.partialResult);
+          if (questionUpdate) {
+            if (questionUpdate.type === 'question_request') {
+              this.pushService.pushQuestionRequested(questionUpdate.request);
+              this.pushService.pushToolExecution(sessionId, event.toolCallId, {
+                toolName: event.toolName,
+                status: 'awaiting_user_input',
+              });
+              break;
+            }
+
+            this.pushService.pushQuestionResolved({
+              requestId: questionUpdate.requestId,
+              sessionId,
+              toolCallId: event.toolCallId,
+              outcome: questionUpdate.outcome,
+              answer: questionUpdate.answer,
+            });
+            this.pushService.pushToolExecution(sessionId, event.toolCallId, {
+              toolName: event.toolName,
+              status: questionUpdate.outcome === 'answered' ? 'running' : 'error',
+              isError: questionUpdate.outcome === 'dismissed',
+            });
+            break;
+          }
         }
 
         this.pushService.pushToolExecution(sessionId, event.toolCallId, {
@@ -125,4 +152,13 @@ function getPermissionUpdateDetails(value: unknown) {
 
   const details = (value as { details?: unknown }).details;
   return isPermissionToolUpdate(details) ? details : null;
+}
+
+function getQuestionUpdateDetails(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const details = (value as { details?: unknown }).details;
+  return isQuestionToolUpdate(details) ? details : null;
 }

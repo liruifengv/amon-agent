@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ToolCall, ToolResultMessage } from '../../../types';
+import type { QuestionOption, ToolCall, ToolResultMessage } from '../../../types';
 import { useChatStore } from '../../../store/chatStore';
 import {
   FileText,
@@ -17,6 +17,7 @@ import {
   X,
   Loader2,
   ShieldAlert,
+  AlertTriangle,
 } from 'lucide-react';
 import { CodeBlockContent } from '../../ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
@@ -116,6 +117,36 @@ function truncateFilePath(filePath: string, workspace?: string): string {
   return filePath;
 }
 
+interface AskUserQuestionResultDetails {
+  question?: string;
+  context?: string;
+  options?: QuestionOption[];
+  answer?: string;
+  dismissed?: boolean;
+}
+
+function getAskUserQuestionArgs(args: Record<string, any>): {
+  question: string;
+  context?: string;
+  options?: QuestionOption[];
+  allowCustomAnswer: boolean;
+} {
+  return {
+    question: String(args.question || ''),
+    context: typeof args.context === 'string' && args.context.trim().length > 0 ? args.context : undefined,
+    options: Array.isArray(args.options) ? args.options as QuestionOption[] : undefined,
+    allowCustomAnswer: args.allowCustomAnswer !== false,
+  };
+}
+
+function getAskUserQuestionDetails(details: unknown): AskUserQuestionResultDetails | null {
+  if (!details || typeof details !== 'object') {
+    return null;
+  }
+
+  return details as AskUserQuestionResultDetails;
+}
+
 export interface ToolCallBlockProps {
   toolCall: ToolCall;
   isNested?: boolean;
@@ -133,6 +164,7 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   WebFetch: <Globe className="w-4 h-4" />,
   WebSearch: <Search className="w-4 h-4" />,
   Task: <ListTodo className="w-4 h-4" />,
+  AskUserQuestion: <AlertTriangle className="w-4 h-4" />,
 };
 
 // 工具显示名称 i18n key 映射
@@ -147,6 +179,7 @@ const TOOL_DISPLAY_NAME_KEYS: Record<string, string> = {
   WebSearch: 'tool.webSearch',
   Task: 'tool.runTask',
   TodoWrite: 'tool.updateTodos',
+  AskUserQuestion: 'tool.askUserQuestion',
 };
 
 /**
@@ -169,6 +202,8 @@ function getInputSummary(name: string, args: Record<string, any>): string {
       return String(args.url || '');
     case 'WebSearch':
       return String(args.query || '');
+    case 'AskUserQuestion':
+      return String(args.question || '');
     case 'Task':
       return String(args.description || '');
     default:
@@ -294,6 +329,64 @@ const DefaultInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) 
   );
 };
 
+const AskUserQuestionInputContent: React.FC<{ args: Record<string, any> }> = ({ args }) => {
+  const { t } = useTranslation('message');
+  const questionArgs = getAskUserQuestionArgs(args);
+
+  return (
+    <div className="space-y-3 px-3 py-2">
+      <div className="space-y-1">
+        <div className="text-xs font-medium text-muted-foreground">{t('questionResult.question')}</div>
+        <div className="text-sm text-foreground">{questionArgs.question}</div>
+      </div>
+      {questionArgs.context && (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('questionResult.context')}</div>
+          <div className="text-sm text-muted-foreground">{questionArgs.context}</div>
+        </div>
+      )}
+      {questionArgs.options && questionArgs.options.length > 0 && (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('questionResult.options')}</div>
+          <div className="flex flex-wrap gap-2">
+            {questionArgs.options.map((option) => (
+              <span
+                key={option.label}
+                className="rounded-full border border-border px-2.5 py-1 text-xs text-foreground"
+              >
+                {option.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AskUserQuestionResultContent: React.FC<{ details: AskUserQuestionResultDetails | null }> = ({ details }) => {
+  const { t } = useTranslation('message');
+
+  if (!details) {
+    return null;
+  }
+
+  return (
+    <div className="border-t border-inherit px-3 py-2">
+      {details.dismissed ? (
+        <div className="text-sm text-muted-foreground">
+          {t('questionResult.dismissedByUser')}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          <div className="text-xs font-medium text-muted-foreground">{t('questionResult.answer')}</div>
+          <div className="text-sm text-foreground">{details.answer || t('questionResult.noAnswer')}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = false, sessionId }) => {
   const { t } = useTranslation('message');
   // 从 chatStore 获取工具调用的运行时状态（流式期间可用）
@@ -301,18 +394,20 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
 
   // 从消息列表推断历史工具调用的完成状态
   const messages = useChatStore((state) => state.getMessages(sessionId));
+  const toolResult = useMemo(() => messages.find(
+    (m) => m.role === 'toolResult' && (m as ToolResultMessage).toolCallId === toolCall.id
+  ) as ToolResultMessage | undefined, [messages, toolCall.id]);
   const derivedStatus = useMemo(() => {
     if (toolExecution?.status) return toolExecution.status;
-    // 查找匹配的 ToolResultMessage
-    const result = messages.find(
-      (m) => m.role === 'toolResult' && (m as ToolResultMessage).toolCallId === toolCall.id
-    ) as ToolResultMessage | undefined;
-    if (result) return result.isError ? 'error' : 'completed';
+    if (toolResult) return toolResult.isError ? 'error' : 'completed';
     return 'pending';
-  }, [toolExecution?.status, messages, toolCall.id]);
+  }, [toolExecution?.status, toolResult]);
 
   const status = derivedStatus;
   const isError = toolExecution?.isError ?? (derivedStatus === 'error');
+  const askUserQuestionDetails = toolCall.name === 'AskUserQuestion'
+    ? getAskUserQuestionDetails(toolResult?.details)
+    : null;
 
   // Write 和 Edit 工具：内容到齐后自动展开
   const isStandaloneTool = toolCall.name === 'Write' || toolCall.name === 'Edit';
@@ -334,6 +429,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
   const statusIcon = {
     pending: <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />,
     awaiting_approval: <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />,
+    awaiting_user_input: <AlertTriangle className="w-3.5 h-3.5 text-sky-500" />,
     running: <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />,
     completed: <Check className="w-3.5 h-3.5 text-green-500" />,
     error: <X className="w-3.5 h-3.5 text-red-500" />,
@@ -352,6 +448,8 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
         return <WriteInputContent args={toolCall.arguments as Record<string, any>} />;
       case 'Edit':
         return <EditInputContent args={toolCall.arguments as Record<string, any>} />;
+      case 'AskUserQuestion':
+        return <AskUserQuestionInputContent args={toolCall.arguments as Record<string, any>} />;
       default:
         return <DefaultInputContent args={toolCall.arguments as Record<string, any>} />;
     }
@@ -401,12 +499,18 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
           {/* 输入参数 - 根据工具类型显示不同内容 */}
           {renderInputContent()}
 
+          {toolCall.name === 'AskUserQuestion' && status !== 'awaiting_user_input' && (
+            <AskUserQuestionResultContent details={askUserQuestionDetails} />
+          )}
+
           {/* 运行中状态提示 */}
-          {(status === 'running' || status === 'pending' || status === 'awaiting_approval') && (
+          {(status === 'running' || status === 'pending' || status === 'awaiting_approval' || status === 'awaiting_user_input') && (
             <div className="px-3 py-2 border-t border-inherit">
               <div className="text-xs text-muted-foreground flex items-center gap-2">
                 {status === 'awaiting_approval' ? (
                   <ShieldAlert className="w-3 h-3 text-amber-500" />
+                ) : status === 'awaiting_user_input' ? (
+                  <AlertTriangle className="w-3 h-3 text-sky-500" />
                 ) : (
                   <Loader2 className="w-3 h-3 animate-spin" />
                 )}
@@ -414,6 +518,8 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
                   ? t('tool.executing')
                   : status === 'awaiting_approval'
                     ? t('tool.awaitingApproval')
+                    : status === 'awaiting_user_input'
+                      ? t('tool.awaitingUserInput')
                     : t('tool.waiting')}
               </div>
             </div>

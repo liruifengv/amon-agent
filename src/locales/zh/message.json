@@ -10,6 +10,7 @@
     "webSearch": "网络搜索",
     "runTask": "运行任务",
     "updateTodos": "更新任务",
+    "askUserQuestion": "向用户提问",
     "unknownTool": "未知工具",
     "input": "输入",
     "output": "输出",
@@ -18,6 +19,7 @@
     "executing": "执行中...",
     "waiting": "等待中...",
     "awaitingApproval": "等待批准...",
+    "awaitingUserInput": "等待用户输入...",
     "toolUse": "工具调用",
     "toolCount_one": "{{count}} 个工具",
     "toolCount_other": "{{count}} 个工具"
@@ -37,6 +39,14 @@
     "answer": "回答:",
     "notAnswered": "未回答",
     "answerSummary": "{{answer}} 等 {{count}} 个回答"
+  },
+  "questionResult": {
+    "question": "问题",
+    "context": "上下文",
+    "options": "选项",
+    "answer": "回答",
+    "noAnswer": "无回答",
+    "dismissedByUser": "用户已跳过"
   },
   "planApproval": {
     "waitingApproval": "等待审批",

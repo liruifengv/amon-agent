@@ -8,6 +8,7 @@ import { ImageAttachment, ImageMimeType } from '../../types';
 import { useFileMention, FileMentionPopover, InputHighlight } from './FileMention';
 import { ApprovalModeSelector } from './ApprovalModeSelector';
 import { PermissionRequestBanner } from './PermissionRequestBanner';
+import AskUserQuestionRequest from '../Permission/AskUserQuestionRequest';
 
 const MAX_IMAGES = 10;
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -228,6 +229,9 @@ const InputArea: React.FC<InputAreaProps> = ({ onMessageSent }) => {
         <div className="flex justify-end pb-1.5">
           <ContextUsageIndicator />
         </div>
+        {currentSessionId && (
+          <AskUserQuestionRequest sessionId={currentSessionId} />
+        )}
         {currentSessionId && (
           <PermissionRequestBanner sessionId={currentSessionId} />
         )}
