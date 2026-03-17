@@ -45,7 +45,7 @@
     "maxTurnsHint": "每条消息的最大工具调用轮数",
     "exaApiKey": "Exa API Key",
     "exaApiKeyHint": "非 Anthropic 提供商使用搜索需要此密钥。在 exa.ai 获取免费 API Key",
-    "noProviderConfigured": "尚未配置任何供应商的 API Key，请先配置至少一个供应商。",
+    "noProviderConfigured": "尚未配置或连接任何供应商，请先配置至少一个供应商。",
     "goToProviderSettings": "前往供应商设置"
   },
   "workspace": {
@@ -112,7 +112,13 @@
     "deleteProvider": "删除",
     "deleteConfirm": "确定要删除此供应商吗？",
     "emptyState": "尚未配置任何供应商。点击「新增供应商」开始配置。",
-    "activate": "激活"
+    "activate": "激活",
+    "connect": "连接",
+    "reconnect": "重新连接",
+    "disconnect": "断开连接",
+    "oauthConnection": "OAuth 连接",
+    "saveBeforeConnect": "点击连接时会先保存该供应商，然后开始 OAuth 登录。",
+    "notConnected": "未连接"
   },
   "systemPrompt": {
     "title": "系统提示词",

@@ -45,7 +45,7 @@
     "maxTurnsHint": "Maximum number of tool call turns per message",
     "exaApiKey": "Exa API Key",
     "exaApiKeyHint": "Required for web search with non-Anthropic providers. Get your free API key at exa.ai",
-    "noProviderConfigured": "No provider API key configured. Please configure at least one provider first.",
+    "noProviderConfigured": "No provider is configured or connected. Please configure at least one provider first.",
     "goToProviderSettings": "Go to Provider Settings"
   },
   "workspace": {
@@ -112,7 +112,13 @@
     "deleteProvider": "Delete",
     "deleteConfirm": "Are you sure you want to delete this provider?",
     "emptyState": "No providers configured yet. Click \"Add Provider\" to get started.",
-    "activate": "Activate"
+    "activate": "Activate",
+    "connect": "Connect",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "oauthConnection": "OAuth Connection",
+    "saveBeforeConnect": "Connecting will save this provider first, then start OAuth.",
+    "notConnected": "Not connected"
   },
   "systemPrompt": {
     "title": "System Prompt",

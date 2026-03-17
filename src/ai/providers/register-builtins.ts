@@ -1,6 +1,7 @@
 import { clearApiProviders, registerApiProvider } from "../api-registry";
 import { streamAnthropic, streamSimpleAnthropic } from "./anthropic";
 import { streamGoogle, streamSimpleGoogle } from "./google";
+import { streamOpenAICodexResponses, streamSimpleOpenAICodexResponses } from "./openai-codex-responses";
 import { streamOpenAICompletions, streamSimpleOpenAICompletions } from "./openai-completions";
 import { streamOpenAIResponses, streamSimpleOpenAIResponses } from "./openai-responses";
 
@@ -21,6 +22,12 @@ export function registerBuiltinProviders(): void {
 		api: "openai-responses",
 		stream: streamOpenAIResponses,
 		streamSimple: streamSimpleOpenAIResponses,
+	});
+
+	registerApiProvider({
+		api: "openai-codex-responses",
+		stream: streamOpenAICodexResponses,
+		streamSimple: streamSimpleOpenAICodexResponses,
 	});
 
 	registerApiProvider({

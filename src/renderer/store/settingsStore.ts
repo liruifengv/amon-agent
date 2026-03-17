@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Settings, AgentSettings } from '../types';
+import type { Settings, AgentSettings, ProviderAuthStatus } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 import i18n from '../i18n';
 
@@ -10,9 +10,11 @@ interface SettingsState {
   saveError: { field: string; message: string }[] | null;
   isSaving: boolean;
   hasChanges: boolean; // 是否有未保存的变更
+  providerAuthStatuses: Record<string, ProviderAuthStatus>;
 
   // Actions
   setSettings: (settings: Settings) => void;
+  setProviderAuthStatus: (status: ProviderAuthStatus) => void;
   setFormData: (updates: Partial<Settings>) => void;
   setAgentFormData: (updates: Partial<AgentSettings>) => void;
   resetFormData: () => void;
@@ -21,6 +23,7 @@ interface SettingsState {
   saveLanguage: (language: 'en' | 'zh') => Promise<boolean>;
   saveChatWidth: (chatWidth: 'narrow' | 'wide') => Promise<boolean>;
   loadSettings: () => Promise<void>;
+  loadProviderAuthStatuses: () => Promise<void>;
   clearSaveError: () => void;
 }
 
@@ -48,9 +51,18 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   saveError: null,
   isSaving: false,
   hasChanges: false,
+  providerAuthStatuses: {},
 
   setSettings: (settings) =>
     set({ settings, formData: settings, hasChanges: false }),
+
+  setProviderAuthStatus: (status) =>
+    set((state) => ({
+      providerAuthStatuses: {
+        ...state.providerAuthStatuses,
+        [status.providerConfigId]: status,
+      },
+    })),
 
   setFormData: (updates) =>
     set((state) => {
@@ -170,9 +182,23 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       applyTheme(settings.theme);
       // 初始化渲染进程 i18n 语言
       i18n.changeLanguage(settings.language);
+      await get().loadProviderAuthStatuses();
     } catch (error) {
       console.error('Failed to load settings:', error);
       set({ isLoading: false });
+    }
+  },
+
+  loadProviderAuthStatuses: async () => {
+    try {
+      const statuses = await window.ipc.providerAuth.getStatuses() as ProviderAuthStatus[];
+      set({
+        providerAuthStatuses: Object.fromEntries(
+          statuses.map((status) => [status.providerConfigId, status]),
+        ),
+      });
+    } catch (error) {
+      console.error('Failed to load provider auth statuses:', error);
     }
   },
 
@@ -212,12 +238,18 @@ export function initSettingsListeners(): () => void {
     useSettingsStore.getState().setSettings(settings);
     applyTheme(settings.theme);
     i18n.changeLanguage(settings.language);
+    await useSettingsStore.getState().loadProviderAuthStatuses();
+  });
+
+  const cleanupProviderAuthChanged = window.push.on('push:providerAuthChanged', ({ status }) => {
+    useSettingsStore.getState().setProviderAuthStatus(status);
   });
 
   // 返回清理函数
   return () => {
     mediaQuery.removeEventListener('change', handleThemeChange);
     cleanupSettingsChanged();
+    cleanupProviderAuthChanged();
     listenersInitialized = false;
   };
 }

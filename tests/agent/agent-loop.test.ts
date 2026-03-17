@@ -10,6 +10,7 @@ import {
 import { createScriptedStreamFn } from "../_helpers/mock-stream";
 import { createMockTool, createEchoTool, createFailingTool } from "../_helpers/mock-tools";
 import type { AgentLoopConfig, AgentContext, AgentEvent } from "@/agent/types";
+import { MockAssistantStream } from "../_helpers/mock-stream";
 
 function createConfig(overrides?: Partial<AgentLoopConfig>): AgentLoopConfig {
 	return {
@@ -83,6 +84,32 @@ describe("agentLoop", () => {
 
 			const agentEnd = events.find((e) => e.type === "agent_end");
 			expect(agentEnd).toBeDefined();
+		});
+
+		it("applies dynamic request auth to the active model and stream options", async () => {
+			const assistantMsg = createAssistantMessage([{ type: "text", text: "Hello" }]);
+			const streamFn = vi.fn((model, _context, options) => {
+				expect(model.baseUrl).toBe("https://chatgpt.com/backend-api/codex");
+				expect(options?.apiKey).toBe("oauth-token");
+				expect(options?.headers).toEqual({ "x-test": "1" });
+				return new MockAssistantStream(assistantMsg);
+			});
+
+			await collectEvents(agentLoop(
+				[createUserMessage("hi")],
+				createContext(),
+				createConfig({
+					getRequestAuth: async () => ({
+						accessToken: "oauth-token",
+						headers: { "x-test": "1" },
+						baseUrl: "https://chatgpt.com/backend-api/codex",
+					}),
+				}),
+				undefined,
+				streamFn,
+			));
+
+			expect(streamFn).toHaveBeenCalledTimes(1);
 		});
 	});
 

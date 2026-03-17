@@ -4,18 +4,22 @@ import { useTranslation } from 'react-i18next';
 import { useSettingsStore } from '../../store/settingsStore';
 import type { ProviderConfig } from '../../types';
 import ProviderIcon from '../Settings/ProviderIcon';
+import { getProviderAuthStatus, isProviderConfigured } from '../../utils/provider-auth';
 
 const ProviderSelector: React.FC = () => {
   const { t } = useTranslation('chat');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { settings, setAgentFormData, saveSettings } = useSettingsStore();
+  const { settings, setAgentFormData, saveSettings, providerAuthStatuses } = useSettingsStore();
   const { providerConfigs, activeProviderId } = settings.agent;
+  const configuredProviders = providerConfigs.filter((provider) =>
+    isProviderConfigured(provider, getProviderAuthStatus(providerAuthStatuses, provider.id)),
+  );
 
-  const activeProvider = providerConfigs.find(c => c.id === activeProviderId);
+  const activeProvider = configuredProviders.find(c => c.id === activeProviderId);
   const displayName = activeProvider?.name || activeProviderId || t('common:notConfigured');
-  const isDisabled = providerConfigs.length === 0;
+  const isDisabled = configuredProviders.length === 0;
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -50,7 +54,7 @@ const ProviderSelector: React.FC = () => {
             : 'text-foreground border-border hover:bg-accent cursor-pointer'
           }
         `}
-        title={providerConfigs.length === 0 ? t('provider.pleaseConfigureProvider') : t('provider.switchProvider')}
+        title={configuredProviders.length === 0 ? t('provider.pleaseConfigureProvider') : t('provider.switchProvider')}
       >
         {activeProvider ? (
           <ProviderIcon icon={activeProvider.icon} size={16} />
@@ -67,12 +71,12 @@ const ProviderSelector: React.FC = () => {
       </button>
 
       {/* Dropdown menu */}
-      {open && providerConfigs.length > 0 && (
+      {open && configuredProviders.length > 0 && (
         <div className="absolute bottom-full left-0 mb-1 w-56 bg-popover rounded-lg shadow-lg border border-border py-1 z-50">
           <div className="px-3 py-2 text-xs text-muted-foreground border-b border-border">
             {t('provider.selectProvider')}
           </div>
-          {providerConfigs.map((config: ProviderConfig) => (
+          {configuredProviders.map((config: ProviderConfig) => (
             <button
               key={config.id}
               onClick={() => handleProviderChange(config)}

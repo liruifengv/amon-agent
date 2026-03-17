@@ -69,10 +69,10 @@ export interface AgentOptions {
 	sessionId?: string;
 
 	/**
-	 * Resolves an API key dynamically for each LLM call.
-	 * Useful for expiring tokens (e.g., GitHub Copilot OAuth).
+	 * Resolves request authentication dynamically for each LLM call.
+	 * Useful for expiring OAuth tokens and provider-scoped headers.
 	 */
-	getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
+	getRequestAuth?: AgentLoopConfig["getRequestAuth"];
 
 	/**
 	 * Custom token budgets for thinking levels (token-based providers only).
@@ -117,7 +117,7 @@ export class Agent {
 	public streamFn: StreamFn;
 	private _sessionId?: string;
 	private _cwd: string | undefined;
-	public getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
+	public getRequestAuth?: AgentLoopConfig["getRequestAuth"];
 	private runningPrompt?: Promise<void>;
 	private resolveRunningPrompt?: () => void;
 	private _thinkingBudgets?: ThinkingBudgets;
@@ -132,7 +132,7 @@ export class Agent {
 		this.followUpMode = opts.followUpMode || "one-at-a-time";
 		this.streamFn = opts.streamFn || streamSimple;
 		this._sessionId = opts.sessionId;
-		this.getApiKey = opts.getApiKey;
+		this.getRequestAuth = opts.getRequestAuth;
 		this._thinkingBudgets = opts.thinkingBudgets;
 		this._transport = opts.transport ?? "sse";
 		this._maxRetryDelayMs = opts.maxRetryDelayMs;
@@ -444,7 +444,7 @@ export class Agent {
 			maxRetryDelayMs: this._maxRetryDelayMs,
 			convertToLlm: this.convertToLlm,
 			transformContext: this.transformContext,
-			getApiKey: this.getApiKey,
+			getRequestAuth: this.getRequestAuth,
 			getSteeringMessages: async () => {
 				if (skipInitialSteeringPoll) {
 					skipInitialSteeringPoll = false;

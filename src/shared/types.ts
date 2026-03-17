@@ -1,6 +1,13 @@
 // ==================== 从 src/ai 直接 re-export 消息类型 ====================
 
 import type { ApprovalMode } from './permission-types';
+export type {
+  ProviderAuthConfig,
+  ProviderAuthStatus,
+  ProviderAuthState,
+  ResolvedRequestAuth,
+  AuthSession,
+} from './provider-auth';
 
 export type {
   TextContent,

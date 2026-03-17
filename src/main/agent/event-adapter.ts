@@ -16,8 +16,8 @@ export class EventAdapter {
     private pushService: PushService,
   ) {}
 
-  handleEvent(sessionId: string, event: AgentEvent): void {
-    switch (event.type) {
+	handleEvent(sessionId: string, event: AgentEvent): void {
+		switch (event.type) {
       case 'message_start': {
         // Add message to SessionStore, track its index
         this.sessionStore.addMessage(sessionId, event.message as any);
@@ -98,13 +98,24 @@ export class EventAdapter {
         });
         break;
 
-      case 'agent_end':
-        this.streamingIndex.delete(sessionId);
-        break;
+		case 'turn_end':
+			pushAssistantError(this.pushService, sessionId, event.message);
+			break;
 
-      // agent_start, turn_start, turn_end are informational
-    }
-  }
+		case 'agent_end':
+			this.streamingIndex.delete(sessionId);
+			break;
+
+		// agent_start and turn_start are informational
+		}
+	}
+}
+
+function pushAssistantError(pushService: PushService, sessionId: string, message: AgentMessage): void {
+	if (message.role !== 'assistant' || !message.errorMessage) {
+		return;
+	}
+	pushService.pushError(sessionId, message.errorMessage);
 }
 
 function getPermissionUpdateDetails(value: unknown) {

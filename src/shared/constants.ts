@@ -81,7 +81,7 @@ export const DEFAULT_WORKSPACE_PATH = '~/.amon/workspace';
 
 // ==================== Provider 配置 ====================
 
-export const SUPPORTED_PROVIDERS = ['anthropic', 'openai'] as const;
+export const SUPPORTED_PROVIDERS = ['anthropic', 'openai', 'openai-codex'] as const;
 
 // ==================== 系统提示词 ====================
 

@@ -10,10 +10,11 @@ import { SkillsView } from './components/Skills';
 import Onboarding from './components/Onboarding/Onboarding';
 import { Toaster } from './components/ui/sonner';
 import ConfirmDialog from './components/ConfirmDialog';
+import { isProviderConfigured } from './utils/provider-auth';
 
 const App: React.FC = () => {
   const { t } = useTranslation();
-  const { loadSettings, isLoading: settingsLoading, settings } = useSettingsStore();
+  const { loadSettings, isLoading: settingsLoading, settings, providerAuthStatuses } = useSettingsStore();
   const { loadSessions, isLoading: sessionsLoading, currentSessionId } = useSessionStore();
   const { loadMessages } = useChatStore();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -94,7 +95,9 @@ const App: React.FC = () => {
 
   // 派生状态：检查是否需要显示 onboarding
   const needsOnboarding =
-    settings.agent.providerConfigs.length === 0;
+    settings.agent.providerConfigs.filter((provider) =>
+      isProviderConfigured(provider, providerAuthStatuses[provider.id]),
+    ).length === 0;
 
   // 显示 onboarding（自动响应设置变化）
   if (needsOnboarding) {

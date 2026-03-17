@@ -108,6 +108,27 @@ describe('EventAdapter', () => {
 
     expect(store.getMessages('s1')).toEqual([initial]);
   });
+
+  it('pushes assistant turn errors to the renderer error channel', () => {
+    const store = createSessionStoreWithSession();
+    const pushError = vi.fn();
+    const adapter = new EventAdapter(store, {
+      pushToolExecution: vi.fn(),
+      pushError,
+    } as unknown as PushService);
+    const failed = createAssistantMessage([{ type: 'text', text: '' }], {
+      stopReason: 'error',
+      errorMessage: 'Instructions are required',
+    });
+
+    adapter.handleEvent('s1', {
+      type: 'turn_end',
+      message: failed,
+      toolResults: [],
+    });
+
+    expect(pushError).toHaveBeenCalledWith('s1', 'Instructions are required');
+  });
 });
 
 describe('PushService', () => {

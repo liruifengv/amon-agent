@@ -16,9 +16,11 @@ import type { ConfigStore } from '../store/config-store';
 import type { SkillsStore } from '../skills';
 import type { EventAdapter } from './event-adapter';
 import type { PushService } from '../ipc/push';
+import type { ProviderAuthService } from '../auth';
 import type { ProviderConfig } from '@shared/schemas';
 import type { ImageAttachment } from '@shared/types';
 import type { ApprovalMode } from '@shared/permission-types';
+import type { ResolvedRequestAuth } from '@shared/provider-auth';
 import { buildSystemPrompt } from './system-prompt';
 import { loadGlobalUserFiles, loadProjectAgentsFile } from '../workspace';
 import { formatSkillsForPrompt } from '../skills';
@@ -31,6 +33,7 @@ interface AgentServiceDeps {
   sessionStore: SessionStore;
   persistence: Persistence;
   configStore: ConfigStore;
+  providerAuthService: ProviderAuthService;
   toolRegistry: ToolRegistry;
   skillsStore: SkillsStore;
   eventAdapter: EventAdapter;
@@ -49,6 +52,8 @@ function resolveModel(config: ProviderConfig): Model<any> {
   if (match) {
     return config.baseUrl ? { ...match, baseUrl: config.baseUrl } : match;
   }
+
+  const isCodex = config.apiType === 'openai-codex-responses';
   // Custom model fallback
   return {
     id: config.modelId,
@@ -56,11 +61,11 @@ function resolveModel(config: ProviderConfig): Model<any> {
     api: config.apiType,
     provider: config.provider,
     baseUrl: config.baseUrl ?? '',
-    reasoning: false,
-    input: ['text'],
+    reasoning: isCodex,
+    input: isCodex ? ['text', 'image'] : ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128000,
-    maxTokens: 8192,
+    contextWindow: isCodex ? 200000 : 128000,
+    maxTokens: isCodex ? 32768 : 8192,
   } satisfies Model<any>;
 }
 
@@ -122,7 +127,7 @@ export class AgentService {
     // Abort any existing run for this session
     this.abort(sessionId);
 
-    const { sessionStore, persistence, configStore, toolRegistry, skillsStore, eventAdapter, pushService, dataDir, defaultWorkspace } = this.deps;
+    const { sessionStore, persistence, configStore, providerAuthService, toolRegistry, skillsStore, eventAdapter, pushService, dataDir, defaultWorkspace } = this.deps;
 
     const session = sessionStore.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
@@ -186,7 +191,14 @@ export class AgentService {
       defaultApprovalMode: session.approvalMode ?? agentSettings.defaultApprovalMode,
       toolExecutor: this.toolExecutor,
     })));
-    agent.getApiKey = () => providerConfig.apiKey || undefined;
+    agent.getRequestAuth = async (): Promise<ResolvedRequestAuth | undefined> => {
+      if (providerConfig.auth.type === 'oauth') {
+        return providerAuthService.resolveRequestAuth(providerConfig.id);
+      }
+
+      const accessToken = configStore.getApiKey(providerConfig.id) || providerConfig.apiKey || undefined;
+      return accessToken ? { accessToken } : undefined;
+    };
     agent.sessionId = sessionId;
     agent.cwd = session.workspace;
 

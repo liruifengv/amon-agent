@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, session, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, safeStorage, session, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -16,6 +16,7 @@ import { SkillsStore } from './skills';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import { handleBeforeQuit, handleWindowAllClosed, shouldHideMainWindowOnClose } from './lifecycle';
 import { ApprovalService } from './permissions/approval-service';
+import { AuthStore, OpenAICodexAuthStrategy, ProviderAuthService, SecureStorage } from './auth';
 import type { Shortcuts } from '@shared/schemas';
 import type { Session } from '@shared/types';
 
@@ -34,6 +35,7 @@ app.setName('Amon');
 const DATA_DIR = path.join(os.homedir(), '.amon');
 const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
 const SETTINGS_PATH = path.join(DATA_DIR, 'settings.json');
+const AUTH_SESSIONS_PATH = path.join(DATA_DIR, 'auth', 'provider-sessions.json');
 const DEFAULT_WORKSPACE = path.join(DATA_DIR, 'workspace');
 
 // ==================== Services (sync init) ====================
@@ -46,6 +48,19 @@ const toolRegistry = createDefaultToolRegistry(configStore);
 const pushService = new PushService();
 const eventAdapter = new EventAdapter(sessionStore, pushService);
 const approvalService = new ApprovalService();
+const authStore = new AuthStore(new SecureStorage(AUTH_SESSIONS_PATH, safeStorage));
+const providerAuthService = new ProviderAuthService({
+  configStore,
+  authStore,
+  pushService,
+  strategies: [
+    new OpenAICodexAuthStrategy({
+      openExternal: async (url) => {
+        await shell.openExternal(url);
+      },
+    }),
+  ],
+});
 
 // Bridge SessionStore events → PushService (before any window is created)
 bridgeSessionStoreToPush(sessionStore, pushService);
@@ -372,6 +387,7 @@ app.on('ready', async () => {
     sessionStore,
     persistence,
     configStore,
+    providerAuthService,
     toolRegistry,
     skillsStore,
     eventAdapter,
@@ -387,6 +403,7 @@ app.on('ready', async () => {
     sessionStore,
     persistence,
     configStore,
+    providerAuthService,
     pushService,
     skillsStore,
     approvalService,

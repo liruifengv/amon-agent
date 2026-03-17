@@ -10,6 +10,7 @@ import type { ConfigStore } from '../store/config-store';
 import type { PushService } from './push';
 import type { SkillsStore } from '../skills';
 import type { ApprovalService } from '../permissions/approval-service';
+import type { ProviderAuthService } from '../auth';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -29,6 +30,7 @@ export interface IpcDependencies {
   sessionStore: SessionStore;
   persistence: Persistence;
   configStore: ConfigStore;
+  providerAuthService: ProviderAuthService;
   pushService: PushService;
   skillsStore: SkillsStore;
   approvalService: ApprovalService;
@@ -85,6 +87,7 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   registerAgentHandlers(deps);
   registerSessionHandlers(deps);
   registerSettingsHandlers(deps);
+  registerProviderAuthHandlers(deps);
   registerPermissionHandlers(deps);
   registerSystemHandlers(deps);
   registerWorkspaceHandlers(deps);
@@ -174,6 +177,21 @@ function registerSettingsHandlers(deps: IpcDependencies): void {
     const result = await deps.configStore.updateSettings(updates as Partial<Settings>);
     deps.pushService.pushSettingsChanged();
     return { success: true, data: result };
+  });
+}
+
+function registerProviderAuthHandlers(deps: IpcDependencies): void {
+  handle('providerAuth.connect', async (providerConfigId: unknown) => {
+    return deps.providerAuthService.connect(providerConfigId as string);
+  });
+
+  handle('providerAuth.disconnect', async (providerConfigId: unknown) => {
+    await deps.providerAuthService.disconnect(providerConfigId as string);
+    return { success: true };
+  });
+
+  handle('providerAuth.getStatuses', async () => {
+    return deps.providerAuthService.getStatuses();
   });
 }
 
@@ -334,6 +352,7 @@ export function removeIpcHandlers(): void {
     'session.list', 'session.create', 'session.delete', 'session.rename',
     'session.getMessages', 'session.updateWorkspace',
     'settings.get', 'settings.set',
+    'providerAuth.connect', 'providerAuth.disconnect', 'providerAuth.getStatuses',
     'permission.respond',
     'system.openSettings', 'system.closeSettings', 'system.openConfigDir',
     'system.openPath', 'system.openExternal', 'system.getVersion',

@@ -8,6 +8,10 @@ export type {
   AgentRunState,
   ToolExecutionState,
   FileInfo,
+  ProviderAuthStatus,
+  ProviderAuthState,
+  ResolvedRequestAuth,
+  AuthSession,
 } from '../../shared/types';
 export type {
   ApprovalMode,
@@ -56,6 +60,7 @@ export interface IpcAPI {
   agent: IpcProxy;
   session: IpcProxy;
   settings: IpcProxy;
+  providerAuth: IpcProxy;
   system: IpcProxy;
   workspace: IpcProxy;
   dialog: IpcProxy;

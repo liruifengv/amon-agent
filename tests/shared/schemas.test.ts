@@ -123,6 +123,14 @@ describe("parseSettings", () => {
 				activeModelId: "gpt-4o",
 				maxTurns: 100,
 				thinkingLevel: "high",
+				providerConfigs: [
+					{
+						id: "openai",
+						name: "OpenAI",
+						apiKey: "sk-test",
+						auth: { type: "apiKey" },
+					},
+				],
 			},
 		};
 
@@ -131,6 +139,7 @@ describe("parseSettings", () => {
 		expect(result.agent.activeModelId).toBe("gpt-4o");
 		expect(result.agent.maxTurns).toBe(100);
 		expect(result.agent.thinkingLevel).toBe("high");
+		expect(result.agent.providerConfigs[0].auth).toEqual({ type: "apiKey" });
 	});
 
 	it("fills in defaults for missing fields", () => {
@@ -160,8 +169,10 @@ describe("parseSettings", () => {
 			expect(result.agent.providerConfigs[0].id).toBe("anthropic");
 			expect(result.agent.providerConfigs[0].apiKey).toBe("sk-ant-xxx");
 			expect(result.agent.providerConfigs[0].name).toBe("Anthropic");
+			expect(result.agent.providerConfigs[0].auth).toEqual({ type: "apiKey" });
 			expect(result.agent.providerConfigs[1].id).toBe("openai");
 			expect(result.agent.providerConfigs[1].baseUrl).toBe("https://custom.api.com");
+			expect(result.agent.providerConfigs[1].auth).toEqual({ type: "apiKey" });
 		});
 
 		it("does not overwrite existing agent.providerConfigs", () => {
@@ -178,6 +189,20 @@ describe("parseSettings", () => {
 			// Should keep the existing providerConfigs, not migrate from providers[]
 			expect(result.agent.providerConfigs).toHaveLength(1);
 			expect(result.agent.providerConfigs[0].id).toBe("openai");
+		});
+	});
+
+	describe("provider auth defaults", () => {
+		it("adds apiKey auth config when auth is missing", () => {
+			const result = parseSettings({
+				agent: {
+					providerConfigs: [
+						{ id: "openai", name: "OpenAI", apiKey: "sk-123" },
+					],
+				},
+			});
+
+			expect(result.agent.providerConfigs[0].auth).toEqual({ type: "apiKey" });
 		});
 	});
 

@@ -1,0 +1,6 @@
+# Build artifacts
+.vite/
+out/
+
+# Vendored / example projects (linted independently)
+examples/

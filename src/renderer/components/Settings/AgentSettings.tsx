@@ -4,6 +4,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import type { ApprovalMode } from '../../types';
 
 import ProviderIcon from '../Settings/ProviderIcon';
+import { getProviderAuthStatus, isProviderConfigured } from '../../utils/provider-auth';
 
 const THINKING_LEVELS = [
   { value: 'off', label: 'Off' },
@@ -20,7 +21,7 @@ interface AgentSettingsProps {
 }
 
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) => {
-  const { formData, setAgentFormData, clearSaveError } = useSettingsStore();
+  const { formData, setAgentFormData, clearSaveError, providerAuthStatuses } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -28,7 +29,7 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
   const { activeProviderId, thinkingLevel, maxTurns, providerConfigs, defaultApprovalMode } = formData.agent;
 
   const configuredProviders = (providerConfigs || [])
-    .filter(c => c.apiKey?.trim());
+    .filter(c => isProviderConfigured(c, getProviderAuthStatus(providerAuthStatuses, c.id)));
 
   const activeProvider = configuredProviders.find(c => c.id === activeProviderId);
 

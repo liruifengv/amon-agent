@@ -8,6 +8,7 @@ export type KnownApi =
 	| "anthropic-messages"
 	| "openai-completions"
 	| "openai-responses"
+	| "openai-codex-responses"
 	| "google-generative-ai";
 
 // eslint-disable-next-line @typescript-eslint/ban-types
@@ -16,6 +17,7 @@ export type Api = KnownApi | (string & {});
 export type KnownProvider =
 	| "anthropic"
 	| "openai"
+	| "openai-codex"
 	| "google"
 	| "minimax"
 	| "minimax-cn"

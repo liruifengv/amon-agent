@@ -231,13 +231,22 @@ async function streamAssistantResponse(
 
 	const streamFunction = streamFn || streamSimple;
 
-	// Resolve API key (important for expiring tokens)
-	const resolvedApiKey =
-		(config.getApiKey ? await config.getApiKey(config.model.provider) : undefined) || config.apiKey;
+	// Resolve request authentication on every call for expiring tokens and dynamic headers/base URLs.
+	const resolvedRequestAuth = config.getRequestAuth
+		? await config.getRequestAuth(config.model.provider)
+		: undefined;
+	const requestModel = resolvedRequestAuth?.baseUrl
+		? { ...config.model, baseUrl: resolvedRequestAuth.baseUrl }
+		: config.model;
+	const mergedHeaders = {
+		...(config.headers || {}),
+		...(resolvedRequestAuth?.headers || {}),
+	};
 
-	const response = await streamFunction(config.model, llmContext, {
+	const response = await streamFunction(requestModel, llmContext, {
 		...config,
-		apiKey: resolvedApiKey,
+		apiKey: resolvedRequestAuth?.accessToken || config.apiKey,
+		headers: Object.keys(mergedHeaders).length > 0 ? mergedHeaders : undefined,
 		signal,
 	});
 

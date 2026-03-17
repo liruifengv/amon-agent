@@ -4,6 +4,7 @@ import type { PermissionRequest, PermissionResolved } from '@shared/permission-t
 import type { Message } from '../../ai/types';
 import type { PushEventMap } from '@shared/ipc-types';
 import type { SessionStore } from '../store/session-store';
+import type { ProviderAuthStatus } from '@shared/provider-auth';
 
 export class PushService {
   private window: BrowserWindow | null = null;
@@ -60,6 +61,10 @@ export class PushService {
 
   pushSkillsChanged(): void {
     this.push('push:skillsChanged', undefined as never);
+  }
+
+  pushProviderAuthChanged(providerConfigId: string, status: ProviderAuthStatus): void {
+    this.push('push:providerAuthChanged', { providerConfigId, status });
   }
 }
 

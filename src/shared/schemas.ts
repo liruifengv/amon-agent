@@ -1,7 +1,18 @@
 import { z } from 'zod';
 import { ApprovalModeSchema } from './permission-types';
+import type { ProviderAuthConfig } from './provider-auth';
 
 // ==================== Provider 配置 Schema ====================
+
+export const ProviderAuthConfigSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('apiKey'),
+  }),
+  z.object({
+    type: z.literal('oauth'),
+    strategy: z.literal('openai-codex'),
+  }),
+]);
 
 export const ProviderConfigSchema = z.object({
   id: z.string(),
@@ -12,9 +23,11 @@ export const ProviderConfigSchema = z.object({
   apiKey: z.string().default(''),
   baseUrl: z.string().optional(),
   modelId: z.string().default(''),
+  auth: ProviderAuthConfigSchema.default({ type: 'apiKey' }),
 });
 
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
+export type { ProviderAuthConfig };
 
 // ==================== Agent 配置 Schema ====================
 
@@ -90,6 +103,7 @@ const TYPE_TO_API_TYPE: Record<string, string> = {
   anthropic: 'anthropic-messages',
   openai: 'openai-completions',
   'openai-responses': 'openai-responses',
+  'openai-codex-responses': 'openai-codex-responses',
   gemini: 'google-generative-ai',
 };
 
@@ -97,6 +111,7 @@ const TYPE_TO_API_TYPE: Record<string, string> = {
 const ID_TO_PROVIDER: Record<string, string> = {
   anthropic: 'anthropic',
   openai: 'openai',
+  'openai-codex': 'openai-codex',
   google: 'google',
   deepseek: 'openai',   // DeepSeek uses OpenAI-compatible API
 };
@@ -122,6 +137,7 @@ function migrateSettings(data: unknown): unknown {
       name: (p.id as string) || (p.name as string) || '',
       apiKey: (p.apiKey as string) || '',
       ...(p.baseUrl ? { baseUrl: p.baseUrl as string } : {}),
+      auth: { type: 'apiKey' },
     }));
     delete raw.providers;
   }
@@ -200,8 +216,16 @@ function migrateSettings(data: unknown): unknown {
         provider,
         icon,
         modelId: c.modelId || (id === activeProviderId ? activeModelId : ''),
+        auth: c.auth || { type: 'apiKey' },
       };
     });
+  }
+
+  if (Array.isArray(agent.providerConfigs)) {
+    agent.providerConfigs = (agent.providerConfigs as Record<string, unknown>[]).map(c => ({
+      ...c,
+      auth: c.auth || { type: 'apiKey' },
+    }));
   }
 
   return raw;

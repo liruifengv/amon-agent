@@ -8,9 +8,16 @@ import type { ProviderPreset } from '@shared/provider-presets';
 import ProviderIcon from './ProviderIcon';
 import ProviderPickerModal from './ProviderPickerModal';
 import ProviderEditModal from './ProviderEditModal';
+import { getProviderAuthStatus, isProviderConfigured } from '../../utils/provider-auth';
 
 const ProviderSettings: React.FC = () => {
-  const { formData, setAgentFormData, clearSaveError, saveSettings } = useSettingsStore();
+  const {
+    formData,
+    setAgentFormData,
+    clearSaveError,
+    saveSettings,
+    providerAuthStatuses,
+  } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
 
   const [showPicker, setShowPicker] = useState(false);
@@ -35,6 +42,7 @@ const ProviderSettings: React.FC = () => {
       apiKey: '',
       baseUrl: preset.defaultBaseUrl,
       modelId: preset.defaultModels[0] ?? '',
+      auth: preset.auth,
     };
     setEditingConfig(newConfig);
     setIsNewConfig(true);
@@ -45,7 +53,10 @@ const ProviderSettings: React.FC = () => {
     setIsNewConfig(false);
   };
 
-  const handleSave = async (config: ProviderConfig) => {
+  const handleSave = async (
+    config: ProviderConfig,
+    options?: { closeAfterSave?: boolean },
+  ): Promise<boolean> => {
     clearSaveError();
     let newConfigs: ProviderConfig[];
     const updates: Partial<AgentSettings> = {};
@@ -69,20 +80,46 @@ const ProviderSettings: React.FC = () => {
 
     updates.providerConfigs = newConfigs;
     setAgentFormData(updates);
-    setEditingConfig(null);
-    setTimeout(() => saveSettings(), 0);
+    const saved = await saveSettings();
+    if (!saved) {
+      return false;
+    }
+
+    if (options?.closeAfterSave === false) {
+      setEditingConfig(config);
+      setIsNewConfig(false);
+    } else {
+      setEditingConfig(null);
+      setIsNewConfig(false);
+    }
+
+    return true;
   };
 
   const handleDelete = async (id: string) => {
     clearSaveError();
+    const providerConfig = providerConfigs.find((config) => config.id === id);
+    if (providerConfig?.auth.type === 'oauth') {
+      await window.ipc.providerAuth.disconnect(id);
+    }
     const newConfigs = providerConfigs.filter((c) => c.id !== id);
-    setAgentFormData({ providerConfigs: newConfigs });
+    const updates: Partial<AgentSettings> = {
+      providerConfigs: newConfigs,
+    };
+    if (activeProviderId === id) {
+      updates.activeProviderId = newConfigs[0]?.id || '';
+      updates.activeModelId = newConfigs[0]?.modelId || '';
+    }
+    setAgentFormData(updates);
     setEditingConfig(null);
     setTimeout(() => saveSettings(), 0);
   };
 
   const isActive = (config: ProviderConfig) => activeProviderId === config.id;
-  const isConfigured = (config: ProviderConfig) => !!config.apiKey?.trim();
+  const isConfigured = (config: ProviderConfig) => isProviderConfigured(
+    config,
+    getProviderAuthStatus(providerAuthStatuses, config.id),
+  );
 
   const handleActivate = (e: React.MouseEvent, config: ProviderConfig) => {
     e.stopPropagation();
@@ -154,7 +191,9 @@ const ProviderSettings: React.FC = () => {
               )}
               {!isConfigured(config) && (
                 <span className="text-xs text-muted-foreground/60">
-                  {t('common:notConfigured')}
+                  {config.auth.type === 'oauth'
+                    ? t('settings:provider.notConnected')
+                    : t('common:notConfigured')}
                 </span>
               )}
             </div>

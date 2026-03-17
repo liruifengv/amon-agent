@@ -6,6 +6,7 @@ const VALID_API_TYPES: KnownApi[] = [
 	"anthropic-messages",
 	"openai-completions",
 	"openai-responses",
+	"openai-codex-responses",
 	"google-generative-ai",
 ];
 
@@ -15,8 +16,8 @@ describe("PROVIDER_PRESETS", () => {
 		expect(PROVIDER_PRESETS.length).toBeGreaterThan(0);
 	});
 
-	it("contains exactly 9 presets", () => {
-		expect(PROVIDER_PRESETS).toHaveLength(9);
+	it("contains exactly 10 presets", () => {
+		expect(PROVIDER_PRESETS).toHaveLength(10);
 	});
 
 	it.each(PROVIDER_PRESETS.map((p) => [p.id, p]))(
@@ -33,6 +34,8 @@ describe("PROVIDER_PRESETS", () => {
 			expect(typeof preset.icon).toBe("string");
 			expect(preset.icon.length).toBeGreaterThan(0);
 			expect(Array.isArray(preset.defaultModels)).toBe(true);
+			expect(preset.auth).toBeDefined();
+			expect(typeof preset.auth.type).toBe("string");
 		},
 	);
 
@@ -67,6 +70,17 @@ describe("PROVIDER_PRESETS", () => {
 		expect(gemini).toBeDefined();
 		expect(gemini!.apiType).toBe("google-generative-ai");
 		expect(gemini!.provider).toBe("google");
+	});
+
+	it("contains the codex preset", () => {
+		const codex = PROVIDER_PRESETS.find((p) => p.id === "codex");
+		expect(codex).toBeDefined();
+		expect(codex!.apiType).toBe("openai-codex-responses");
+		expect(codex!.provider).toBe("openai-codex");
+		expect(codex!.defaultModels).toContain("gpt-5.4");
+		expect(codex!.auth).toEqual({ type: "oauth", strategy: "openai-codex" });
+		expect(codex!.editableApiKey).toBe(false);
+		expect(codex!.editableBaseUrl).toBe(false);
 	});
 
 	it("contains the kimi preset", () => {

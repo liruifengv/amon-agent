@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { ResolvedRequestAuth } from '@shared/provider-auth';
 import type {
 	AssistantMessageEvent,
 	ImageContent,
@@ -35,9 +36,9 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
 	transformContext?: (messages: AgentMessage[], signal?: AbortSignal) => Promise<AgentMessage[]>;
 
 	/**
-	 * Resolves an API key dynamically for each LLM call.
+	 * Resolves request authentication dynamically for each LLM call.
 	 */
-	getApiKey?: (provider: string) => Promise<string | undefined> | string | undefined;
+	getRequestAuth?: (provider: string) => Promise<ResolvedRequestAuth | undefined> | ResolvedRequestAuth | undefined;
 
 	/**
 	 * Returns steering messages to inject into the conversation mid-run.
