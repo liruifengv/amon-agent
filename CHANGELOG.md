@@ -1,5 +1,33 @@
 # amon-agent
 
+## 0.3.4
+
+### Patch Changes
+
+- [`b577d68`](https://github.com/liruifengv/amon-agent/commit/b577d6852e3ca651909bfe8d7fec8bf7b75c156a) Thanks [@liruifengv](https://github.com/liruifengv)! - Add first-class OpenAI Codex OAuth support and provider runtime integration.
+
+  ### Highlights
+
+  - Add a new `openai-codex-responses` provider implementation for Codex-compatible Responses streaming.
+  - Add provider auth infrastructure in main process:
+    - secure local session storage
+    - auth strategy abstraction
+    - provider auth service with refresh and status push events
+  - Expose provider auth IPC APIs and preload bridge methods for connect/disconnect/status checks.
+  - Add settings UI updates for OAuth-based providers, including connect/disconnect flows and status display.
+  - Extend shared schemas/types/constants to model provider auth configuration and status.
+  - Add/expand tests for Codex provider streaming and auth service behavior.
+
+- [`81e9ef8`](https://github.com/liruifengv/amon-agent/commit/81e9ef87edbabd543b9782a7fe9855c938f80c92) Thanks [@liruifengv](https://github.com/liruifengv)! - Add a built-in `AskUserQuestion` tool for blocking agent clarifications during a run.
+
+  ### Highlights
+
+  - Add the new `AskUserQuestion` tool so the agent can pause for one user answer and then continue the same run automatically.
+  - Add main-process question request lifecycle handling, including in-memory pending state, IPC handlers, push events, and abort cleanup.
+  - Add renderer question UI and session-scoped question state so users can answer or dismiss requests without sending a normal chat message.
+  - Show `AskUserQuestion` progress and resolved answers in tool execution history.
+  - Update prompts, shared types, and tests to support the new question flow end to end.
+
 ## 0.3.3
 
 ### Patch Changes
