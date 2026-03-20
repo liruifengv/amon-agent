@@ -186,7 +186,7 @@ export function useFileMention({
 
         try {
           const result = await window.ipc.workspace.listFiles(
-            currentSessionId,
+            workspace,
             trigger.query || undefined,
             50
           );

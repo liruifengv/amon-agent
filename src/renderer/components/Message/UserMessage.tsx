@@ -98,7 +98,8 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
   const { t } = useTranslation('message');
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [validPaths, setValidPaths] = useState<string[]>([]);
-  const { currentSessionId } = useSessionStore();
+  const { currentSessionId, getCurrentWorkspace } = useSessionStore();
+  const workspace = getCurrentWorkspace();
 
   const text = useMemo(() => extractText(message.content), [message.content]);
   const images = useMemo(() => extractImages(message.content), [message.content]);
@@ -111,7 +112,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
 
   // 验证路径是否存在
   useEffect(() => {
-    if (!currentSessionId || mentionedPaths.length === 0) {
+    if (!currentSessionId || !workspace || mentionedPaths.length === 0) {
       return;
     }
 
@@ -121,6 +122,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
     const fetchValidPaths = async () => {
       try {
         const results: boolean[] = await window.ipc.workspace.validatePaths(
+          workspace,
           mentionedPaths
         );
         if (!cancelled && Array.isArray(results)) {
@@ -138,7 +140,7 @@ const UserMessage: React.FC<UserMessageProps> = ({ message }) => {
     return () => {
       cancelled = true;
     };
-  }, [currentSessionId, mentionedPaths]);
+  }, [currentSessionId, mentionedPaths, workspace]);
 
   // 渲染高亮内容
   const highlightedContent = useMemo(

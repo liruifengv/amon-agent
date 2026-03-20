@@ -12,9 +12,8 @@ import type { PushService } from './push';
 import type { SkillsStore } from '../skills';
 import type { ApprovalService } from '../permissions/approval-service';
 import type { QuestionService } from '../questions/question-service';
-import type { ConnectionAuthService } from '../auth';
-import type { CredentialStore } from '../auth';
-import { sanitizeSettingsConnections } from '../auth';
+import { sanitizeSettingsConnections, type ConnectionAuthService, type CredentialStore } from '../auth';
+import { listFiles as listWorkspaceFiles, validatePaths as validateWorkspacePaths } from '../services/workspaceService';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -56,6 +55,22 @@ async function resolveWorkspacePath(
   const settings = await deps.configStore.getSettings();
   const defaultWorkspace = settings.workspaces.find(item => item.isDefault);
   return defaultWorkspace?.path ?? path.join(os.homedir(), '.amon', 'workspace');
+}
+
+async function resolveWorkspaceRequestPath(
+  deps: IpcDependencies,
+  workspaceOrSessionId?: string,
+): Promise<string> {
+  if (workspaceOrSessionId) {
+    const session = deps.sessionStore.getSession(workspaceOrSessionId);
+    if (session?.workspace) {
+      return session.workspace;
+    }
+
+    return workspaceOrSessionId;
+  }
+
+  return resolveWorkspacePath(deps);
 }
 
 function getSkillSourceLabel(skill: Skill, workspace: string): string {
@@ -279,12 +294,36 @@ function registerSystemHandlers(deps: IpcDependencies): void {
 // ==================== Workspace Handlers ====================
 
 function registerWorkspaceHandlers(deps: IpcDependencies): void {
-  handle('workspace.listFiles', async (workspacePath: unknown, query?: unknown) => {
-    return [];
+  handle('workspace.listFiles', async (workspaceOrSessionId: unknown, query?: unknown, limit?: unknown) => {
+    const workspacePath = await resolveWorkspaceRequestPath(
+      deps,
+      workspaceOrSessionId as string | undefined,
+    );
+    const resolvedQuery = typeof query === 'string' && query.trim() ? query : undefined;
+    const resolvedLimit = typeof limit === 'number' && Number.isFinite(limit)
+      ? Math.max(1, Math.floor(limit))
+      : 50;
+
+    return listWorkspaceFiles(workspacePath, resolvedQuery, resolvedLimit);
   });
 
-  handle('workspace.validatePaths', async (paths: unknown) => {
-    return (paths as string[]).map(() => true);
+  handle('workspace.validatePaths', async (workspaceOrSessionId: unknown, paths?: unknown) => {
+    const pathList = Array.isArray(paths)
+      ? paths.filter((item): item is string => typeof item === 'string')
+      : [];
+
+    if (pathList.length === 0) {
+      return [];
+    }
+
+    const workspacePath = await resolveWorkspaceRequestPath(
+      deps,
+      workspaceOrSessionId as string | undefined,
+    );
+    const validPaths = await validateWorkspacePaths(workspacePath, pathList);
+    const validPathSet = new Set(validPaths);
+
+    return pathList.map(relativePath => validPathSet.has(relativePath));
   });
 }
 
