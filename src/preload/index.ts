@@ -28,10 +28,10 @@ const ipc = {
     get: () => invoke('settings.get'),
     set: (...args: unknown[]) => invoke('settings.set', ...args),
   },
-  providerAuth: {
-    connect: (...args: unknown[]) => invoke('providerAuth.connect', ...args),
-    disconnect: (...args: unknown[]) => invoke('providerAuth.disconnect', ...args),
-    getStatuses: () => invoke('providerAuth.getStatuses'),
+  connectionAuth: {
+    connect: (...args: unknown[]) => invoke('connectionAuth.connect', ...args),
+    disconnect: (...args: unknown[]) => invoke('connectionAuth.disconnect', ...args),
+    getStatuses: () => invoke('connectionAuth.getStatuses'),
   },
   system: {
     openSettings: (...args: unknown[]) => invoke('system.openSettings', ...args),

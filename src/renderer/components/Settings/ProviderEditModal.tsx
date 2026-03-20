@@ -1,19 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X, Eye, EyeOff } from 'lucide-react';
-import { PROVIDER_PRESETS } from '@shared/provider-presets';
-import type { ProviderConfig } from '../../types';
+import type { ConnectionConfig } from '../../types';
 import ProviderIcon from './ProviderIcon';
 import { useSettingsStore } from '../../store/settingsStore';
+import { AI_CATALOG } from '@shared/ai-catalog';
+import { getConnectionModels, getConnectionIcon, getConnectionModelName, getConnectionSpecSafe } from '../../utils/connection-catalog';
 
 interface ProviderEditModalProps {
   open: boolean;
-  config: ProviderConfig | null;
+  config: ConnectionConfig | null;
   isNew: boolean;
   onClose: () => void;
-  onSave: (config: ProviderConfig, options?: { closeAfterSave?: boolean }) => Promise<boolean>;
+  onSave: (config: ConnectionConfig, options?: { closeAfterSave?: boolean }) => Promise<boolean>;
   onDelete?: (id: string) => void;
 }
+
+const EMPTY_CONNECTION: ConnectionConfig = {
+  id: '',
+  specId: '',
+  name: '',
+  baseUrl: undefined,
+  modelKey: '',
+  customModelId: '',
+  auth: { type: 'apiKey' },
+  apiKey: '',
+};
 
 const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
   open,
@@ -24,43 +36,31 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
   onDelete,
 }) => {
   const { t } = useTranslation(['settings', 'common']);
-  const { providerAuthStatuses, setProviderAuthStatus } = useSettingsStore();
-  const [form, setForm] = useState<ProviderConfig>({
-    id: '',
-    apiType: 'openai-completions',
-    provider: '',
-    icon: '',
-    name: '',
-    apiKey: '',
-    baseUrl: undefined,
-    modelId: '',
-    auth: { type: 'apiKey' },
-  });
+  const { connectionAuthStatuses, setConnectionAuthStatus } = useSettingsStore();
+  const [form, setForm] = useState<ConnectionConfig>(EMPTY_CONNECTION);
   const [showApiKey, setShowApiKey] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync form state when config prop changes
-  const configId = config?.id;
-  const [lastConfigId, setLastConfigId] = useState<string | null>(null);
-  if (configId && configId !== lastConfigId && config) {
-    setLastConfigId(configId);
+  useEffect(() => {
+    if (!config) return;
     setForm({ ...config });
     setShowApiKey(false);
-  }
+  }, [config]);
 
   if (!open || !config) return null;
 
-  const preset = PROVIDER_PRESETS.find(
-    (p) => p.id === form.id || (
-      p.apiType === form.apiType &&
-      p.provider === form.provider &&
-      p.icon === form.icon
-    )
-  );
-  const defaultModels = preset?.defaultModels ?? [];
-  const authStatus = providerAuthStatuses[form.id];
-  const supportsApiKey = form.auth.type === 'apiKey' && preset?.editableApiKey !== false;
-  const supportsBaseUrl = preset?.editableBaseUrl !== false;
+  const spec = getConnectionSpecSafe(form.specId);
+  if (!spec) return null;
+
+  const service = AI_CATALOG.services[spec.serviceId];
+  const authStatus = connectionAuthStatuses[form.id];
+  const supportsApiKey = service.auth.type === 'apiKey';
+  const supportsBaseUrl = spec.baseUrlMode !== 'fixed';
+  const requiresBaseUrl = spec.baseUrlMode === 'required';
+  const availableModels = getConnectionModels(spec.id);
+  const hasCustomModelId = !!form.customModelId?.trim();
+
+  const canSave = !!form.name.trim() && (!!form.modelKey || hasCustomModelId) && (!requiresBaseUrl || !!form.baseUrl?.trim());
 
   const handleSave = async () => {
     setIsSubmitting(true);
@@ -72,9 +72,7 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
   };
 
   const handleDelete = () => {
-    if (onDelete) {
-      onDelete(form.id);
-    }
+    onDelete?.(form.id);
   };
 
   const handleConnect = async () => {
@@ -87,10 +85,10 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
         }
       }
 
-      const status = await window.ipc.providerAuth.connect(form.id);
-      setProviderAuthStatus(status);
+      const status = await window.ipc.connectionAuth.connect(form.id);
+      setConnectionAuthStatus(status);
     } catch (error) {
-      console.error('Failed to connect provider auth:', error);
+      console.error('Failed to connect OAuth:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -99,13 +97,14 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
   const handleDisconnect = async () => {
     setIsSubmitting(true);
     try {
-      await window.ipc.providerAuth.disconnect(form.id);
-      setProviderAuthStatus({
-        providerConfigId: form.id,
+      await window.ipc.connectionAuth.disconnect(form.id);
+      setConnectionAuthStatus({
+        connectionId: form.id,
         state: 'disconnected',
+        source: 'oauth',
       });
     } catch (error) {
-      console.error('Failed to disconnect provider auth:', error);
+      console.error('Failed to disconnect OAuth:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -117,9 +116,8 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
         className="w-full max-w-md bg-background border border-border rounded-xl shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
-          <ProviderIcon icon={form.icon} size={22} />
+          <ProviderIcon icon={getConnectionIcon(form.specId)} size={22} />
           <h3 className="text-sm font-medium text-foreground flex-1">
             {isNew ? t('settings:provider.addProvider') : t('settings:provider.editProvider')}
           </h3>
@@ -132,9 +130,7 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-5 py-4 space-y-4">
-          {/* Name */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
               {t('settings:provider.name')}
@@ -158,7 +154,7 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
               <div className="relative">
                 <input
                   type={showApiKey ? 'text' : 'password'}
-                  value={form.apiKey}
+                  value={form.apiKey || ''}
                   onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
                   placeholder="sk-..."
                   className="w-full px-3 py-2 pr-10 text-sm border border-border rounded-lg
@@ -177,7 +173,7 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
             </div>
           )}
 
-          {form.auth.type === 'oauth' && (
+          {service.auth.type === 'oauth' && (
             <div className="rounded-lg border border-border p-3 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -197,7 +193,7 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
                 <button
                   type="button"
                   onClick={handleConnect}
-                  disabled={isSubmitting || authStatus?.state === 'connecting' || !form.name.trim()}
+                  disabled={isSubmitting || authStatus?.state === 'connecting' || !canSave}
                   className="px-3 py-1.5 text-xs font-medium text-primary border border-primary/30 hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {authStatus?.state === 'connected'
@@ -224,12 +220,13 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
             </div>
           )}
 
-          {/* Base URL */}
           {supportsBaseUrl && (
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1.5">
                 Base URL
-                <span className="text-muted-foreground/60 ml-1">({t('common:optional')})</span>
+                {!requiresBaseUrl && (
+                  <span className="text-muted-foreground/60 ml-1">({t('common:optional')})</span>
+                )}
               </label>
               <input
                 type="text"
@@ -243,45 +240,46 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
             </div>
           )}
 
-          {/* Model */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">
               {t('settings:provider.model')}
             </label>
             <input
               type="text"
-              value={form.modelId}
-              onChange={(e) => setForm({ ...form, modelId: e.target.value })}
+              value={form.customModelId || ''}
+              onChange={(e) => setForm({ ...form, customModelId: e.target.value })}
               placeholder={t('settings:provider.modelPlaceholder')}
               className="w-full px-3 py-2 text-sm border border-border rounded-lg
                          bg-background text-foreground placeholder-muted-foreground
                          focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
-            {defaultModels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {defaultModels.map((modelId) => (
-                  <button
-                    key={modelId}
-                    type="button"
-                    onClick={() => setForm({ ...form, modelId })}
-                    className={`px-2 py-0.5 text-xs rounded-md border transition-colors cursor-pointer ${
-                      form.modelId === modelId
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-                    }`}
-                  >
-                    {modelId}
-                  </button>
-                ))}
-              </div>
-            )}
             <p className="text-xs text-muted-foreground mt-1.5">
               {t('settings:provider.modelHint')}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {availableModels.map((model) => (
+                <button
+                  key={model.key}
+                  type="button"
+                  onClick={() => setForm({ ...form, modelKey: model.key, customModelId: '' })}
+                  className={`px-2 py-0.5 text-xs rounded-md border transition-colors cursor-pointer ${
+                    !hasCustomModelId && form.modelKey === model.key
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+                  }`}
+                >
+                  {model.name}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              {form.modelKey
+                ? getConnectionModelName(form.modelKey, form.customModelId)
+                : t('settings:provider.modelHint')}
             </p>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-border">
           <div>
             {!isNew && onDelete && (
@@ -297,19 +295,19 @@ const ProviderEditModal: React.FC<ProviderEditModalProps> = ({
             )}
           </div>
           <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-4 py-1.5 text-xs text-muted-foreground hover:text-foreground
                          border border-border rounded-lg transition-colors disabled:opacity-50"
-              >
-                {t('common:cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-              disabled={isSubmitting || !form.name.trim()}
+            >
+              {t('common:cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSubmitting || !canSave}
               className="px-4 py-1.5 text-xs text-primary-foreground bg-primary
                          hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed
                          rounded-lg transition-colors"

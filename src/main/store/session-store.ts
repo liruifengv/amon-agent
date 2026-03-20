@@ -1,7 +1,6 @@
 import { EventEmitter } from 'events';
-import type { Session, SessionState } from '@shared/types';
+import type { CompactionSnapshot, Session, SessionMessage, SessionState } from '@shared/types';
 import type { ApprovalMode } from '@shared/permission-types';
-import type { Message } from '../../ai/types';
 import { STREAM_THROTTLE_MS } from '@shared/constants';
 
 function throttle<A extends unknown[]>(fn: (...args: A) => void, ms: number): (...args: A) => void {
@@ -26,7 +25,8 @@ function throttle<A extends unknown[]>(fn: (...args: A) => void, ms: number): (.
 
 export class SessionStore extends EventEmitter {
   private sessions = new Map<string, Session>();
-  private messages = new Map<string, Message[]>();
+  private messages = new Map<string, SessionMessage[]>();
+  private compactionSnapshots = new Map<string, CompactionSnapshot>();
 
   private throttledMessagesEmit = throttle(
     (sessionId: string) => {
@@ -57,6 +57,7 @@ export class SessionStore extends EventEmitter {
   deleteSession(sessionId: string): void {
     this.sessions.delete(sessionId);
     this.messages.delete(sessionId);
+    this.compactionSnapshots.delete(sessionId);
     this.emit('session:deleted', sessionId);
   }
 
@@ -86,11 +87,19 @@ export class SessionStore extends EventEmitter {
 
   // ---- 消息管理 ----
 
-  getMessages(sessionId: string): Message[] {
+  getMessages(sessionId: string): SessionMessage[] {
     return this.messages.get(sessionId) ?? [];
   }
 
-  addMessage(sessionId: string, message: Message): void {
+  getCompactionSnapshot(sessionId: string): CompactionSnapshot | undefined {
+    return this.compactionSnapshots.get(sessionId);
+  }
+
+  setCompactionSnapshot(sessionId: string, snapshot: CompactionSnapshot): void {
+    this.compactionSnapshots.set(sessionId, snapshot);
+  }
+
+  addMessage(sessionId: string, message: SessionMessage): void {
     const msgs = this.messages.get(sessionId);
     if (!msgs) return;
     msgs.push(message);
@@ -104,7 +113,7 @@ export class SessionStore extends EventEmitter {
   /**
    * Update a message at a specific index (used for streaming updates).
    */
-  updateMessageAt(sessionId: string, index: number, message: Message): void {
+  updateMessageAt(sessionId: string, index: number, message: SessionMessage): void {
     const msgs = this.messages.get(sessionId);
     if (msgs && index >= 0 && index < msgs.length) {
       msgs[index] = message;
@@ -117,5 +126,10 @@ export class SessionStore extends EventEmitter {
   loadSessionState(state: SessionState): void {
     this.sessions.set(state.session.id, state.session);
     this.messages.set(state.session.id, state.messages);
+    if (state.compactionSnapshot) {
+      this.compactionSnapshots.set(state.session.id, state.compactionSnapshot);
+    } else {
+      this.compactionSnapshots.delete(state.session.id);
+    }
   }
 }

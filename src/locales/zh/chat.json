@@ -46,7 +46,13 @@
     "title": "上下文使用量",
     "usedPercent": "已使用 {{used}}%（剩余 {{remaining}}%）",
     "tokenDetail": "已用 {{used}} tokens，总计 {{total}}",
-    "autoCompression": "接近上限时将自动压缩上下文"
+    "autoCompression": "接近上限或发生上下文溢出后会自动压缩"
+  },
+  "compaction": {
+    "compacted": "已压缩较早的上下文，本轮已暂停。继续发送即可从压缩后的上下文继续。",
+    "recovered": "检测到上下文溢出后，已压缩较早历史。本轮已暂停，继续发送即可从压缩后的上下文继续。",
+    "tokens": "上下文已从 {{before}} 压缩到 {{after}}",
+    "timestamp": "最近一次压缩：{{time}}"
   },
   "emptyChat": {
     "hint": "试试问我：",

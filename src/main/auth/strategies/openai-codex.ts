@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { ProviderConfig } from '@shared/schemas';
-import type { AuthSession, ResolvedRequestAuth } from '@shared/provider-auth';
+import type { ConnectionConfig } from '@shared/schemas';
+import type { AuthSession, ResolvedRequestAuth } from '@shared/connection-auth';
 import { createLogger } from '../../store/logger';
 import { createLoopbackServer, type LoopbackServerHandle } from '../loopback-server';
 import type { AuthStrategy } from '../types';
@@ -42,7 +42,7 @@ export class OpenAICodexAuthStrategy implements AuthStrategy {
     this.loopbackFactory = deps.createLoopbackServer || createLoopbackServer;
   }
 
-  async connect(providerConfig: ProviderConfig): Promise<AuthSession> {
+  async connect(connection: ConnectionConfig): Promise<AuthSession> {
     const state = randomBytes(16).toString('hex');
     const codeVerifier = randomBytes(32).toString('base64url');
     const codeChallenge = sha256Base64Url(codeVerifier);
@@ -80,7 +80,7 @@ export class OpenAICodexAuthStrategy implements AuthStrategy {
         }),
       );
 
-      return buildAuthSession(providerConfig.id, this.id, token);
+      return buildAuthSession(connection.id, this.id, token);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (message.includes('EADDRINUSE')) {
@@ -106,7 +106,7 @@ export class OpenAICodexAuthStrategy implements AuthStrategy {
     );
 
     return {
-      ...buildAuthSession(session.providerConfigId, this.id, token),
+      ...buildAuthSession(session.connectionId || session.providerConfigId || '', this.id, token),
       metadata: {
         ...session.metadata,
       },
@@ -117,10 +117,10 @@ export class OpenAICodexAuthStrategy implements AuthStrategy {
     return undefined;
   }
 
-  async resolveRequestAuth(session: AuthSession, providerConfig: ProviderConfig): Promise<ResolvedRequestAuth> {
+  async resolveRequestAuth(session: AuthSession, connection: ConnectionConfig): Promise<ResolvedRequestAuth> {
     return {
       accessToken: session.accessToken,
-      baseUrl: providerConfig.baseUrl,
+      baseUrl: connection.baseUrl,
     };
   }
 
@@ -149,14 +149,15 @@ export class OpenAICodexAuthStrategy implements AuthStrategy {
   }
 }
 
-function buildAuthSession(providerConfigId: string, strategy: string, token: TokenResponse): AuthSession {
+function buildAuthSession(connectionId: string, strategy: string, token: TokenResponse): AuthSession {
   const accountLabel = parseAccountLabel(token.id_token);
   const expiresAt = typeof token.expires_in === 'number'
     ? Date.now() + token.expires_in * 1000
     : undefined;
 
   return {
-    providerConfigId,
+    connectionId,
+    providerConfigId: connectionId,
     strategy,
     accessToken: token.access_token,
     refreshToken: token.refresh_token,

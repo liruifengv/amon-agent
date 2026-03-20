@@ -60,7 +60,17 @@ describe('ConfigStore', () => {
       JSON.stringify({
         theme: 'dark',
         agent: {
-          providerConfigs: [{ id: 'openai', name: 'OpenAI', apiKey: 'settings-key' }],
+          activeConnectionId: 'openai-default',
+          connections: [
+            {
+              id: 'openai-default',
+              specId: 'openai',
+              name: 'OpenAI',
+              apiKey: 'settings-key',
+              modelKey: 'openai:gpt-5.4',
+              auth: { type: 'apiKey' },
+            },
+          ],
           maxTurns: 50,
         },
         skills: {
@@ -88,13 +98,17 @@ describe('ConfigStore', () => {
 
     expect(updated.theme).toBe('dark');
     expect(updated.agent.maxTurns).toBe(99);
-    expect(updated.agent.providerConfigs).toEqual([
+    expect(updated.agent.connections).toEqual([
       expect.objectContaining({
-        id: 'openai',
+        id: 'openai-default',
         name: 'OpenAI',
         apiKey: 'settings-key',
+        modelKey: 'openai:gpt-5.4',
       }),
     ]);
+    expect(updated.agent).not.toHaveProperty('providerConfigs');
+    expect(updated.agent).not.toHaveProperty('activeProviderId');
+    expect(updated.agent).not.toHaveProperty('activeModelId');
     expect(updated.skills).toEqual({
       extraDirs: ['.claude', '.custom'],
       disabledSkills: ['legacy'],
@@ -104,16 +118,28 @@ describe('ConfigStore', () => {
     const saved = JSON.parse(await readFile(settingsPath, 'utf-8'));
     expect(saved.agent.maxTurns).toBe(99);
     expect(saved.skills.initialized).toBe(true);
-    expect(saved.agent.providerConfigs).toHaveLength(1);
+    expect(saved.agent.connections).toHaveLength(1);
+    expect(saved.agent.providerConfigs).toBeUndefined();
+    expect(saved.agent.activeProviderId).toBeUndefined();
+    expect(saved.agent.activeModelId).toBeUndefined();
     expect(await readFile(settingsPath, 'utf-8')).not.toContain('.tmp');
   });
 
-  it('prefers provider config api keys and falls back to environment variables', async () => {
+  it('prefers connection api keys and falls back to service environment variables', async () => {
     await writeFile(
       settingsPath,
       JSON.stringify({
         agent: {
-          providerConfigs: [{ id: 'openai', name: 'OpenAI', apiKey: 'settings-key' }],
+          connections: [
+            {
+              id: 'openai-default',
+              specId: 'openai',
+              name: 'OpenAI',
+              apiKey: 'settings-key',
+              modelKey: 'openai:gpt-5.4',
+              auth: { type: 'apiKey' },
+            },
+          ],
         },
       }),
       'utf-8',
@@ -125,7 +151,7 @@ describe('ConfigStore', () => {
     process.env.OPENAI_API_KEY = 'env-openai';
     process.env.ANTHROPIC_API_KEY = 'env-anthropic';
 
-    expect(store.getApiKey('openai')).toBe('settings-key');
+    expect(store.getApiKey('openai-default')).toBe('settings-key');
     expect(store.getApiKey('anthropic')).toBe('env-anthropic');
     expect(store.getApiKey('unknown')).toBeUndefined();
   });

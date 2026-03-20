@@ -12,10 +12,10 @@ vi.mock('@/main/store/logger', () => ({
 
 import { ProviderAuthService } from '@/main/auth/provider-auth-service';
 import type { AuthStrategy } from '@/main/auth/types';
-import type { ProviderConfig } from '@/shared/schemas';
-import type { AuthSession } from '@/shared/provider-auth';
+import type { ConnectionConfig } from '@/shared/schemas';
+import type { AuthSession } from '@/shared/connection-auth';
 
-function createConfigStore(providerConfigs: ProviderConfig[]) {
+function createConfigStore(connections: ConnectionConfig[]) {
   return {
     getSettings: vi.fn(async () => ({
       theme: 'system',
@@ -25,13 +25,18 @@ function createConfigStore(providerConfigs: ProviderConfig[]) {
       workspaces: [],
       skills: { extraDirs: ['.claude'], disabledSkills: [], initialized: false },
       agent: {
-        activeProviderId: 'codex-1',
-        activeModelId: 'gpt-5.3-codex',
+        activeConnectionId: 'codex-1',
         maxTurns: 50,
         thinkingLevel: 'medium',
         defaultApprovalMode: 'ask',
         exaApiKey: '',
-        providerConfigs,
+        connections,
+        compaction: {
+          enabled: true,
+          reserveTokens: 16384,
+          keepRecentTokens: 20000,
+          autoCompact: true,
+        },
       },
     })),
   };
@@ -41,24 +46,33 @@ describe('ProviderAuthService', () => {
   let sessions = new Map<string, AuthSession>();
   let strategy: AuthStrategy;
   let service: ProviderAuthService;
-  let pushProviderAuthChanged: ReturnType<typeof vi.fn>;
+  let pushConnectionAuthChanged: ReturnType<typeof vi.fn>;
   let deleteSession: ReturnType<typeof vi.fn>;
+  let credentialStore: {
+    getApiKey: ReturnType<typeof vi.fn>;
+    setApiKey: ReturnType<typeof vi.fn>;
+    deleteApiKey: ReturnType<typeof vi.fn>;
+  };
 
-  const codexProvider: ProviderConfig = {
+  const codexConnection: ConnectionConfig = {
     id: 'codex-1',
+    specId: 'codex',
     name: 'Codex',
-    apiType: 'openai-codex-responses',
-    provider: 'openai-codex',
-    icon: 'OpenAI',
-    apiKey: '',
     baseUrl: 'https://chatgpt.com/backend-api/codex',
-    modelId: 'gpt-5.3-codex',
-    auth: { type: 'oauth', strategy: 'openai-codex' },
+    modelKey: 'openai-codex:gpt-5.3-codex',
+    customModelId: '',
+    auth: { type: 'oauth' },
+    apiKey: '',
   };
 
   beforeEach(() => {
     sessions = new Map<string, AuthSession>();
-    pushProviderAuthChanged = vi.fn();
+    pushConnectionAuthChanged = vi.fn();
+    credentialStore = {
+      getApiKey: vi.fn(async () => undefined),
+      setApiKey: vi.fn(async () => undefined),
+      deleteApiKey: vi.fn(async () => undefined),
+    };
     deleteSession = vi.fn(async (id: string) => {
       sessions.delete(id);
     });
@@ -66,7 +80,7 @@ describe('ProviderAuthService', () => {
     strategy = {
       id: 'openai-codex',
       connect: vi.fn(async () => ({
-        providerConfigId: 'codex-1',
+        connectionId: 'codex-1',
         strategy: 'openai-codex',
         accessToken: 'access-1',
         refreshToken: 'refresh-1',
@@ -84,16 +98,21 @@ describe('ProviderAuthService', () => {
     };
 
     service = new ProviderAuthService({
-      configStore: createConfigStore([codexProvider]) as any,
+      configStore: createConfigStore([codexConnection]) as any,
       authStore: {
         getSession: vi.fn(async (id: string) => sessions.get(id)),
         setSession: vi.fn(async (session: AuthSession) => {
-          sessions.set(session.providerConfigId, session);
+          const sessionId = session.connectionId || session.providerConfigId;
+          if (!sessionId) {
+            throw new Error('missing connection id');
+          }
+          sessions.set(sessionId, session);
         }),
         deleteSession,
       } as any,
+      credentialStore: credentialStore as any,
       pushService: {
-        pushProviderAuthChanged,
+        pushConnectionAuthChanged,
       } as any,
       strategies: [strategy],
     });
@@ -113,7 +132,7 @@ describe('ProviderAuthService', () => {
 
   it('refreshes expiring sessions only once for concurrent callers', async () => {
     sessions.set('codex-1', {
-      providerConfigId: 'codex-1',
+      connectionId: 'codex-1',
       strategy: 'openai-codex',
       accessToken: 'stale-token',
       refreshToken: 'refresh-1',
@@ -132,13 +151,13 @@ describe('ProviderAuthService', () => {
 
   it('throws when resolving auth without a stored oauth session', async () => {
     await expect(service.resolveRequestAuth('codex-1')).rejects.toThrow(
-      'Provider "Codex" is not connected. Open Settings and connect it first.',
+      'Connection "Codex" is not connected. Open Settings and connect it first.',
     );
   });
 
-  it('marks provider as expired and clears session when refresh fails', async () => {
+  it('marks the connection as expired and clears session when refresh fails', async () => {
     sessions.set('codex-1', {
-      providerConfigId: 'codex-1',
+      connectionId: 'codex-1',
       strategy: 'openai-codex',
       accessToken: 'stale-token',
       refreshToken: 'refresh-1',
@@ -151,10 +170,10 @@ describe('ProviderAuthService', () => {
 
     expect(deleteSession).toHaveBeenCalledWith('codex-1');
     expect(sessions.get('codex-1')).toBeUndefined();
-    expect(pushProviderAuthChanged).toHaveBeenCalledWith(
+    expect(pushConnectionAuthChanged).toHaveBeenCalledWith(
       'codex-1',
       expect.objectContaining({
-        providerConfigId: 'codex-1',
+        connectionId: 'codex-1',
         state: 'expired',
         errorMessage: 'refresh failed',
       }),
@@ -163,7 +182,7 @@ describe('ProviderAuthService', () => {
 
   it('disconnect clears local session and triggers strategy disconnect', async () => {
     const existingSession: AuthSession = {
-      providerConfigId: 'codex-1',
+      connectionId: 'codex-1',
       strategy: 'openai-codex',
       accessToken: 'access-1',
       refreshToken: 'refresh-1',
@@ -173,9 +192,9 @@ describe('ProviderAuthService', () => {
 
     await service.disconnect('codex-1');
 
-    expect(strategy.disconnect).toHaveBeenCalledWith(existingSession, codexProvider);
+    expect(strategy.disconnect).toHaveBeenCalledWith(existingSession, codexConnection);
     expect(deleteSession).toHaveBeenCalledWith('codex-1');
-    expect(pushProviderAuthChanged).toHaveBeenCalledWith(
+    expect(pushConnectionAuthChanged).toHaveBeenCalledWith(
       'codex-1',
       expect.objectContaining({ state: 'disconnected' }),
     );
@@ -186,15 +205,49 @@ describe('ProviderAuthService', () => {
 
     await expect(service.connect('codex-1')).rejects.toThrow('oauth denied');
 
-    expect(pushProviderAuthChanged).toHaveBeenNthCalledWith(
+    expect(pushConnectionAuthChanged).toHaveBeenNthCalledWith(
       1,
       'codex-1',
       expect.objectContaining({ state: 'connecting' }),
     );
-    expect(pushProviderAuthChanged).toHaveBeenNthCalledWith(
+    expect(pushConnectionAuthChanged).toHaveBeenNthCalledWith(
       2,
       'codex-1',
       expect.objectContaining({ state: 'error', errorMessage: 'oauth denied' }),
     );
+  });
+
+  it('resolves stored api key credentials before falling back to env', async () => {
+    const apiKeyService = new ProviderAuthService({
+      configStore: createConfigStore([
+        {
+          id: 'openai-default',
+          specId: 'openai',
+          name: 'OpenAI',
+          modelKey: 'openai:gpt-5.4',
+          customModelId: '',
+          auth: { type: 'apiKey', credentialId: 'cred-openai-default' },
+          apiKey: '',
+        },
+      ]) as any,
+      authStore: {
+        getSession: vi.fn(),
+        setSession: vi.fn(),
+        deleteSession: vi.fn(),
+      } as any,
+      credentialStore: {
+        getApiKey: vi.fn(async () => 'stored-openai-key'),
+        setApiKey: vi.fn(),
+        deleteApiKey: vi.fn(),
+      } as any,
+      pushService: {
+        pushConnectionAuthChanged: vi.fn(),
+      } as any,
+      strategies: [],
+    });
+
+    await expect(apiKeyService.resolveRequestAuth('openai-default')).resolves.toEqual({
+      accessToken: 'stored-openai-key',
+    });
   });
 });

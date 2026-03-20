@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { ResolvedRequestAuth } from '@shared/provider-auth';
+import type { ResolvedRequestAuth } from '@shared/connection-auth';
 import type {
 	AssistantMessageEvent,
 	ImageContent,
@@ -49,6 +49,16 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
 	 * Returns follow-up messages to process after the agent would otherwise stop.
 	 */
 	getFollowUpMessages?: () => Promise<AgentMessage[]>;
+
+	/**
+	 * Lets callers stop the loop cleanly after a completed turn.
+	 * Useful for app-level policies such as context compaction checkpoints.
+	 */
+	shouldStopAfterTurn?: (turn: {
+		message: AgentMessage;
+		toolResults: ToolResultMessage[];
+		messages: AgentMessage[];
+	}) => Promise<boolean> | boolean;
 }
 
 /**

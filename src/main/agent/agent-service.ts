@@ -1,11 +1,12 @@
 import { Agent } from '../../agent';
 import type { AgentEvent, AgentMessage, AgentTool } from '../../agent';
 import {
-  getModels,
+  isContextOverflow,
   type Model,
   type ImageContent,
   type TextContent,
   type UserMessage,
+  type AssistantMessage,
   type Message,
 } from '../../ai';
 import type { ToolRegistry } from '../tools/tool-registry';
@@ -16,18 +17,24 @@ import type { ConfigStore } from '../store/config-store';
 import type { SkillsStore } from '../skills';
 import type { EventAdapter } from './event-adapter';
 import type { PushService } from '../ipc/push';
-import type { ProviderAuthService } from '../auth';
-import type { ProviderConfig } from '@shared/schemas';
-import type { ImageAttachment } from '@shared/types';
+import type { ConnectionAuthService } from '../auth';
+import type { CompactionSettings } from '@shared/schemas';
+import type { CompactionMessage, CompactionSnapshot, ImageAttachment, SessionMessage } from '@shared/types';
 import type { ApprovalMode } from '@shared/permission-types';
-import type { ResolvedRequestAuth } from '@shared/provider-auth';
+import type { ResolvedRequestAuth } from '@shared/connection-auth';
 import type { QuestionToolUpdate } from '@shared/question-types';
 import { buildSystemPrompt } from './system-prompt';
+import {
+  CompactionService,
+  getUsageContextTokensFromAssistant,
+  toCompactionNotice,
+} from './compaction-service';
 import { loadGlobalUserFiles, loadProjectAgentsFile } from '../workspace';
 import { formatSkillsForPrompt } from '../skills';
 import { ApprovalService } from '../permissions/approval-service';
 import { PermissionedToolExecutor } from '../permissions/tool-executor';
 import type { QuestionService } from '../questions/question-service';
+import { resolveRuntimeModel } from './resolve-runtime-model';
 
 // ==================== Types ====================
 
@@ -35,7 +42,7 @@ interface AgentServiceDeps {
   sessionStore: SessionStore;
   persistence: Persistence;
   configStore: ConfigStore;
-  providerAuthService: ProviderAuthService;
+  connectionAuthService: ConnectionAuthService;
   toolRegistry: ToolRegistry;
   skillsStore: SkillsStore;
   eventAdapter: EventAdapter;
@@ -46,30 +53,10 @@ interface AgentServiceDeps {
   defaultWorkspace: string;
 }
 
-// ==================== Model Resolution ====================
-
-function resolveModel(config: ProviderConfig): Model<any> {
-  // getModels expects a builtin provider key; cast is safe — returns empty array for unknowns
-  const builtinModels = getModels(config.provider as any);
-  const match = builtinModels?.find((m) => m.id === config.modelId);
-  if (match) {
-    return config.baseUrl ? { ...match, baseUrl: config.baseUrl } : match;
-  }
-
-  const isCodex = config.apiType === 'openai-codex-responses';
-  // Custom model fallback
-  return {
-    id: config.modelId,
-    name: config.modelId,
-    api: config.apiType,
-    provider: config.provider,
-    baseUrl: config.baseUrl ?? '',
-    reasoning: isCodex,
-    input: isCodex ? ['text', 'image'] : ['text'],
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: isCodex ? 200000 : 128000,
-    maxTokens: isCodex ? 32768 : 8192,
-  } satisfies Model<any>;
+interface PendingCompactionRequest {
+  source: 'auto-threshold' | 'auto-overflow';
+  tokensBefore: number;
+  triggerTimestamp: number;
 }
 
 // ==================== Tool Wrapping ====================
@@ -150,6 +137,7 @@ function wrapTool(
 export class AgentService {
   private agents = new Map<string, Agent>();
   private readonly toolExecutor: PermissionedToolExecutor;
+  private readonly compactionService = new CompactionService();
 
   constructor(private deps: AgentServiceDeps) {
     this.toolExecutor = new PermissionedToolExecutor(
@@ -166,7 +154,7 @@ export class AgentService {
     // Abort any existing run for this session
     this.abort(sessionId);
 
-    const { sessionStore, persistence, configStore, providerAuthService, toolRegistry, skillsStore, eventAdapter, pushService, dataDir, defaultWorkspace } = this.deps;
+    const { sessionStore, persistence, configStore, connectionAuthService, toolRegistry, skillsStore, eventAdapter, dataDir, defaultWorkspace } = this.deps;
 
     const session = sessionStore.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
@@ -185,18 +173,21 @@ export class AgentService {
     const settings = await configStore.getSettings();
     const agentSettings = settings.agent;
 
-    // Resolve active provider config
-    const providerConfig = agentSettings.providerConfigs.find(
-      (c) => c.id === agentSettings.activeProviderId,
+    const activeConnectionId = agentSettings.activeConnectionId;
+    if (!activeConnectionId) {
+      throw new Error('No active connection configured. Please check your settings.');
+    }
+
+    const connection = agentSettings.connections.find(
+      (item) => item.id === activeConnectionId,
     );
-    if (!providerConfig) {
+    if (!connection) {
       throw new Error(
-        `Provider "${agentSettings.activeProviderId}" not found. Please check your settings.`,
+        `Connection "${activeConnectionId}" not found. Please check your settings.`,
       );
     }
 
-    // Resolve model
-    const model = resolveModel(providerConfig);
+    const model = resolveRuntimeModel(connection);
 
     // Load skills
     await skillsStore.load(session.workspace);
@@ -230,30 +221,63 @@ export class AgentService {
       defaultApprovalMode: session.approvalMode ?? agentSettings.defaultApprovalMode,
       toolExecutor: this.toolExecutor,
     })));
-    agent.getRequestAuth = async (): Promise<ResolvedRequestAuth | undefined> => {
-      if (providerConfig.auth.type === 'oauth') {
-        return providerAuthService.resolveRequestAuth(providerConfig.id);
-      }
-
-      const accessToken = configStore.getApiKey(providerConfig.id) || providerConfig.apiKey || undefined;
-      return accessToken ? { accessToken } : undefined;
+    const resolveRequestAuth = async (): Promise<ResolvedRequestAuth | undefined> => {
+      return connectionAuthService.resolveRequestAuth(connection.id);
     };
+    agent.getRequestAuth = async (): Promise<ResolvedRequestAuth | undefined> => resolveRequestAuth();
     agent.sessionId = sessionId;
     agent.cwd = session.workspace;
+
+    let pendingCompaction: PendingCompactionRequest | null = null;
+
+    agent.setShouldStopAfterTurn(async (turn) => {
+      if (turn.message.role !== 'assistant') {
+        return false;
+      }
+
+      const request = this.resolveAutomaticCompactionRequest({
+        sessionId,
+        model,
+        compactionSettings: agentSettings.compaction,
+        messages: turn.messages,
+        lastAssistant: turn.message,
+      });
+      if (!request) {
+        return false;
+      }
+
+      pendingCompaction = {
+        ...request,
+        triggerTimestamp: turn.message.timestamp,
+      };
+      return true;
+    });
 
     // Restore messages from SessionStore into Agent
     const existingMessages = sessionStore.getMessages(sessionId);
     if (existingMessages.length > 0 && agent.state.messages.length === 0) {
-      agent.replaceMessages(existingMessages);
+      agent.replaceMessages(existingMessages as AgentMessage[]);
     }
 
     // Wire event adapter
     const unsubscribe = agent.subscribe((event: AgentEvent) => {
+      if (
+        event.type === 'turn_end'
+        && pendingCompaction?.source === 'auto-overflow'
+        && event.message.role === 'assistant'
+        && event.message.timestamp === pendingCompaction.triggerTimestamp
+      ) {
+        this.pushAgentState(sessionId, true, model);
+        return;
+      }
       eventAdapter.handleEvent(sessionId, event);
+      if (event.type === 'turn_end') {
+        this.pushAgentState(sessionId, true, model);
+      }
     });
 
     // Notify UI: agent running
-    pushService.pushAgentState(sessionId, { isRunning: true, toolExecutions: {}, contextWindow: model.contextWindow });
+    this.pushAgentState(sessionId, true, model);
 
     try {
       // Build user message (ai format)
@@ -274,11 +298,37 @@ export class AgentService {
       };
 
       await agent.prompt(userMessage);
+
+      while (true) {
+        const compactionRequest = pendingCompaction as PendingCompactionRequest | null;
+        if (!compactionRequest) {
+          break;
+        }
+
+        pendingCompaction = null;
+        const snapshot = await this.applyCompaction({
+          sessionId,
+          model,
+          source: compactionRequest.source,
+          compactionSettings: agentSettings.compaction,
+          messages: this.getAiMessagesForSession(sessionId),
+          tokensBefore: compactionRequest.tokensBefore,
+          getRequestAuth: async () => resolveRequestAuth(),
+        });
+        if (!snapshot) {
+          break;
+        }
+
+        this.appendCompactionMessage(sessionId, agent, snapshot);
+        this.pushAgentState(sessionId, true, model);
+        await agent.continue();
+      }
     } finally {
+      agent.setShouldStopAfterTurn(undefined);
       unsubscribe();
 
       // Notify UI: agent stopped
-      pushService.pushAgentState(sessionId, { isRunning: false, toolExecutions: {}, contextWindow: model.contextWindow });
+      this.pushAgentState(sessionId, false, model);
 
       // Persist all messages
       await this.persistMessages(sessionId);
@@ -296,9 +346,9 @@ export class AgentService {
     this.agents.delete(sessionId);
   }
 
-  restoreFromMessages(sessionId: string, messages: Message[]): void {
+  restoreFromMessages(sessionId: string, messages: SessionMessage[]): void {
     const agent = this.getOrCreateAgent(sessionId);
-    agent.replaceMessages(messages);
+    agent.replaceMessages(messages as AgentMessage[]);
   }
 
   private getOrCreateAgent(sessionId: string): Agent {
@@ -306,10 +356,192 @@ export class AgentService {
     if (!agent) {
       agent = new Agent({
         convertToLlm: defaultConvertToLlm,
+        transformContext: async (messages) => this.transformContextForSession(sessionId, messages),
       });
       this.agents.set(sessionId, agent);
     }
     return agent;
+  }
+
+  private pushAgentState(sessionId: string, isRunning: boolean, model: Model<any>): void {
+    const messages = this.getAiMessagesForSession(sessionId);
+    const lastAssistant = getLastAssistantMessage(messages);
+    const snapshot = this.deps.sessionStore.getCompactionSnapshot(sessionId);
+    this.deps.pushService.pushAgentState(sessionId, {
+      isRunning,
+      toolExecutions: {},
+      contextWindow: model.contextWindow,
+      contextTokens: this.resolveDisplayedContextTokens({
+        messages,
+        model,
+        snapshot,
+        lastAssistant,
+      }),
+      lastCompaction: snapshot ? toCompactionNotice(snapshot) : null,
+    });
+  }
+
+  private resolveAutomaticCompactionRequest(options: {
+    sessionId: string;
+    model: Model<any>;
+    compactionSettings: CompactionSettings;
+    messages: AgentMessage[];
+    lastAssistant: AssistantMessage;
+  }): {
+    source: 'auto-threshold' | 'auto-overflow';
+    tokensBefore: number;
+  } | null {
+    if (!this.isAutomaticCompactionEnabled(options.compactionSettings)) {
+      return null;
+    }
+
+    const source = isContextOverflow(options.lastAssistant, options.model.contextWindow)
+      ? 'auto-overflow'
+      : (
+        this.compactionService.shouldCompactFromUsage(
+          getUsageContextTokensFromAssistant(options.lastAssistant),
+          options.model.contextWindow,
+          options.compactionSettings.reserveTokens,
+        )
+          ? 'auto-threshold'
+          : null
+      );
+    if (!source) {
+      return null;
+    }
+
+    const snapshot = this.deps.sessionStore.getCompactionSnapshot(options.sessionId);
+    return {
+      source,
+      tokensBefore: this.resolveContextTokenCountForMessages(
+        defaultConvertToLlm(options.messages),
+        snapshot,
+        options.model.contextWindow,
+        options.lastAssistant,
+      ),
+    };
+  }
+
+  private async applyCompaction(options: {
+    sessionId: string;
+    model: Model<any>;
+    source: 'auto-threshold' | 'auto-overflow';
+    compactionSettings: CompactionSettings;
+    messages: Message[];
+    tokensBefore: number;
+    getRequestAuth: () => Promise<ResolvedRequestAuth | undefined>;
+  }) {
+    try {
+      const result = await this.compactionService.compact({
+        sessionId: options.sessionId,
+        messages: options.messages,
+        model: options.model,
+        source: options.source,
+        tokensBefore: options.tokensBefore,
+        keepRecentTokens: options.compactionSettings.keepRecentTokens,
+        snapshot: this.deps.sessionStore.getCompactionSnapshot(options.sessionId),
+        getRequestAuth: async () => options.getRequestAuth(),
+      });
+
+      if (!result) {
+        return null;
+      }
+
+      this.deps.sessionStore.setCompactionSnapshot(options.sessionId, result.snapshot);
+      await this.deps.persistence.appendCompactionSnapshot(options.sessionId, result.snapshot);
+      this.deps.pushService.pushCompaction(options.sessionId, result.notice);
+
+      return result.snapshot;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.deps.pushService.pushError(
+        options.sessionId,
+        `Conversation compaction failed: ${message}`,
+      );
+      return null;
+    }
+  }
+
+  private appendCompactionMessage(sessionId: string, agent: Agent, snapshot: CompactionSnapshot): void {
+    const message: CompactionMessage = {
+      role: 'compaction',
+      source: snapshot.source,
+      tokensBefore: snapshot.tokensBefore,
+      tokensAfter: snapshot.tokensAfter,
+      timestamp: snapshot.createdAt,
+    };
+
+    agent.appendMessage(message);
+    this.deps.sessionStore.addMessage(sessionId, message);
+  }
+
+  private resolveContextTokenCount(
+    messages: Message[],
+    sessionId: string,
+    lastAssistant?: AssistantMessage,
+  ): number {
+    return this.resolveContextTokenCountForMessages(
+      messages,
+      this.deps.sessionStore.getCompactionSnapshot(sessionId),
+      this.agents.get(sessionId)?.state.model.contextWindow,
+      lastAssistant,
+    );
+  }
+
+  private resolveContextTokenCountForMessages(
+    messages: Message[],
+    snapshot?: CompactionSnapshot,
+    contextWindow?: number,
+    lastAssistant?: AssistantMessage,
+  ): number {
+    return getUsageContextTokensFromAssistant(lastAssistant)
+      ?? this.compactionService.estimateActiveContextTokens({
+        messages,
+        snapshot,
+        contextWindow,
+      });
+  }
+
+  private isAutomaticCompactionEnabled(settings: CompactionSettings): boolean {
+    return settings.enabled && settings.autoCompact;
+  }
+
+  private resolveDisplayedContextTokens(options: {
+    messages: Message[];
+    model: Model<any>;
+    snapshot?: import('@shared/types').CompactionSnapshot;
+    lastAssistant?: AssistantMessage;
+  }): number {
+    if (
+      options.snapshot?.tokensAfter !== undefined
+      && (
+        !options.lastAssistant
+        || options.snapshot.createdAt > options.lastAssistant.timestamp
+      )
+    ) {
+      return options.snapshot.tokensAfter;
+    }
+
+    return getUsageContextTokensFromAssistant(options.lastAssistant)
+      ?? this.compactionService.estimateActiveContextTokens({
+        messages: options.messages,
+        snapshot: options.snapshot,
+        contextWindow: options.model.contextWindow,
+      });
+  }
+
+  private async transformContextForSession(
+    sessionId: string,
+    messages: AgentMessage[],
+  ): Promise<AgentMessage[]> {
+    const model = this.agents.get(sessionId)?.state.model;
+    const llmCompatibleMessages = defaultConvertToLlm(messages);
+
+    return this.compactionService.buildActiveMessages({
+      messages: llmCompatibleMessages,
+      snapshot: this.deps.sessionStore.getCompactionSnapshot(sessionId),
+      contextWindow: model?.contextWindow,
+    });
   }
 
   private async persistMessages(sessionId: string): Promise<void> {
@@ -318,6 +550,10 @@ export class AgentService {
     if (messages.length > 0) {
       await this.deps.persistence.rewriteMessages(sessionId, messages);
     }
+  }
+
+  private getAiMessagesForSession(sessionId: string): Message[] {
+    return defaultConvertToLlm(this.deps.sessionStore.getMessages(sessionId) as AgentMessage[]);
   }
 }
 
@@ -328,4 +564,15 @@ function defaultConvertToLlm(messages: AgentMessage[]): Message[] {
   return messages.filter(
     (m) => m.role === 'user' || m.role === 'assistant' || m.role === 'toolResult',
   );
+}
+
+function getLastAssistantMessage(messages: Message[]): AssistantMessage | undefined {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index];
+    if (message.role === 'assistant') {
+      return message;
+    }
+  }
+
+  return undefined;
 }

@@ -374,6 +374,32 @@ describe("Agent", () => {
 			expect(lastMsg.role).toBe("assistant");
 		});
 
+		it("works from an assistant error message", async () => {
+			const streamFn = createScriptedStreamFn([
+				createAssistantMessage([{ type: "text", text: "recovered" }]),
+			]);
+			const agent = new Agent({
+				streamFn,
+				initialState: { model: createMockModel() },
+			});
+
+			agent.replaceMessages([
+				createUserMessage("hello"),
+				createAssistantMessage([{ type: "text", text: "" }], {
+					stopReason: "error",
+					errorMessage: "maximum context length is 200000 tokens",
+				}),
+			]);
+
+			await agent.continue();
+
+			const lastMsg = agent.state.messages[agent.state.messages.length - 1];
+			expect(lastMsg.role).toBe("assistant");
+			if (lastMsg.role === "assistant") {
+				expect(lastMsg.content[0]).toEqual({ type: "text", text: "recovered" });
+			}
+		});
+
 		it("throws when already streaming", async () => {
 			const streamFn = createScriptedStreamFn([
 				createAssistantMessage([{ type: "text", text: "ok" }]),

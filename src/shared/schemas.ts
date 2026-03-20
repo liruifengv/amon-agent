@@ -1,44 +1,57 @@
 import { z } from 'zod';
 import { ApprovalModeSchema } from './permission-types';
-import type { ProviderAuthConfig } from './provider-auth';
+import { getCatalogModelByServiceModelId, getConnectionSpec, listConnectionSpecs } from './ai-catalog';
 
-// ==================== Provider 配置 Schema ====================
+// ==================== Connection 配置 Schema ====================
 
-export const ProviderAuthConfigSchema = z.discriminatedUnion('type', [
+export const ConnectionAuthConfigSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('apiKey'),
+    credentialId: z.string().nullable().optional(),
   }),
   z.object({
     type: z.literal('oauth'),
-    strategy: z.literal('openai-codex'),
   }),
 ]);
 
-export const ProviderConfigSchema = z.object({
+export const ConnectionConfigSchema = z.object({
   id: z.string(),
-  apiType: z.string().default('openai-completions'),  // Api: 'anthropic-messages' | 'openai-completions' | 'openai-responses' | 'google-generative-ai'
-  provider: z.string().default(''),                     // Provider: 'anthropic' | 'openai' | 'google' | ...
-  icon: z.string().default(''),
+  specId: z.string().min(1),
   name: z.string().min(1),
-  apiKey: z.string().default(''),
   baseUrl: z.string().optional(),
-  modelId: z.string().default(''),
-  auth: ProviderAuthConfigSchema.default({ type: 'apiKey' }),
+  modelKey: z.string().min(1),
+  customModelId: z.string().default(''),
+  auth: ConnectionAuthConfigSchema.default({ type: 'apiKey' }),
+  // Transitional field while API keys are still stored in settings.
+  apiKey: z.string().default(''),
 });
 
-export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
-export type { ProviderAuthConfig };
+export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>;
 
 // ==================== Agent 配置 Schema ====================
 
+export const CompactionSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  reserveTokens: z.number().int().positive().default(16384),
+  keepRecentTokens: z.number().int().positive().default(20000),
+  autoCompact: z.boolean().default(true),
+});
+
+export type CompactionSettings = z.infer<typeof CompactionSettingsSchema>;
+
 export const AgentSettingsSchema = z.object({
-  activeProviderId: z.string().default('anthropic'),
-  activeModelId: z.string().default('claude-sonnet-4-20250514'),
+  activeConnectionId: z.string().nullable().default(null),
   maxTurns: z.number().default(50),
   thinkingLevel: z.enum(['off', 'low', 'medium', 'high', 'xhigh']).default('medium'),
   defaultApprovalMode: ApprovalModeSchema.default('ask'),
-  providerConfigs: z.array(ProviderConfigSchema).default([]),
+  connections: z.array(ConnectionConfigSchema).default([]),
   exaApiKey: z.string().default(''),
+  compaction: CompactionSettingsSchema.default({
+    enabled: true,
+    reserveTokens: 16384,
+    keepRecentTokens: 20000,
+    autoCompact: true,
+  }),
 });
 
 export type AgentSettings = z.infer<typeof AgentSettingsSchema>;
@@ -70,11 +83,8 @@ export const DEFAULT_SHORTCUTS: Shortcuts = ShortcutsSchema.parse({});
 // ==================== Skills 配置 Schema ====================
 
 export const SkillsSettingsSchema = z.object({
-  /** 额外的 skill 搜索目录名（如 ".claude"），每个条目同时扫描系统级和项目级 */
   extraDirs: z.array(z.string()).default(['.claude']),
-  /** 已禁用的技能名称列表 */
   disabledSkills: z.array(z.string()).default([]),
-  /** 是否已完成首次内置技能安装 */
   initialized: z.boolean().default(false),
 });
 
@@ -96,137 +106,126 @@ export type Settings = z.infer<typeof SettingsSchema>;
 
 export const DEFAULT_SETTINGS: Settings = SettingsSchema.parse({});
 
-// ==================== 设置迁移 ====================
-
-/** Provider type → apiType 映射 */
-const TYPE_TO_API_TYPE: Record<string, string> = {
-  anthropic: 'anthropic-messages',
-  openai: 'openai-completions',
-  'openai-responses': 'openai-responses',
-  'openai-codex-responses': 'openai-codex-responses',
-  gemini: 'google-generative-ai',
+type LegacyProviderConfig = {
+  id?: string;
+  apiType?: string;
+  provider?: string;
+  name?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  modelId?: string;
+  auth?: {
+    type?: 'apiKey' | 'oauth';
+    strategy?: 'openai-codex';
+  };
 };
 
-/** Provider id → provider 映射 */
-const ID_TO_PROVIDER: Record<string, string> = {
-  anthropic: 'anthropic',
-  openai: 'openai',
-  'openai-codex': 'openai-codex',
-  google: 'google',
-  deepseek: 'openai',   // DeepSeek uses OpenAI-compatible API
-};
+function findSpecIdForLegacyConfig(config: LegacyProviderConfig): string | undefined {
+  const provider = config.provider;
+  const apiType = config.apiType;
+  if (!provider || !apiType) {
+    return undefined;
+  }
 
-/**
- * Migrate old settings format to new format.
- */
+  const candidates = listConnectionSpecs().filter(
+    (spec) => spec.serviceId === provider && spec.transport === apiType,
+  );
+
+  if (candidates.length === 0) {
+    return undefined;
+  }
+
+  if (config.baseUrl) {
+    const exact = candidates.find((spec) => spec.defaultBaseUrl === config.baseUrl);
+    if (exact) {
+      return exact.id;
+    }
+  }
+
+  const idMatch = candidates.find((spec) => spec.id === config.id);
+  return idMatch?.id ?? candidates[0]?.id;
+}
+
+function migrateLegacyProviderConfig(config: LegacyProviderConfig): ConnectionConfig | null {
+  const specId = findSpecIdForLegacyConfig(config);
+  if (!specId) {
+    return null;
+  }
+
+  const spec = getConnectionSpec(specId);
+  const modelKey = config.modelId
+    ? getCatalogModelByServiceModelId(spec.serviceId, config.modelId)?.key
+    : undefined;
+
+  return {
+    id: config.id || specId,
+    specId,
+    name: config.name || spec.name,
+    baseUrl: config.baseUrl || spec.defaultBaseUrl,
+    modelKey: modelKey || spec.defaultModelKey,
+    customModelId: config.modelId && !modelKey ? config.modelId : '',
+    auth: config.auth?.type === 'oauth' ? { type: 'oauth' } : { type: 'apiKey' },
+    apiKey: config.apiKey || '',
+  };
+}
+
 function migrateSettings(data: unknown): unknown {
   if (!data || typeof data !== 'object') return data;
   const raw = { ...(data as Record<string, unknown>) };
 
-  // Deep-clone agent to avoid mutating input
   if (raw.agent && typeof raw.agent === 'object') {
     raw.agent = { ...(raw.agent as Record<string, unknown>) };
   }
 
   const agent = (raw.agent || {}) as Record<string, unknown>;
 
-  // Migrate old top-level `providers[]` → `agent.providerConfigs[]`
-  if (Array.isArray(raw.providers) && !agent.providerConfigs) {
-    agent.providerConfigs = (raw.providers as Record<string, unknown>[]).map(p => ({
-      id: ((p.id as string) || '').toLowerCase(),
-      name: (p.id as string) || (p.name as string) || '',
-      apiKey: (p.apiKey as string) || '',
-      ...(p.baseUrl ? { baseUrl: p.baseUrl as string } : {}),
-      auth: { type: 'apiKey' },
-    }));
-    delete raw.providers;
-  }
+  const legacyProviderConfigs = Array.isArray(agent.providerConfigs)
+    ? agent.providerConfigs as LegacyProviderConfig[]
+    : Array.isArray(raw.providers)
+      ? raw.providers as LegacyProviderConfig[]
+      : undefined;
+  delete raw.providers;
 
-  // Migrate `agent.provider` → `agent.activeProviderId`
-  if (agent.provider && !agent.activeProviderId) {
-    agent.activeProviderId = (agent.provider as string).toLowerCase();
-  }
-  delete agent.provider;
-
-  // Migrate `agent.model` → `agent.activeModelId`
-  if (agent.model && !agent.activeModelId) {
-    agent.activeModelId = agent.model;
-  }
-  delete agent.model;
-
-  // Remove old agent fields that don't exist in new schema
   delete agent.thinkingBudget;
   delete agent.customSystemPrompt;
 
-  // Migrate thinkingLevel: 'minimal' → 'low'
   if (agent.thinkingLevel === 'minimal') {
     agent.thinkingLevel = 'low';
   }
 
+  if (!agent.connections && legacyProviderConfigs) {
+    const connections = legacyProviderConfigs
+      .map(migrateLegacyProviderConfig)
+      .filter((config): config is ConnectionConfig => config !== null);
+
+    agent.connections = connections;
+
+    const activeConnectionId = typeof agent.activeConnectionId === 'string'
+      ? agent.activeConnectionId
+      : typeof agent.activeProviderId === 'string'
+        ? agent.activeProviderId
+      : undefined;
+    const activeConnection = connections.find((connection) => connection.id === activeConnectionId);
+    agent.activeConnectionId = activeConnection?.id ?? connections[0]?.id ?? null;
+  }
+
+  delete agent.activeProviderId;
+  delete agent.activeModelId;
+  delete agent.provider;
+  delete agent.model;
+  delete agent.providerConfigs;
+
   raw.agent = agent;
 
-  // Migrate workspaces: add `id` if missing
   if (Array.isArray(raw.workspaces)) {
-    raw.workspaces = (raw.workspaces as Record<string, unknown>[]).map((w, i) => ({
-      ...w,
-      id: w.id || `ws_${i}`,
-      isDefault: w.isDefault ?? false,
+    raw.workspaces = (raw.workspaces as Record<string, unknown>[]).map((workspace, index) => ({
+      ...workspace,
+      id: workspace.id || `ws_${index}`,
+      isDefault: workspace.isDefault ?? false,
     }));
   }
 
-  // Remove old top-level fields
   delete raw.defaultWorkspace;
-
-  // Migrate provider configs: old `type` → new `apiType`+`provider`
-  if (Array.isArray(agent.providerConfigs)) {
-    const activeModelId = (agent.activeModelId as string) || '';
-    const activeProviderId = (agent.activeProviderId as string) || '';
-
-    agent.providerConfigs = (agent.providerConfigs as Record<string, unknown>[]).map(c => {
-      // Already migrated to new format
-      if (c.apiType) return c;
-
-      const id = (c.id as string) || '';
-      const oldType = (c.type as string) || 'openai';
-
-      // Convert old type → apiType
-      const apiType = TYPE_TO_API_TYPE[oldType] || 'openai-completions';
-
-      // Determine provider from id
-      const provider = ID_TO_PROVIDER[id] || id;
-
-      // Determine icon
-      let icon = (c.icon as string) || '';
-      if (!icon) {
-        if (id === 'anthropic') icon = 'Anthropic';
-        else if (id === 'openai') icon = 'OpenAI';
-        else if (id === 'google') icon = 'Gemini';
-        else if (id === 'deepseek') icon = 'DeepSeek';
-      }
-
-      // Remove old fields
-      const { type: _type, extraParams: _extra, customHeaders: _headers, ...rest } = c;
-      void _type;
-      void _extra;
-      void _headers;
-
-      return {
-        ...rest,
-        apiType,
-        provider,
-        icon,
-        modelId: c.modelId || (id === activeProviderId ? activeModelId : ''),
-        auth: c.auth || { type: 'apiKey' },
-      };
-    });
-  }
-
-  if (Array.isArray(agent.providerConfigs)) {
-    agent.providerConfigs = (agent.providerConfigs as Record<string, unknown>[]).map(c => ({
-      ...c,
-      auth: c.auth || { type: 'apiKey' },
-    }));
-  }
 
   return raw;
 }
@@ -234,7 +233,6 @@ function migrateSettings(data: unknown): unknown {
 // ==================== 校验函数 ====================
 
 export function parseSettings(data: unknown): Settings {
-  // First try to migrate old format
   const migrated = migrateSettings(data);
 
   const result = SettingsSchema.safeParse(migrated);

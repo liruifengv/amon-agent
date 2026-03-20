@@ -3,12 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { nanoid } from 'nanoid';
 import { useSettingsStore } from '../../store/settingsStore';
 import { Plus, CheckCircle } from 'lucide-react';
-import type { ProviderConfig, AgentSettings } from '../../types';
-import type { ProviderPreset } from '@shared/provider-presets';
+import type { ConnectionConfig, AgentSettings } from '../../types';
+import type { ConnectionSpec } from '@shared/ai-catalog';
+import { AI_CATALOG } from '@shared/ai-catalog';
 import ProviderIcon from './ProviderIcon';
 import ProviderPickerModal from './ProviderPickerModal';
 import ProviderEditModal from './ProviderEditModal';
-import { getProviderAuthStatus, isProviderConfigured } from '../../utils/provider-auth';
+import { getConnectionAuthStatus, isConnectionConfigured } from '../../utils/provider-auth';
+import { getConnectionIcon, getConnectionModelName } from '../../utils/connection-catalog';
 
 const ProviderSettings: React.FC = () => {
   const {
@@ -16,69 +18,63 @@ const ProviderSettings: React.FC = () => {
     setAgentFormData,
     clearSaveError,
     saveSettings,
-    providerAuthStatuses,
+    connectionAuthStatuses,
   } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
 
   const [showPicker, setShowPicker] = useState(false);
-  const [editingConfig, setEditingConfig] = useState<ProviderConfig | null>(null);
+  const [editingConfig, setEditingConfig] = useState<ConnectionConfig | null>(null);
   const [isNewConfig, setIsNewConfig] = useState(false);
 
-  const providerConfigs = formData.agent.providerConfigs || [];
-  const activeProviderId = formData.agent.activeProviderId;
+  const connections = formData.agent.connections || [];
+  const activeConnectionId = formData.agent.activeConnectionId;
 
   const handleAddClick = () => {
     setShowPicker(true);
   };
 
-  const handlePresetSelect = (preset: ProviderPreset) => {
+  const handleSpecSelect = (spec: ConnectionSpec) => {
     setShowPicker(false);
-    const newConfig: ProviderConfig = {
+    const serviceAuth = AI_CATALOG.services[spec.serviceId].auth;
+    const newConfig: ConnectionConfig = {
       id: nanoid(10),
-      apiType: preset.apiType,
-      provider: preset.provider,
-      icon: preset.icon,
-      name: preset.name,
+      specId: spec.id,
+      name: spec.name,
+      baseUrl: spec.defaultBaseUrl,
+      modelKey: spec.defaultModelKey,
+      customModelId: '',
+      auth: serviceAuth.type === 'oauth' ? { type: 'oauth' } : { type: 'apiKey' },
       apiKey: '',
-      baseUrl: preset.defaultBaseUrl,
-      modelId: preset.defaultModels[0] ?? '',
-      auth: preset.auth,
     };
     setEditingConfig(newConfig);
     setIsNewConfig(true);
   };
 
-  const handleItemClick = (config: ProviderConfig) => {
+  const handleItemClick = (config: ConnectionConfig) => {
     setEditingConfig(config);
     setIsNewConfig(false);
   };
 
   const handleSave = async (
-    config: ProviderConfig,
+    config: ConnectionConfig,
     options?: { closeAfterSave?: boolean },
   ): Promise<boolean> => {
     clearSaveError();
-    let newConfigs: ProviderConfig[];
+    let newConnections: ConnectionConfig[];
     const updates: Partial<AgentSettings> = {};
 
     if (isNewConfig) {
-      newConfigs = [...providerConfigs, config];
-      // 第一个 provider 自动设为默认
-      if (providerConfigs.length === 0) {
-        updates.activeProviderId = config.id;
-        updates.activeModelId = config.modelId || '';
+      newConnections = [...connections, config];
+      if (connections.length === 0) {
+        updates.activeConnectionId = config.id;
       }
     } else {
-      newConfigs = providerConfigs.map((c) =>
-        c.id === config.id ? config : c
+      newConnections = connections.map((current) =>
+        current.id === config.id ? config : current,
       );
-      // 如果编辑的是当前激活的 provider，同步更新 modelId
-      if (config.id === activeProviderId) {
-        updates.activeModelId = config.modelId || '';
-      }
     }
 
-    updates.providerConfigs = newConfigs;
+    updates.connections = newConnections;
     setAgentFormData(updates);
     const saved = await saveSettings();
     if (!saved) {
@@ -98,42 +94,37 @@ const ProviderSettings: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     clearSaveError();
-    const providerConfig = providerConfigs.find((config) => config.id === id);
-    if (providerConfig?.auth.type === 'oauth') {
-      await window.ipc.providerAuth.disconnect(id);
-    }
-    const newConfigs = providerConfigs.filter((c) => c.id !== id);
+    await window.ipc.connectionAuth.disconnect(id).catch(() => undefined);
+
+    const newConnections = connections.filter((connection) => connection.id !== id);
     const updates: Partial<AgentSettings> = {
-      providerConfigs: newConfigs,
+      connections: newConnections,
     };
-    if (activeProviderId === id) {
-      updates.activeProviderId = newConfigs[0]?.id || '';
-      updates.activeModelId = newConfigs[0]?.modelId || '';
+    if (activeConnectionId === id) {
+      updates.activeConnectionId = newConnections[0]?.id || null;
     }
     setAgentFormData(updates);
     setEditingConfig(null);
     setTimeout(() => saveSettings(), 0);
   };
 
-  const isActive = (config: ProviderConfig) => activeProviderId === config.id;
-  const isConfigured = (config: ProviderConfig) => isProviderConfigured(
+  const isActive = (config: ConnectionConfig) => activeConnectionId === config.id;
+  const isConfigured = (config: ConnectionConfig) => isConnectionConfigured(
     config,
-    getProviderAuthStatus(providerAuthStatuses, config.id),
+    getConnectionAuthStatus(connectionAuthStatuses, config.id),
   );
 
-  const handleActivate = (e: React.MouseEvent, config: ProviderConfig) => {
+  const handleActivate = (e: React.MouseEvent, config: ConnectionConfig) => {
     e.stopPropagation();
     clearSaveError();
     setAgentFormData({
-      activeProviderId: config.id,
-      activeModelId: config.modelId || '',
+      activeConnectionId: config.id,
     });
     setTimeout(() => saveSettings(), 0);
   };
 
   return (
     <div className="space-y-4">
-      {/* Header with description and add button */}
       <div className="flex items-start justify-between">
         <p className="text-xs text-muted-foreground flex-1 pr-4">
           {t('settings:provider.providerConfigDesc')}
@@ -150,9 +141,8 @@ const ProviderSettings: React.FC = () => {
         </button>
       </div>
 
-      {/* Provider List */}
       <div className="space-y-2">
-        {providerConfigs.map((config) => (
+        {connections.map((config) => (
           <button
             key={config.id}
             type="button"
@@ -163,13 +153,13 @@ const ProviderSettings: React.FC = () => {
                 : 'border-border hover:border-foreground/20 bg-muted'
             }`}
           >
-            <ProviderIcon icon={config.icon} size={24} />
+            <ProviderIcon icon={getConnectionIcon(config.specId)} size={24} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-foreground truncate">
                 {config.name}
               </div>
               <div className="text-xs text-muted-foreground truncate">
-                {config.modelId || t('common:notSet')}
+                {config.modelKey ? getConnectionModelName(config.modelKey, config.customModelId) : t('common:notSet')}
               </div>
             </div>
             <div className="shrink-0">
@@ -200,8 +190,7 @@ const ProviderSettings: React.FC = () => {
           </button>
         ))}
 
-        {/* Empty state */}
-        {providerConfigs.length === 0 && (
+        {connections.length === 0 && (
           <div className="p-8 rounded-lg border border-dashed border-border text-center">
             <p className="text-sm text-muted-foreground">
               {t('settings:provider.emptyState')}
@@ -210,14 +199,12 @@ const ProviderSettings: React.FC = () => {
         )}
       </div>
 
-      {/* Picker Modal */}
       <ProviderPickerModal
         open={showPicker}
         onClose={() => setShowPicker(false)}
-        onSelect={handlePresetSelect}
+        onSelect={handleSpecSelect}
       />
 
-      {/* Edit Modal */}
       <ProviderEditModal
         open={!!editingConfig}
         config={editingConfig}

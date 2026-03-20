@@ -1,25 +1,29 @@
 import { create } from 'zustand';
-import type { Message, ImageAttachment, AgentRunState, ToolExecutionState } from '../types';
+import type { SessionMessage, ImageAttachment, AgentRunState, ToolExecutionState, CompactionNotice } from '../types';
 
 interface ChatState {
   // 按会话缓存消息（来自主进程推送）
-  sessionMessages: Record<string, Message[]>;
+  sessionMessages: Record<string, SessionMessage[]>;
   // 各会话的 Agent 运行状态
   agentStates: Record<string, AgentRunState>;
+  // 各会话最近一次压缩通知
+  sessionCompactions: Record<string, CompactionNotice | null>;
   // 各会话的错误信息
   sessionErrors: Record<string, string | null>;
 
   // Getters
-  getMessages: (sessionId: string | null) => Message[];
+  getMessages: (sessionId: string | null) => SessionMessage[];
   isSessionLoading: (sessionId: string | null) => boolean;
   getAgentState: (sessionId: string | null) => AgentRunState | null;
   getToolExecution: (sessionId: string | null, toolCallId: string) => ToolExecutionState | undefined;
+  getCompactionNotice: (sessionId: string | null) => CompactionNotice | null;
   getSessionError: (sessionId: string | null) => string | null;
 
   // Actions
-  setMessages: (sessionId: string, messages: Message[]) => void;
+  setMessages: (sessionId: string, messages: SessionMessage[]) => void;
   setAgentState: (sessionId: string, state: AgentRunState) => void;
   updateToolExecution: (sessionId: string, toolCallId: string, state: ToolExecutionState) => void;
+  setCompactionNotice: (sessionId: string, notice: CompactionNotice) => void;
   setSessionError: (sessionId: string, error: string | null) => void;
   clearSessionError: (sessionId: string) => void;
   clearSessionCache: (sessionId: string) => void;
@@ -33,6 +37,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>((set, get) => ({
   sessionMessages: {},
   agentStates: {},
+  sessionCompactions: {},
   sessionErrors: {},
 
   getMessages: (sessionId) => {
@@ -55,6 +60,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return get().agentStates[sessionId]?.toolExecutions?.[toolCallId];
   },
 
+  getCompactionNotice: (sessionId) => {
+    if (!sessionId) return null;
+    return get().sessionCompactions[sessionId] || null;
+  },
+
   getSessionError: (sessionId) => {
     if (!sessionId) return null;
     return get().sessionErrors[sessionId] || null;
@@ -68,15 +78,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setAgentState: (sessionId, agentState) =>
     set((state) => {
       const current = state.agentStates[sessionId];
-      // When agent stops, preserve accumulated tool executions
-      const toolExecutions = !agentState.isRunning && current?.toolExecutions
-        ? { ...current.toolExecutions, ...agentState.toolExecutions }
-        : agentState.toolExecutions;
+      const toolExecutions = Object.keys(agentState.toolExecutions).length === 0 && current?.toolExecutions
+        ? current.toolExecutions
+        : { ...(current?.toolExecutions ?? {}), ...agentState.toolExecutions };
       return {
         agentStates: {
           ...state.agentStates,
           [sessionId]: { ...agentState, toolExecutions },
         },
+        sessionCompactions: agentState.lastCompaction
+          ? { ...state.sessionCompactions, [sessionId]: agentState.lastCompaction }
+          : state.sessionCompactions,
       };
     }),
 
@@ -100,6 +112,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       };
     }),
 
+  setCompactionNotice: (sessionId, notice) =>
+    set((state) => ({
+      sessionCompactions: { ...state.sessionCompactions, [sessionId]: notice },
+    })),
+
   setSessionError: (sessionId, error) =>
     set((state) => ({
       sessionErrors: { ...state.sessionErrors, [sessionId]: error },
@@ -114,13 +131,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const { [sessionId]: _removedMessages, ...restMessages } = state.sessionMessages;
       const { [sessionId]: _removedState, ...restAgent } = state.agentStates;
+      const { [sessionId]: _removedCompaction, ...restCompactions } = state.sessionCompactions;
       const { [sessionId]: _removedError, ...restErrors } = state.sessionErrors;
       void _removedMessages;
       void _removedState;
+      void _removedCompaction;
       void _removedError;
       return {
         sessionMessages: restMessages,
         agentStates: restAgent,
+        sessionCompactions: restCompactions,
         sessionErrors: restErrors,
       };
     }),
@@ -171,6 +191,10 @@ if (typeof window !== 'undefined' && window.push) {
   // 监听 Agent 状态变化
   window.push.on('push:agentState', ({ sessionId, state }) => {
     useChatStore.getState().setAgentState(sessionId, state);
+  });
+
+  window.push.on('push:compaction', ({ sessionId, notice }) => {
+    useChatStore.getState().setCompactionNotice(sessionId, notice);
   });
 
   // 监听工具执行状态

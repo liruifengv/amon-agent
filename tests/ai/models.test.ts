@@ -12,16 +12,16 @@ describe("getModel", () => {
 	});
 
 	it("returns a defined model for openai provider", () => {
-		const model = getModel("openai", "gpt-4o");
+		const model = getModel("openai", "gpt-5.4");
 		expect(model).toBeDefined();
-		expect(model.id).toBe("gpt-4o");
+		expect(model.id).toBe("gpt-5.4");
 		expect(model.provider).toBe("openai");
 	});
 
 	it("returns a defined model for google provider", () => {
-		const model = getModel("google", "gemini-2.5-flash");
+		const model = getModel("google", "gemini-3-flash-preview");
 		expect(model).toBeDefined();
-		expect(model.id).toBe("gemini-2.5-flash");
+		expect(model.id).toBe("gemini-3-flash-preview");
 	});
 
 	it("returns undefined for an unknown model ID", () => {
@@ -115,8 +115,12 @@ describe("supportsXhigh", () => {
 		expect(supportsXhigh(model)).toBe(true);
 	});
 
-	it("returns true for anthropic model with opus-4.6 in ID", () => {
-		const model = createAnthropicModel({ id: "claude-opus-4.6-preview" });
+	it("returns true for cataloged codex xhigh models", () => {
+		const model = createMockModel({
+			id: "gpt-5.3-codex",
+			api: "openai-codex-responses",
+			provider: "openai-codex",
+		});
 		expect(supportsXhigh(model)).toBe(true);
 	});
 
@@ -128,9 +132,9 @@ describe("supportsXhigh", () => {
 		expect(supportsXhigh(model)).toBe(true);
 	});
 
-	it("returns true for openai-completions model with gpt-5 in ID", () => {
+	it("returns true for cataloged openai-completions xhigh models", () => {
 		const model = createOpenAIModel({
-			id: "gpt-5-turbo",
+			id: "gpt-5.2",
 			api: "openai-completions",
 		});
 		expect(supportsXhigh(model)).toBe(true);
@@ -142,7 +146,7 @@ describe("supportsXhigh", () => {
 	});
 
 	it("returns false for openai model without gpt-5", () => {
-		const model = createOpenAIModel({ id: "gpt-4o" });
+		const model = createOpenAIModel({ id: "legacy-openai-model" });
 		expect(supportsXhigh(model)).toBe(false);
 	});
 
@@ -196,7 +200,7 @@ describe("modelsAreEqual", () => {
 
 	it("returns false for models with different id and provider", () => {
 		const a = createAnthropicModel({ id: "claude-opus-4-6" });
-		const b = createOpenAIModel({ id: "gpt-4o" });
+		const b = createOpenAIModel({ id: "gpt-5.4" });
 		expect(modelsAreEqual(a, b)).toBe(false);
 	});
 });

@@ -45,7 +45,13 @@
     "title": "Context Usage",
     "usedPercent": "Used {{used}}% ({{remaining}}% remaining)",
     "tokenDetail": "{{used}} tokens used, {{total}} total",
-    "autoCompression": "Context will be auto-compressed near limit"
+    "autoCompression": "Auto-compaction runs near the limit and after context overflows"
+  },
+  "compaction": {
+    "compacted": "Earlier context was compacted and this run was paused. Send another message to continue from the compacted context.",
+    "recovered": "A context overflow was detected, earlier history was compacted, and this run was paused. Send another message to continue from the compacted context.",
+    "tokens": "Context was reduced from {{before}} to {{after}}",
+    "timestamp": "Latest compaction: {{time}}"
   },
   "emptyChat": {
     "hint": "Try asking:",

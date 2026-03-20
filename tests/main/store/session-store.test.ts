@@ -76,10 +76,36 @@ describe('SessionStore', () => {
     const store = new SessionStore();
     const session = createSession('loaded', 50);
     const messages = [createUserMessage('persisted', { timestamp: 60 })];
+    const compactionSnapshot = {
+      summary: 'Goal\n- Keep going.',
+      firstKeptMessageIndex: 1,
+      tokensBefore: 35000,
+      createdAt: 70,
+      source: 'auto-threshold' as const,
+    };
 
-    store.loadSessionState({ session, messages });
+    store.loadSessionState({ session, messages, compactionSnapshot });
 
     expect(store.getSession('loaded')).toEqual(session);
     expect(store.getMessages('loaded')).toEqual(messages);
+    expect(store.getCompactionSnapshot('loaded')).toEqual(compactionSnapshot);
+  });
+
+  it('stores compaction snapshots separately from visible messages', () => {
+    const store = new SessionStore();
+    store.createSession(createSession('s1', 100));
+
+    const snapshot = {
+      summary: 'Goal\n- Compact.',
+      firstKeptMessageIndex: 2,
+      tokensBefore: 50000,
+      createdAt: 200,
+      source: 'auto-overflow' as const,
+    };
+
+    store.setCompactionSnapshot('s1', snapshot);
+
+    expect(store.getMessages('s1')).toEqual([]);
+    expect(store.getCompactionSnapshot('s1')).toEqual(snapshot);
   });
 });

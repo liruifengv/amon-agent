@@ -1,19 +1,22 @@
-import type { ProviderConfig, ProviderAuthStatus } from '../types';
+import type { ConnectionConfig, ConnectionAuthStatus } from '../types';
 
-export function isProviderConfigured(
-  providerConfig: ProviderConfig,
-  authStatus?: ProviderAuthStatus,
+export function isConnectionConfigured(
+  connection: ConnectionConfig,
+  authStatus?: ConnectionAuthStatus,
 ): boolean {
-  if (providerConfig.auth.type === 'oauth') {
+  if (connection.auth.type === 'oauth') {
     return authStatus?.state === 'connected';
   }
 
-  return !!providerConfig.apiKey?.trim();
+  return authStatus?.state === 'connected' || !!connection.apiKey?.trim();
 }
 
-export function getProviderAuthStatus(
-  statuses: Record<string, ProviderAuthStatus>,
-  providerConfigId: string,
-): ProviderAuthStatus | undefined {
-  return statuses[providerConfigId];
+export function getConnectionAuthStatus(
+  statuses: Record<string, ConnectionAuthStatus>,
+  connectionId: string,
+): ConnectionAuthStatus | undefined {
+  return statuses[connectionId];
 }
+
+export const isProviderConfigured = isConnectionConfigured;
+export const getProviderAuthStatus = getConnectionAuthStatus;

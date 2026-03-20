@@ -76,23 +76,59 @@ describe('Persistence', () => {
     const session = createSession();
     const oldMessage = createUserMessage('old', { timestamp: 110 });
     const newMessage = createToolResultMessage('tc-1', 'rewritten', { timestamp: 140 });
+    const snapshot = {
+      summary: 'Goal\n- Keep going.',
+      firstKeptMessageIndex: 1,
+      tokensBefore: 42000,
+      createdAt: 135,
+      source: 'auto-threshold' as const,
+    };
 
     await persistence.createSession(session);
     await persistence.appendMessages(session.id, [oldMessage]);
 
     vi.spyOn(Date, 'now').mockReturnValue(130);
     await persistence.appendMetaUpdate(session.id, { title: 'Updated Title' });
+    await persistence.appendCompactionSnapshot(session.id, snapshot);
     await persistence.rewriteMessages(session.id, [newMessage]);
 
     const fileContent = await readFile(persistence.getPath(session.id), 'utf-8');
     const lines = fileContent.trim().split('\n');
     const recordTypes = lines.map((line) => JSON.parse(line).type);
 
-    expect(recordTypes).toEqual(['session_meta', 'meta_update', 'message']);
+    expect(recordTypes).toEqual(['session_meta', 'meta_update', 'compaction_snapshot', 'message']);
 
     const loaded = await persistence.loadSession(session.id);
     expect(loaded?.session.title).toBe('Updated Title');
     expect(loaded?.messages).toEqual([newMessage]);
+    expect(loaded?.compactionSnapshot).toEqual(snapshot);
+  });
+
+  it('loads the latest compaction snapshot record', async () => {
+    const persistence = new Persistence(tempDir);
+    const session = createSession();
+    const firstSnapshot = {
+      summary: 'Goal\n- First.',
+      firstKeptMessageIndex: 1,
+      tokensBefore: 20000,
+      createdAt: 150,
+      source: 'auto-threshold' as const,
+    };
+    const latestSnapshot = {
+      summary: 'Goal\n- Latest.',
+      firstKeptMessageIndex: 3,
+      tokensBefore: 48000,
+      createdAt: 180,
+      source: 'auto-overflow' as const,
+    };
+
+    await persistence.createSession(session);
+    await persistence.appendCompactionSnapshot(session.id, firstSnapshot);
+    await persistence.appendCompactionSnapshot(session.id, latestSnapshot);
+
+    const loaded = await persistence.loadSession(session.id);
+
+    expect(loaded?.compactionSnapshot).toEqual(latestSnapshot);
   });
 
   it('skips malformed lines and messages with unsupported roles', async () => {

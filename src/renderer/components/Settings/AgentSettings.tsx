@@ -4,7 +4,8 @@ import { useSettingsStore } from '../../store/settingsStore';
 import type { ApprovalMode } from '../../types';
 
 import ProviderIcon from '../Settings/ProviderIcon';
-import { getProviderAuthStatus, isProviderConfigured } from '../../utils/provider-auth';
+import { getConnectionAuthStatus, isConnectionConfigured } from '../../utils/provider-auth';
+import { getConnectionIcon, getConnectionModelName } from '../../utils/connection-catalog';
 
 const THINKING_LEVELS = [
   { value: 'off', label: 'Off' },
@@ -21,19 +22,21 @@ interface AgentSettingsProps {
 }
 
 const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) => {
-  const { formData, setAgentFormData, clearSaveError, providerAuthStatuses } = useSettingsStore();
+  const { formData, setAgentFormData, clearSaveError, connectionAuthStatuses } = useSettingsStore();
   const { t } = useTranslation(['settings', 'common']);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { activeProviderId, thinkingLevel, maxTurns, providerConfigs, defaultApprovalMode } = formData.agent;
+  const { activeConnectionId, thinkingLevel, maxTurns, connections, defaultApprovalMode } = formData.agent;
 
-  const configuredProviders = (providerConfigs || [])
-    .filter(c => isProviderConfigured(c, getProviderAuthStatus(providerAuthStatuses, c.id)));
+  const configuredConnections = (connections || [])
+    .filter((connection) => isConnectionConfigured(
+      connection,
+      getConnectionAuthStatus(connectionAuthStatuses, connection.id),
+    ));
 
-  const activeProvider = configuredProviders.find(c => c.id === activeProviderId);
+  const activeConnection = configuredConnections.find((connection) => connection.id === activeConnectionId);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) {
@@ -44,12 +47,10 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleProviderChange = (providerId: string) => {
+  const handleConnectionChange = (connectionId: string) => {
     clearSaveError();
-    const selected = providerConfigs?.find(c => c.id === providerId);
     setAgentFormData({
-      activeProviderId: providerId,
-      activeModelId: selected?.modelId || '',
+      activeConnectionId: connectionId,
     });
     setOpen(false);
   };
@@ -72,12 +73,11 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
     setAgentFormData({ defaultApprovalMode: mode });
   };
 
-  const hasNoProviders = configuredProviders.length === 0;
+  const hasNoConnections = configuredConnections.length === 0;
 
   return (
     <div className="space-y-6">
-      {/* No provider configured warning */}
-      {hasNoProviders && (
+      {hasNoConnections && (
         <div className="p-4 bg-warning/10 border border-warning/30 rounded-lg">
           <p className="text-sm text-warning">
             {t('settings:agent.noProviderConfigured')}
@@ -91,73 +91,75 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         </div>
       )}
 
-      {/* Provider selection - custom dropdown with icons */}
-      {!hasNoProviders && (
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-2">
-          {t('settings:agent.provider')}
-        </label>
-        <div className="relative" ref={ref}>
-          <button
-            type="button"
-            onClick={() => setOpen(!open)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg border border-border
-                       bg-background text-foreground hover:border-foreground/30
-                       focus:ring-2 focus:ring-primary focus:border-primary
-                       outline-none transition-colors cursor-pointer"
-          >
-            {activeProvider ? (
-              <>
-                <ProviderIcon icon={activeProvider.icon} size={18} />
-                <div className="flex-1 text-left min-w-0">
-                  <span className="font-medium">{activeProvider.name}</span>
-                  {activeProvider.modelId && (
-                    <span className="text-muted-foreground ml-2 text-xs">{activeProvider.modelId}</span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <span className="text-muted-foreground">{activeProviderId || t('common:notConfigured')}</span>
-            )}
-            <svg className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-            </svg>
-          </button>
-
-          {open && configuredProviders.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
-              {configuredProviders.map((provider) => (
-                <button
-                  key={provider.id}
-                  type="button"
-                  onClick={() => handleProviderChange(provider.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors cursor-pointer ${
-                    activeProviderId === provider.id
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-foreground hover:bg-accent'
-                  }`}
-                >
-                  <ProviderIcon icon={provider.icon} size={18} />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{provider.name}</div>
-                    {provider.modelId && (
-                      <div className="text-xs text-muted-foreground truncate">{provider.modelId}</div>
+      {!hasNoConnections && (
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            {t('settings:agent.provider')}
+          </label>
+          <div className="relative" ref={ref}>
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-sm rounded-lg border border-border
+                         bg-background text-foreground hover:border-foreground/30
+                         focus:ring-2 focus:ring-primary focus:border-primary
+                         outline-none transition-colors cursor-pointer"
+            >
+              {activeConnection ? (
+                <>
+                  <ProviderIcon icon={getConnectionIcon(activeConnection.specId)} size={18} />
+                  <div className="flex-1 text-left min-w-0">
+                    <span className="font-medium">{activeConnection.name}</span>
+                    {activeConnection.modelKey && (
+                      <span className="text-muted-foreground ml-2 text-xs">
+                        {getConnectionModelName(activeConnection.modelKey, activeConnection.customModelId)}
+                      </span>
                     )}
                   </div>
-                  {activeProviderId === provider.id && (
-                    <svg className="w-4 h-4 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+                </>
+              ) : (
+                <span className="text-muted-foreground">{activeConnectionId || t('common:notConfigured')}</span>
+              )}
+              <svg className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+              </svg>
+            </button>
+
+            {open && configuredConnections.length > 0 && (
+              <div className="absolute z-50 mt-1 w-full bg-popover border border-border rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
+                {configuredConnections.map((connection) => (
+                  <button
+                    key={connection.id}
+                    type="button"
+                    onClick={() => handleConnectionChange(connection.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left transition-colors cursor-pointer ${
+                      activeConnectionId === connection.id
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    <ProviderIcon icon={getConnectionIcon(connection.specId)} size={18} />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{connection.name}</div>
+                      {connection.modelKey && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {getConnectionModelName(connection.modelKey, connection.customModelId)}
+                        </div>
+                      )}
+                    </div>
+                    {activeConnectionId === connection.id && (
+                      <svg className="w-4 h-4 text-primary shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       )}
 
-      {/* Thinking Level */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.thinkingLevel')}
@@ -180,7 +182,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         </div>
       </div>
 
-      {/* Default Approval Mode */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.defaultApprovalMode')}
@@ -212,7 +213,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         </p>
       </div>
 
-      {/* Max Turns */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.maxTurns')}
@@ -232,7 +232,6 @@ const AgentSettings: React.FC<AgentSettingsProps> = ({ onNavigateToProvider }) =
         </p>
       </div>
 
-      {/* Exa API Key */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-2">
           {t('settings:agent.exaApiKey')}

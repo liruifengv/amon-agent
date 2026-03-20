@@ -17,7 +17,7 @@ import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import { handleBeforeQuit, handleWindowAllClosed, shouldHideMainWindowOnClose } from './lifecycle';
 import { ApprovalService } from './permissions/approval-service';
 import { QuestionService } from './questions/question-service';
-import { AuthStore, OpenAICodexAuthStrategy, ProviderAuthService, SecureStorage } from './auth';
+import { AuthStore, CredentialStore, ConnectionAuthService, OpenAICodexAuthStrategy, SecureStorage } from './auth';
 import type { Shortcuts } from '@shared/schemas';
 import type { Session } from '@shared/types';
 
@@ -37,6 +37,7 @@ const DATA_DIR = path.join(os.homedir(), '.amon');
 const SESSIONS_DIR = path.join(DATA_DIR, 'sessions');
 const SETTINGS_PATH = path.join(DATA_DIR, 'settings.json');
 const AUTH_SESSIONS_PATH = path.join(DATA_DIR, 'auth', 'provider-sessions.json');
+const API_CREDENTIALS_PATH = path.join(DATA_DIR, 'auth', 'api-credentials.json');
 const DEFAULT_WORKSPACE = path.join(DATA_DIR, 'workspace');
 
 // ==================== Services (sync init) ====================
@@ -51,9 +52,11 @@ const approvalService = new ApprovalService();
 const questionService = new QuestionService();
 const toolRegistry = createDefaultToolRegistry(configStore, questionService);
 const authStore = new AuthStore(new SecureStorage(AUTH_SESSIONS_PATH, safeStorage));
-const providerAuthService = new ProviderAuthService({
+const credentialStore = new CredentialStore(new SecureStorage(API_CREDENTIALS_PATH, safeStorage));
+const connectionAuthService = new ConnectionAuthService({
   configStore,
   authStore,
+  credentialStore,
   pushService,
   strategies: [
     new OpenAICodexAuthStrategy({
@@ -389,7 +392,7 @@ app.on('ready', async () => {
     sessionStore,
     persistence,
     configStore,
-    providerAuthService,
+    connectionAuthService,
     toolRegistry,
     skillsStore,
     eventAdapter,
@@ -406,7 +409,8 @@ app.on('ready', async () => {
     sessionStore,
     persistence,
     configStore,
-    providerAuthService,
+    connectionAuthService,
+    credentialStore,
     pushService,
     skillsStore,
     approvalService,

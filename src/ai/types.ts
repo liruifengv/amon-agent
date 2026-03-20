@@ -226,6 +226,7 @@ export interface Model<TApi extends Api = Api> {
 	provider: Provider;
 	baseUrl: string;
 	reasoning: boolean;
+	thinkingLevels?: ("low" | "medium" | "high" | "xhigh")[];
 	input: ("text" | "image")[];
 	cost: {
 		input: number;

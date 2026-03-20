@@ -318,6 +318,36 @@ describe("agentLoop", () => {
 			expect(agentEnd.messages.length).toBeGreaterThanOrEqual(3);
 		});
 	});
+
+		describe("turn stop hooks", () => {
+			it("stops cleanly after a completed turn when requested by the callback", async () => {
+				const assistantWithTool = createAssistantMessage([createToolCallContent({
+					id: "tc_1",
+					name: "mock_tool",
+					arguments: {},
+				})], { stopReason: "toolUse" });
+				const assistantNeverReached = createAssistantMessage([{ type: "text", text: "final" }]);
+				const scriptedStreamFn = createScriptedStreamFn([assistantWithTool, assistantNeverReached]);
+				const streamFn = vi.fn(scriptedStreamFn);
+				const tool = createMockTool("mock_tool");
+
+			const shouldStopAfterTurn = vi.fn(async () => true);
+			const stream = agentLoop(
+				[createUserMessage("run tool")],
+				createContext({ tools: [tool] }),
+				createConfig({ shouldStopAfterTurn }),
+				undefined,
+				streamFn,
+			);
+
+			const events = await collectEvents(stream);
+			const turnEnds = events.filter((event) => event.type === "turn_end");
+
+			expect(shouldStopAfterTurn).toHaveBeenCalledTimes(1);
+			expect(turnEnds).toHaveLength(1);
+			expect(streamFn).toHaveBeenCalledTimes(1);
+		});
+	});
 });
 
 describe("agentLoopContinue", () => {
@@ -382,5 +412,64 @@ describe("agentLoopContinue", () => {
 
 		expect(types).toContain("agent_start");
 		expect(types).toContain("agent_end");
+	});
+
+	it("works with assistant error as last message", async () => {
+		const finalAssistant = createAssistantMessage([{ type: "text", text: "recovered" }]);
+		const streamFn = createScriptedStreamFn([finalAssistant]);
+
+		const stream = agentLoopContinue(
+			createContext({
+				messages: [
+					createUserMessage("hello"),
+					createAssistantMessage([{ type: "text", text: "" }], {
+						stopReason: "error",
+						errorMessage: "maximum context length is 200000 tokens",
+					}),
+				],
+			}),
+			createConfig(),
+			undefined,
+			streamFn,
+		);
+
+		const events = await collectEvents(stream);
+		const agentEnd = events.find((e) => e.type === "agent_end") as any;
+
+		expect(agentEnd).toBeDefined();
+		expect(agentEnd.messages.length).toBeGreaterThanOrEqual(1);
+	});
+
+	it("works with assistant silent overflow as last message", async () => {
+		const finalAssistant = createAssistantMessage([{ type: "text", text: "recovered" }]);
+		const streamFn = createScriptedStreamFn([finalAssistant]);
+
+		const stream = agentLoopContinue(
+			createContext({
+				messages: [
+						createUserMessage("hello"),
+						createAssistantMessage([{ type: "text", text: "" }], {
+							stopReason: "stop",
+							usage: {
+								input: 140,
+								output: 10,
+								cacheRead: 0,
+								cacheWrite: 0,
+								totalTokens: 150,
+								cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+							},
+						}),
+					],
+				}),
+			createConfig({ model: createMockModel({ contextWindow: 120 }) }),
+			undefined,
+			streamFn,
+		);
+
+		const events = await collectEvents(stream);
+		const agentEnd = events.find((e) => e.type === "agent_end") as any;
+
+		expect(agentEnd).toBeDefined();
+		expect(agentEnd.messages.length).toBeGreaterThanOrEqual(1);
 	});
 });

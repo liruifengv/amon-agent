@@ -1,4 +1,4 @@
-import type { AuthSession } from '@shared/provider-auth';
+import type { AuthSession } from '@shared/connection-auth';
 import { SecureStorage } from './secure-storage';
 
 interface AuthStoreData {
@@ -17,24 +17,31 @@ export class AuthStore {
     return Object.values(data.sessions);
   }
 
-  async getSession(providerConfigId: string): Promise<AuthSession | undefined> {
+  async getSession(connectionId: string): Promise<AuthSession | undefined> {
     const data = await this.read();
-    return data.sessions[providerConfigId];
+    return data.sessions[connectionId];
   }
 
   async setSession(session: AuthSession): Promise<void> {
     const data = await this.read();
-    data.sessions[session.providerConfigId] = session;
+    const sessionKey = session.connectionId || session.providerConfigId;
+    if (!sessionKey) {
+      throw new Error('Auth session is missing a connection id');
+    }
+    data.sessions[sessionKey] = {
+      ...session,
+      connectionId: session.connectionId || session.providerConfigId,
+    };
     await this.storage.writeJson(data);
   }
 
-  async deleteSession(providerConfigId: string): Promise<void> {
+  async deleteSession(connectionId: string): Promise<void> {
     const data = await this.read();
-    if (!data.sessions[providerConfigId]) {
+    if (!data.sessions[connectionId]) {
       return;
     }
 
-    delete data.sessions[providerConfigId];
+    delete data.sessions[connectionId];
     await this.storage.writeJson(data);
   }
 

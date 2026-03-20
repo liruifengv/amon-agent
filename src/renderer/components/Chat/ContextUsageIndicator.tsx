@@ -4,7 +4,7 @@ import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { getLatestAssistantUsageWithData, getUsageContextTokens } from '../../lib/usage';
 import { formatTokenCount } from '../../lib/utils';
-import type { AssistantMessage } from '../../types';
+import type { AssistantMessage, SessionMessage } from '../../types';
 import {
   HoverCard,
   HoverCardContent,
@@ -27,13 +27,18 @@ const ContextUsageIndicator: React.FC = () => {
   );
 
   const contextWindow = agentState?.contextWindow;
-  if (!contextWindow || !messages) return null;
+  if (!contextWindow) return null;
 
-  const assistantMessages = messages.filter((message): message is AssistantMessage => message.role === 'assistant');
+  const assistantMessages = (messages ?? []).filter(
+    (message: SessionMessage): message is AssistantMessage => message.role === 'assistant',
+  );
   const latestUsage = getLatestAssistantUsageWithData(assistantMessages);
-  if (!latestUsage) return null;
+  const usedTokens = agentState?.contextTokens ?? (
+    latestUsage ? getUsageContextTokens(latestUsage) : null
+  );
 
-  const usedTokens = getUsageContextTokens(latestUsage);
+  if (!usedTokens || usedTokens <= 0) return null;
+
   const percent = Math.min(Math.round((usedTokens / contextWindow) * 100), 100);
   const dashOffset = CIRCUMFERENCE * (1 - percent / 100);
 

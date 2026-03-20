@@ -1,17 +1,19 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
-import { PROVIDER_PRESETS, type ProviderPreset } from '@shared/provider-presets';
+import { listConnectionSpecs, type ConnectionSpec } from '@shared/ai-catalog';
 import ProviderIcon from './ProviderIcon';
+import { getConnectionIcon } from '../../utils/connection-catalog';
 
 interface ProviderPickerModalProps {
   open: boolean;
   onClose: () => void;
-  onSelect: (preset: ProviderPreset) => void;
+  onSelect: (spec: ConnectionSpec) => void;
 }
 
 const ProviderPickerModal: React.FC<ProviderPickerModalProps> = ({ open, onClose, onSelect }) => {
   const { t } = useTranslation(['settings']);
+  const specs = listConnectionSpecs();
 
   if (!open) return null;
 
@@ -21,7 +23,6 @@ const ProviderPickerModal: React.FC<ProviderPickerModalProps> = ({ open, onClose
         className="w-full max-w-lg bg-background border border-border rounded-xl shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="text-sm font-medium text-foreground">
             {t('settings:provider.selectProvider')}
@@ -35,18 +36,17 @@ const ProviderPickerModal: React.FC<ProviderPickerModalProps> = ({ open, onClose
           </button>
         </div>
 
-        {/* Grid */}
         <div className="p-5 grid grid-cols-3 gap-3">
-          {PROVIDER_PRESETS.map((preset) => (
+          {specs.map((spec) => (
             <button
-              key={preset.id}
+              key={spec.id}
               type="button"
-              onClick={() => onSelect(preset)}
+              onClick={() => onSelect(spec)}
               className="flex flex-col items-center gap-2 p-4 rounded-lg border border-border
                          hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer"
             >
-              <ProviderIcon icon={preset.icon} size={28} />
-              <span className="text-xs font-medium text-foreground">{preset.name}</span>
+              <ProviderIcon icon={getConnectionIcon(spec.id)} size={28} />
+              <span className="text-xs font-medium text-foreground text-center">{spec.name}</span>
             </button>
           ))}
         </div>

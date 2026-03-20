@@ -12,7 +12,9 @@ import type { PushService } from './push';
 import type { SkillsStore } from '../skills';
 import type { ApprovalService } from '../permissions/approval-service';
 import type { QuestionService } from '../questions/question-service';
-import type { ProviderAuthService } from '../auth';
+import type { ConnectionAuthService } from '../auth';
+import type { CredentialStore } from '../auth';
+import { sanitizeSettingsConnections } from '../auth';
 import { nanoid } from 'nanoid';
 import path from 'path';
 import os from 'os';
@@ -32,7 +34,8 @@ export interface IpcDependencies {
   sessionStore: SessionStore;
   persistence: Persistence;
   configStore: ConfigStore;
-  providerAuthService: ProviderAuthService;
+  connectionAuthService: ConnectionAuthService;
+  credentialStore: CredentialStore;
   pushService: PushService;
   skillsStore: SkillsStore;
   approvalService: ApprovalService;
@@ -90,7 +93,7 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   registerAgentHandlers(deps);
   registerSessionHandlers(deps);
   registerSettingsHandlers(deps);
-  registerProviderAuthHandlers(deps);
+  registerConnectionAuthHandlers(deps);
   registerPermissionHandlers(deps);
   registerQuestionHandlers(deps);
   registerSystemHandlers(deps);
@@ -174,28 +177,40 @@ function registerSessionHandlers(deps: IpcDependencies): void {
 
 function registerSettingsHandlers(deps: IpcDependencies): void {
   handle('settings.get', async () => {
-    return deps.configStore.getSettings();
+    const settings = await deps.configStore.getSettings();
+    const sanitized = await sanitizeSettingsConnections(settings, settings, deps.credentialStore);
+    if (!sanitized.changed) {
+      return settings;
+    }
+
+    return deps.configStore.updateSettings(sanitized.settings);
   });
 
   handle('settings.set', async (updates: unknown) => {
-    const result = await deps.configStore.updateSettings(updates as Partial<Settings>);
+    const current = await deps.configStore.getSettings();
+    const nextSettings = updates as Settings;
+    const sanitized = Array.isArray(nextSettings?.agent?.connections)
+      ? await sanitizeSettingsConnections(current, nextSettings, deps.credentialStore)
+      : { settings: nextSettings, changed: false };
+
+    const result = await deps.configStore.updateSettings(sanitized.settings as Partial<Settings>);
     deps.pushService.pushSettingsChanged();
     return { success: true, data: result };
   });
 }
 
-function registerProviderAuthHandlers(deps: IpcDependencies): void {
-  handle('providerAuth.connect', async (providerConfigId: unknown) => {
-    return deps.providerAuthService.connect(providerConfigId as string);
+function registerConnectionAuthHandlers(deps: IpcDependencies): void {
+  handle('connectionAuth.connect', async (connectionId: unknown) => {
+    return deps.connectionAuthService.connect(connectionId as string);
   });
 
-  handle('providerAuth.disconnect', async (providerConfigId: unknown) => {
-    await deps.providerAuthService.disconnect(providerConfigId as string);
+  handle('connectionAuth.disconnect', async (connectionId: unknown) => {
+    await deps.connectionAuthService.disconnect(connectionId as string);
     return { success: true };
   });
 
-  handle('providerAuth.getStatuses', async () => {
-    return deps.providerAuthService.getStatuses();
+  handle('connectionAuth.getStatuses', async () => {
+    return deps.connectionAuthService.getStatuses();
   });
 }
 
@@ -371,7 +386,7 @@ export function removeIpcHandlers(): void {
     'session.list', 'session.create', 'session.delete', 'session.rename',
     'session.getMessages', 'session.updateWorkspace',
     'settings.get', 'settings.set',
-    'providerAuth.connect', 'providerAuth.disconnect', 'providerAuth.getStatuses',
+    'connectionAuth.connect', 'connectionAuth.disconnect', 'connectionAuth.getStatuses',
     'permission.respond',
     'system.openSettings', 'system.closeSettings', 'system.openConfigDir',
     'system.openPath', 'system.openExternal', 'system.getVersion',

@@ -29,8 +29,8 @@ export function createAnthropicModel(overrides?: Partial<Model<"anthropic-messag
 
 export function createOpenAIModel(overrides?: Partial<Model<"openai-completions">>): Model<"openai-completions"> {
 	return createMockModel<"openai-completions">({
-		id: "gpt-4o",
-		name: "GPT-4o",
+		id: "gpt-5.4",
+		name: "GPT-5.4",
 		api: "openai-completions",
 		provider: "openai",
 		...overrides,
@@ -41,8 +41,8 @@ export function createGoogleModel(
 	overrides?: Partial<Model<"google-generative-ai">>,
 ): Model<"google-generative-ai"> {
 	return createMockModel<"google-generative-ai">({
-		id: "gemini-2.5-flash",
-		name: "Gemini 2.5 Flash",
+		id: "gemini-3-flash-preview",
+		name: "Gemini 3 Flash Preview",
 		api: "google-generative-ai",
 		provider: "google",
 		...overrides,

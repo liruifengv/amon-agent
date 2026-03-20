@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Session, SessionState } from '@shared/types';
-import type { Message } from '../../ai/types';
+import type { CompactionSnapshot, Session, SessionMessage, SessionState } from '@shared/types';
 import { createLogger } from './logger';
 
 const log = createLogger('Persistence');
@@ -23,7 +22,7 @@ interface SessionMetaRecord extends BaseRecord {
 
 interface MessageRecord extends BaseRecord {
   type: 'message';
-  message: Message;
+  message: SessionMessage;
 }
 
 interface MetaUpdateRecord extends BaseRecord {
@@ -31,7 +30,16 @@ interface MetaUpdateRecord extends BaseRecord {
   updates: Partial<Pick<Session, 'title' | 'workspace' | 'approvalMode'>>;
 }
 
-type SessionRecord = SessionMetaRecord | MessageRecord | MetaUpdateRecord;
+interface CompactionSnapshotRecord extends BaseRecord {
+  type: 'compaction_snapshot';
+  snapshot: CompactionSnapshot;
+}
+
+type SessionRecord =
+  | SessionMetaRecord
+  | MessageRecord
+  | MetaUpdateRecord
+  | CompactionSnapshotRecord;
 
 // ==================== Persistence Class ====================
 
@@ -70,7 +78,7 @@ export class Persistence {
   /**
    * Append message records to the session file.
    */
-  async appendMessages(sessionId: string, messages: Message[]): Promise<void> {
+  async appendMessages(sessionId: string, messages: SessionMessage[]): Promise<void> {
     if (messages.length === 0) return;
 
     const lines = messages
@@ -107,10 +115,25 @@ export class Persistence {
   }
 
   /**
+   * Append a compaction snapshot record.
+   */
+  async appendCompactionSnapshot(sessionId: string, snapshot: CompactionSnapshot): Promise<void> {
+    const record: CompactionSnapshotRecord = {
+      type: 'compaction_snapshot',
+      snapshot,
+      ts: snapshot.createdAt,
+    };
+
+    const line = JSON.stringify(record) + '\n';
+    await fs.appendFile(this.getPath(sessionId), line, 'utf-8');
+    log.debug('Compaction snapshot appended', { firstKeptMessageIndex: snapshot.firstKeptMessageIndex }, sessionId);
+  }
+
+  /**
    * Rewrite session file with fresh messages (used after agent runs).
    * Preserves the session meta and replaces all messages.
    */
-  async rewriteMessages(sessionId: string, messages: Message[]): Promise<void> {
+  async rewriteMessages(sessionId: string, messages: SessionMessage[]): Promise<void> {
     const filePath = this.getPath(sessionId);
 
     // Read existing meta
@@ -125,12 +148,16 @@ export class Persistence {
     const lines = content.split('\n').filter((line) => line.trim() !== '');
     if (lines.length === 0) return;
 
-    // Keep session_meta and meta_update records
+    // Keep session_meta, meta_update, and compaction_snapshot records
     const metaLines: string[] = [];
     for (const line of lines) {
       try {
         const record = JSON.parse(line) as SessionRecord;
-        if (record.type === 'session_meta' || record.type === 'meta_update') {
+        if (
+          record.type === 'session_meta'
+          || record.type === 'meta_update'
+          || record.type === 'compaction_snapshot'
+        ) {
           metaLines.push(line);
         }
       } catch {
@@ -171,7 +198,8 @@ export class Persistence {
     if (lines.length === 0) return null;
 
     let session: Session | null = null;
-    const messages: Message[] = [];
+    const messages: SessionMessage[] = [];
+    let compactionSnapshot: CompactionSnapshot | undefined;
 
     for (const line of lines) {
       try {
@@ -192,7 +220,15 @@ export class Persistence {
           case 'message': {
             // Validate that message has a known role
             const msg = record.message;
-            if (msg && (msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult')) {
+            if (
+              msg
+              && (
+                msg.role === 'user'
+                || msg.role === 'assistant'
+                || msg.role === 'toolResult'
+                || msg.role === 'compaction'
+              )
+            ) {
               messages.push(msg);
               if (session) {
                 session.updatedAt = record.ts;
@@ -215,6 +251,10 @@ export class Persistence {
               session.updatedAt = record.ts;
             }
             break;
+
+          case 'compaction_snapshot':
+            compactionSnapshot = record.snapshot;
+            break;
         }
       } catch {
         log.warn('Failed to parse JSONL line, skipping', undefined, sessionId);
@@ -224,7 +264,7 @@ export class Persistence {
     if (!session) return null;
 
     log.debug('Session loaded', { messageCount: messages.length }, sessionId);
-    return { session, messages };
+    return { session, messages, compactionSnapshot };
   }
 
   /**

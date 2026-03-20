@@ -5,9 +5,10 @@ import { MessageSquare } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useSessionStore } from '../../store/sessionStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { formatTokenCount } from '../../lib/utils';
 import { MessageItem } from '../Message';
 import AssistantTurn from '../Message/AssistantTurn';
-import type { Message, AssistantMessage as AssistantMessageType } from '../../types';
+import type { SessionMessage, AssistantMessage as AssistantMessageType, CompactionMessage } from '../../types';
 
 export interface MessageListRef {
   scrollToBottom: () => void;
@@ -180,6 +181,13 @@ const MessageList = React.forwardRef<MessageListRef, MessageListProps>(({ onNear
               </div>
             );
           }
+          if (group.type === 'compaction') {
+            return (
+              <div key={`compaction-${group.message.timestamp}-${gi}`} className={`${maxWidthClass} w-full min-w-0 mx-auto px-4 py-2.5`}>
+                <CompactionNoticeBanner message={group.message} />
+              </div>
+            );
+          }
           return (
             <div key={`turn-${group.messages[0].timestamp}-${gi}`} className={`${maxWidthClass} w-full min-w-0 mx-auto px-4 py-2.5`}>
               <AssistantTurn messages={group.messages} isLastTurn={gi === groups.length - 1} />
@@ -214,10 +222,43 @@ MessageList.displayName = 'MessageList';
 
 export default MessageList;
 
+const CompactionNoticeBanner: React.FC<{ message: CompactionMessage }> = ({ message }) => {
+  const { t, i18n } = useTranslation('chat');
+  const locale = i18n.language === 'zh' ? 'zh-CN' : 'en-US';
+  const sourceKey = message.source === 'auto-overflow'
+    ? 'compaction.recovered'
+    : 'compaction.compacted';
+
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-muted-foreground">
+      <div className="font-medium text-foreground">
+        {t(sourceKey)}
+      </div>
+      {message.tokensAfter !== undefined && (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {t('compaction.tokens', {
+            before: formatTokenCount(message.tokensBefore),
+            after: formatTokenCount(message.tokensAfter),
+          })}
+        </div>
+      )}
+      <div className="mt-1 text-xs text-muted-foreground">
+        {t('compaction.timestamp', {
+          time: new Date(message.timestamp).toLocaleTimeString(locale, {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ==================== Message grouping ====================
 
 type MessageGroup =
-  | { type: 'user'; message: Message }
+  | { type: 'user'; message: Extract<SessionMessage, { role: 'user' }> }
+  | { type: 'compaction'; message: CompactionMessage }
   | { type: 'assistant_turn'; messages: AssistantMessageType[] };
 
 /**
@@ -226,12 +267,20 @@ type MessageGroup =
  * - Consecutive assistant messages between user messages form one turn
  * - toolResult messages are skipped (agent-internal)
  */
-function groupMessagesIntoTurns(messages: Message[]): MessageGroup[] {
+function groupMessagesIntoTurns(messages: SessionMessage[]): MessageGroup[] {
   const groups: MessageGroup[] = [];
   let currentTurn: AssistantMessageType[] = [];
 
   for (const msg of messages) {
     if (msg.role === 'toolResult') continue;
+    if (msg.role === 'compaction') {
+      if (currentTurn.length > 0) {
+        groups.push({ type: 'assistant_turn', messages: currentTurn });
+        currentTurn = [];
+      }
+      groups.push({ type: 'compaction', message: msg });
+      continue;
+    }
 
     if (msg.role === 'user') {
       if (currentTurn.length > 0) {

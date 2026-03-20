@@ -1,11 +1,10 @@
 import type { BrowserWindow } from 'electron';
-import type { Session, AgentRunState, ToolExecutionState } from '@shared/types';
+import type { CompactionNotice, Session, SessionMessage, AgentRunState, ToolExecutionState } from '@shared/types';
 import type { PermissionRequest, PermissionResolved } from '@shared/permission-types';
 import type { QuestionRequest, QuestionResolved } from '@shared/question-types';
-import type { Message } from '../../ai/types';
 import type { PushEventMap } from '@shared/ipc-types';
 import type { SessionStore } from '../store/session-store';
-import type { ProviderAuthStatus } from '@shared/provider-auth';
+import type { ConnectionAuthStatus } from '@shared/connection-auth';
 
 export class PushService {
   private window: BrowserWindow | null = null;
@@ -20,7 +19,7 @@ export class PushService {
     }
   }
 
-  pushMessagesUpdated(sessionId: string, messages: Message[]): void {
+  pushMessagesUpdated(sessionId: string, messages: SessionMessage[]): void {
     this.push('push:messagesUpdated', { sessionId, messages });
   }
 
@@ -60,6 +59,10 @@ export class PushService {
     this.push('push:sessionUpdated', session);
   }
 
+  pushCompaction(sessionId: string, notice: CompactionNotice): void {
+    this.push('push:compaction', { sessionId, notice });
+  }
+
   pushError(sessionId: string, error: string): void {
     this.push('push:error', { sessionId, error });
   }
@@ -72,8 +75,8 @@ export class PushService {
     this.push('push:skillsChanged', undefined as never);
   }
 
-  pushProviderAuthChanged(providerConfigId: string, status: ProviderAuthStatus): void {
-    this.push('push:providerAuthChanged', { providerConfigId, status });
+  pushConnectionAuthChanged(connectionId: string, status: ConnectionAuthStatus): void {
+    this.push('push:connectionAuthChanged', { connectionId, status });
   }
 }
 
@@ -81,7 +84,7 @@ export class PushService {
  * Bridge SessionStore events to PushService
  */
 export function bridgeSessionStoreToPush(store: SessionStore, push: PushService): void {
-  store.on('messages:updated', (sessionId: string, messages: Message[]) => {
+  store.on('messages:updated', (sessionId: string, messages: SessionMessage[]) => {
     push.pushMessagesUpdated(sessionId, messages);
   });
   store.on('session:created', (session: Session) => {

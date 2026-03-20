@@ -1,41 +1,21 @@
-export type ProviderAuthState =
-  | 'disconnected'
-  | 'connecting'
-  | 'connected'
-  | 'expired'
-  | 'error';
+import type {
+  AuthSession as ConnectionAuthSession,
+  ConnectionAuthConfig,
+  ConnectionAuthState,
+  ConnectionAuthStatus,
+  ResolvedRequestAuth,
+} from './connection-auth';
 
-export interface ApiKeyAuthConfig {
-  type: 'apiKey';
-}
+export type ProviderAuthConfig = ConnectionAuthConfig;
+export type ProviderAuthState = ConnectionAuthState;
 
-export interface OAuthAuthConfig {
-  type: 'oauth';
-  strategy: 'openai-codex';
-}
-
-export type ProviderAuthConfig = ApiKeyAuthConfig | OAuthAuthConfig;
-
-export interface ProviderAuthStatus {
+export interface ProviderAuthStatus extends Omit<ConnectionAuthStatus, 'connectionId'> {
   providerConfigId: string;
-  state: ProviderAuthState;
-  accountLabel?: string;
-  expiresAt?: number;
-  errorMessage?: string;
 }
 
-export interface ResolvedRequestAuth {
-  accessToken?: string;
-  headers?: Record<string, string>;
-  baseUrl?: string;
-}
-
-export interface AuthSession {
+export interface AuthSession extends Omit<ConnectionAuthSession, 'connectionId'> {
+  connectionId?: string;
   providerConfigId: string;
-  strategy: string;
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt?: number;
-  accountLabel?: string;
-  metadata?: Record<string, unknown>;
 }
+
+export type { ResolvedRequestAuth };

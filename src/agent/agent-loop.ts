@@ -8,6 +8,7 @@ import {
 	type AssistantMessage,
 	type Context,
 	EventStream,
+	isContextOverflow,
 	streamSimple,
 	type ToolResultMessage,
 } from "../ai";
@@ -67,7 +68,13 @@ export function agentLoopContinue(
 		throw new Error("Cannot continue: no messages in context");
 	}
 
-	if (context.messages[context.messages.length - 1].role === "assistant") {
+	const lastMessage = context.messages[context.messages.length - 1];
+	if (
+		lastMessage.role === "assistant"
+		&& lastMessage.stopReason !== "error"
+		&& lastMessage.stopReason !== "aborted"
+		&& !isContextOverflow(lastMessage, config.model.contextWindow)
+	) {
 		throw new Error("Cannot continue from message role: assistant");
 	}
 
@@ -167,7 +174,19 @@ async function runLoop(
 				}
 			}
 
+			const shouldStopAfterTurn = await config.shouldStopAfterTurn?.({
+				message,
+				toolResults,
+				messages: currentContext.messages.slice(),
+			}) ?? false;
+
 			stream.push({ type: "turn_end", message, toolResults });
+
+			if (shouldStopAfterTurn) {
+				stream.push({ type: "agent_end", messages: newMessages });
+				stream.end(newMessages);
+				return;
+			}
 
 			// Get steering messages after turn completes
 			if (steeringAfterTools && steeringAfterTools.length > 0) {

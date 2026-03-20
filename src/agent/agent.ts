@@ -6,6 +6,7 @@
 import {
 	getModel,
 	type ImageContent,
+	isContextOverflow,
 	type Message,
 	type Model,
 	streamSimple,
@@ -123,6 +124,7 @@ export class Agent {
 	private _thinkingBudgets?: ThinkingBudgets;
 	private _transport: Transport;
 	private _maxRetryDelayMs?: number;
+	private shouldStopAfterTurn?: AgentLoopConfig["shouldStopAfterTurn"];
 
 	constructor(opts: AgentOptions = {}) {
 		this._state = { ...this._state, ...opts.initialState };
@@ -244,6 +246,10 @@ export class Agent {
 
 	setTools(t: AgentTool<any>[]) {
 		this._state.tools = t;
+	}
+
+	setShouldStopAfterTurn(handler: AgentLoopConfig["shouldStopAfterTurn"] | undefined) {
+		this.shouldStopAfterTurn = handler;
 	}
 
 	replaceMessages(ms: AgentMessage[]) {
@@ -387,7 +393,8 @@ export class Agent {
 		if (messages.length === 0) {
 			throw new Error("No messages to continue from");
 		}
-		if (messages[messages.length - 1].role === "assistant") {
+		const lastMessage = messages[messages.length - 1];
+		if (lastMessage.role === "assistant") {
 			const queuedSteering = this.dequeueSteeringMessages();
 			if (queuedSteering.length > 0) {
 				await this._runLoop(queuedSteering, { skipInitialSteeringPoll: true });
@@ -400,7 +407,11 @@ export class Agent {
 				return;
 			}
 
-			throw new Error("Cannot continue from message role: assistant");
+			if (lastMessage.stopReason !== "error" && lastMessage.stopReason !== "aborted") {
+				if (!isContextOverflow(lastMessage, this._state.model.contextWindow)) {
+					throw new Error("Cannot continue from message role: assistant");
+				}
+			}
 		}
 
 		await this._runLoop(undefined);
@@ -453,6 +464,7 @@ export class Agent {
 				return this.dequeueSteeringMessages();
 			},
 			getFollowUpMessages: async () => this.dequeueFollowUpMessages(),
+			shouldStopAfterTurn: this.shouldStopAfterTurn,
 		};
 
 		let partial: AgentMessage | null = null;

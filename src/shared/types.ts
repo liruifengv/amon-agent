@@ -2,12 +2,12 @@
 
 import type { ApprovalMode } from './permission-types';
 export type {
-  ProviderAuthConfig,
-  ProviderAuthStatus,
-  ProviderAuthState,
+  ConnectionAuthConfig,
+  ConnectionAuthStatus,
+  ConnectionAuthState,
   ResolvedRequestAuth,
   AuthSession,
-} from './provider-auth';
+} from './connection-auth';
 
 export type {
   TextContent,
@@ -53,9 +53,39 @@ export interface Session {
   updatedAt: number;
 }
 
+export type CompactionSource = 'auto-threshold' | 'auto-overflow' | 'manual';
+
+export interface CompactionSnapshot {
+  summary: string;
+  firstKeptMessageIndex: number;
+  tokensBefore: number;
+  tokensAfter?: number;
+  createdAt: number;
+  source: CompactionSource;
+}
+
+export interface CompactionNotice {
+  firstKeptMessageIndex: number;
+  tokensBefore: number;
+  tokensAfter?: number;
+  createdAt: number;
+  source: CompactionSource;
+}
+
+export interface CompactionMessage {
+  role: 'compaction';
+  source: CompactionSource;
+  tokensBefore: number;
+  tokensAfter?: number;
+  timestamp: number;
+}
+
+export type SessionMessage = import('../ai/types').Message | CompactionMessage;
+
 export interface SessionState {
   session: Session;
-  messages: import('../ai/types').Message[];
+  messages: SessionMessage[];
+  compactionSnapshot?: CompactionSnapshot;
 }
 
 // ==================== Agent 运行状态（替代旧 StreamingState）====================
@@ -64,6 +94,8 @@ export interface AgentRunState {
   isRunning: boolean;
   toolExecutions: Record<string, ToolExecutionState>;
   contextWindow?: number;
+  contextTokens?: number;
+  lastCompaction?: CompactionNotice | null;
 }
 
 export interface ToolExecutionState {
@@ -71,6 +103,12 @@ export interface ToolExecutionState {
   status: 'pending' | 'awaiting_approval' | 'awaiting_user_input' | 'running' | 'completed' | 'error';
   partialResult?: string;
   isError?: boolean;
+}
+
+declare module '../agent/types' {
+  interface CustomAgentMessages {
+    compaction: CompactionMessage;
+  }
 }
 
 // ==================== 文件信息（用于 @ 提及）====================

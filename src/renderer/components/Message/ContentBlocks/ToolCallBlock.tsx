@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { QuestionOption, ToolCall, ToolResultMessage } from '../../../types';
+import type { QuestionOption, SessionMessage, ToolCall, ToolResultMessage } from '../../../types';
 import { useChatStore } from '../../../store/chatStore';
 import {
   FileText,
@@ -395,7 +395,7 @@ const ToolCallBlock: React.FC<ToolCallBlockProps> = ({ toolCall, isNested = fals
   // 从消息列表推断历史工具调用的完成状态
   const messages = useChatStore((state) => state.getMessages(sessionId));
   const toolResult = useMemo(() => messages.find(
-    (m) => m.role === 'toolResult' && (m as ToolResultMessage).toolCallId === toolCall.id
+    (m: SessionMessage) => m.role === 'toolResult' && (m as ToolResultMessage).toolCallId === toolCall.id
   ) as ToolResultMessage | undefined, [messages, toolCall.id]);
   const derivedStatus = useMemo(() => {
     if (toolExecution?.status) return toolExecution.status;

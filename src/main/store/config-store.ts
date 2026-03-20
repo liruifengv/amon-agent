@@ -1,15 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { AI_CATALOG } from '@shared/ai-catalog.generated';
+import { getConnectionSpec } from '@shared/ai-catalog';
 import { Settings, SettingsSchema, DEFAULT_SETTINGS, parseSettings } from '@shared/schemas';
 import { createLogger } from './logger';
 
 const log = createLogger('ConfigStore');
-
-// Environment variable mapping for provider API keys
-const ENV_KEY_MAP: Record<string, string> = {
-  anthropic: 'ANTHROPIC_API_KEY',
-  openai: 'OPENAI_API_KEY',
-};
 
 export class ConfigStore {
   private settingsPath: string;
@@ -31,7 +27,13 @@ export class ConfigStore {
     try {
       const content = await fs.readFile(this.settingsPath, 'utf-8');
       const rawData = JSON.parse(content);
-      this.cachedSettings = parseSettings(rawData);
+      const parsed = parseSettings(rawData);
+      this.cachedSettings = parsed;
+
+      // Rewrite legacy or redundant fields out of settings.json after a successful read.
+      if (JSON.stringify(rawData) !== JSON.stringify(parsed)) {
+        await this.writeSettings(parsed);
+      }
     } catch (error) {
       if (error instanceof SyntaxError) {
         log.warn('Settings file contains invalid JSON', { error: error.message });
@@ -70,41 +72,53 @@ export class ConfigStore {
 
     // Validate the merged result
     const validated = SettingsSchema.parse(merged);
+    const normalized = parseSettings(validated);
 
-    // Atomic write: write to temp file, then rename
+    await this.writeSettings(normalized);
+
+    this.cachedSettings = normalized;
+    log.debug('Settings updated', { keys: Object.keys(partial) });
+
+    return normalized;
+  }
+
+  getApiKey(connectionId: string): string | undefined {
+    const connection = this.cachedSettings?.agent?.connections.find((item) => item.id === connectionId);
+    if (connection?.apiKey?.trim()) {
+      return connection.apiKey.trim();
+    }
+
+    const serviceId = connection
+      ? getConnectionSpec(connection.specId).serviceId
+      : connectionId in AI_CATALOG.services
+        ? connectionId as keyof typeof AI_CATALOG.services
+        : undefined;
+
+    if (!serviceId) {
+      return undefined;
+    }
+
+    const serviceAuth = AI_CATALOG.services[serviceId].auth;
+    if (serviceAuth.type !== 'apiKey') {
+      return undefined;
+    }
+
+    for (const envKey of serviceAuth.envKeys ?? []) {
+      const value = process.env[envKey];
+      if (value?.trim()) {
+        return value.trim();
+      }
+    }
+
+    return undefined;
+  }
+
+  private async writeSettings(settings: Settings): Promise<void> {
     const dir = path.dirname(this.settingsPath);
     await fs.mkdir(dir, { recursive: true });
 
     const tmpPath = this.settingsPath + '.tmp';
-    await fs.writeFile(tmpPath, JSON.stringify(validated, null, 2), 'utf-8');
+    await fs.writeFile(tmpPath, JSON.stringify(settings, null, 2), 'utf-8');
     await fs.rename(tmpPath, this.settingsPath);
-
-    this.cachedSettings = validated;
-    log.debug('Settings updated', { keys: Object.keys(partial) });
-
-    return validated;
-  }
-
-  /**
-   * Get API key for a provider.
-   * Priority: settings.agent.providerConfigs > environment variable.
-   */
-  getApiKey(providerId: string): string | undefined {
-    // Check provider configs in cached settings
-    const configs = this.cachedSettings?.agent?.providerConfigs;
-    if (configs) {
-      const config = configs.find((p) => p.id === providerId);
-      if (config?.apiKey) {
-        return config.apiKey;
-      }
-    }
-
-    // Fall back to environment variable
-    const envVar = ENV_KEY_MAP[providerId];
-    if (envVar) {
-      return process.env[envVar];
-    }
-
-    return undefined;
   }
 }

@@ -1,15 +1,20 @@
 // ==================== 从 shared 重新导出类型 ====================
 
 export type {
+  CompactionNotice,
+  CompactionMessage,
+  CompactionSnapshot,
+  CompactionSource,
   ImageAttachment,
   ImageMimeType,
+  SessionMessage,
   Session,
   SessionState,
   AgentRunState,
   ToolExecutionState,
   FileInfo,
-  ProviderAuthStatus,
-  ProviderAuthState,
+  ConnectionAuthStatus,
+  ConnectionAuthState,
   ResolvedRequestAuth,
   AuthSession,
 } from '../../shared/types';
@@ -41,7 +46,7 @@ export type {
 } from '../../ai/types';
 
 export type {
-  ProviderConfig,
+  ConnectionConfig,
   AgentSettings,
   Settings,
   Workspace,
@@ -66,7 +71,7 @@ export interface IpcAPI {
   agent: IpcProxy;
   session: IpcProxy;
   settings: IpcProxy;
-  providerAuth: IpcProxy;
+  connectionAuth: IpcProxy;
   system: IpcProxy;
   workspace: IpcProxy;
   dialog: IpcProxy;
