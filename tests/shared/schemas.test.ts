@@ -35,7 +35,6 @@ describe('DEFAULT_AGENT_SETTINGS', () => {
     expect(DEFAULT_AGENT_SETTINGS.maxTurns).toBe(50);
     expect(DEFAULT_AGENT_SETTINGS.thinkingLevel).toBe('medium');
     expect(DEFAULT_AGENT_SETTINGS.compaction).toEqual({
-      enabled: true,
       reserveTokens: 16384,
       keepRecentTokens: 20000,
       autoCompact: true,
@@ -72,7 +71,6 @@ describe('parseSettings', () => {
         maxTurns: 100,
         thinkingLevel: 'high',
         compaction: {
-          enabled: true,
           reserveTokens: 8192,
           keepRecentTokens: 12000,
           autoCompact: false,
@@ -94,7 +92,6 @@ describe('parseSettings', () => {
     expect(result.agent.maxTurns).toBe(100);
     expect(result.agent.thinkingLevel).toBe('high');
     expect(result.agent.compaction).toEqual({
-      enabled: true,
       reserveTokens: 8192,
       keepRecentTokens: 12000,
       autoCompact: false,
@@ -138,6 +135,25 @@ describe('parseSettings', () => {
         customModelId: 'gpt-oss-120b',
       }),
     ]);
+  });
+
+  it('migrates legacy compaction.enabled into autoCompact', () => {
+    const result = parseSettings({
+      agent: {
+        compaction: {
+          enabled: false,
+          reserveTokens: 4096,
+          keepRecentTokens: 6000,
+        },
+      },
+    });
+
+    expect(result.agent.compaction).toEqual({
+      reserveTokens: 4096,
+      keepRecentTokens: 6000,
+      autoCompact: false,
+    });
+    expect(result.agent.compaction).not.toHaveProperty('enabled');
   });
 
   it('fills defaults for missing fields', () => {

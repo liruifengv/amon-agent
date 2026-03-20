@@ -31,7 +31,6 @@ export type ConnectionConfig = z.infer<typeof ConnectionConfigSchema>;
 // ==================== Agent 配置 Schema ====================
 
 export const CompactionSettingsSchema = z.object({
-  enabled: z.boolean().default(true),
   reserveTokens: z.number().int().positive().default(16384),
   keepRecentTokens: z.number().int().positive().default(20000),
   autoCompact: z.boolean().default(true),
@@ -47,7 +46,6 @@ export const AgentSettingsSchema = z.object({
   connections: z.array(ConnectionConfigSchema).default([]),
   exaApiKey: z.string().default(''),
   compaction: CompactionSettingsSchema.default({
-    enabled: true,
     reserveTokens: 16384,
     keepRecentTokens: 20000,
     autoCompact: true,
@@ -191,6 +189,18 @@ function migrateSettings(data: unknown): unknown {
 
   if (agent.thinkingLevel === 'minimal') {
     agent.thinkingLevel = 'low';
+  }
+
+  if (agent.compaction && typeof agent.compaction === 'object') {
+    const compaction = { ...(agent.compaction as Record<string, unknown>) };
+    if (
+      compaction.autoCompact === undefined
+      && typeof compaction.enabled === 'boolean'
+    ) {
+      compaction.autoCompact = compaction.enabled;
+    }
+    delete compaction.enabled;
+    agent.compaction = compaction;
   }
 
   if (!agent.connections && legacyProviderConfigs) {

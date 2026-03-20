@@ -503,7 +503,7 @@ export class AgentService {
   }
 
   private isAutomaticCompactionEnabled(settings: CompactionSettings): boolean {
-    return settings.enabled && settings.autoCompact;
+    return settings.autoCompact;
   }
 
   private resolveDisplayedContextTokens(options: {

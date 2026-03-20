@@ -33,7 +33,18 @@ describe('CompactionService', () => {
   it('builds active context from snapshot preface and recent tail', () => {
     const service = new CompactionService();
     const snapshot = {
-      summary: 'Goal\n- Continue implementation.',
+      summary: [
+        '<compaction_summary>',
+        '  <current_focus>Continue implementation.</current_focus>',
+        '  <constraints_and_preferences><item>None.</item></constraints_and_preferences>',
+        '  <environment><item>None.</item></environment>',
+        '  <completed_tasks><item>None.</item></completed_tasks>',
+        '  <active_issues><item>None.</item></active_issues>',
+        '  <code_state><item>None.</item></code_state>',
+        '  <important_context><item>None.</item></important_context>',
+        '  <next_steps><item>None.</item></next_steps>',
+        '</compaction_summary>',
+      ].join('\n'),
       firstKeptMessageIndex: 1,
       tokensBefore: 42000,
       createdAt: 200,
@@ -68,7 +79,18 @@ describe('CompactionService', () => {
 
   it('creates a new snapshot from older messages while keeping the recent tail', async () => {
     completeSimpleMock.mockResolvedValue(
-      createAssistantMessage([{ type: 'text', text: 'Goal\n- Summarized.' }], {
+      createAssistantMessage([{ type: 'text', text: [
+        '<compaction_summary>',
+        '  <current_focus>Summarized.</current_focus>',
+        '  <constraints_and_preferences><item>None.</item></constraints_and_preferences>',
+        '  <environment><item>None.</item></environment>',
+        '  <completed_tasks><item>None.</item></completed_tasks>',
+        '  <active_issues><item>None.</item></active_issues>',
+        '  <code_state><item>None.</item></code_state>',
+        '  <important_context><item>None.</item></important_context>',
+        '  <next_steps><item>None.</item></next_steps>',
+        '</compaction_summary>',
+      ].join('\n') }], {
         timestamp: 999,
       }),
     );
@@ -94,7 +116,7 @@ describe('CompactionService', () => {
     });
 
     expect(result).not.toBeNull();
-    expect(result?.snapshot.summary).toBe('Goal\n- Summarized.');
+    expect(result?.snapshot.summary).toContain('<compaction_summary>');
     expect(result?.snapshot.firstKeptMessageIndex).toBe(4);
     expect(result?.snapshot.tokensAfter).toBeDefined();
     expect(result?.snapshot.tokensAfter).toBeLessThan(result!.snapshot.tokensBefore);
@@ -106,5 +128,53 @@ describe('CompactionService', () => {
     expect(context.messages[0].content[0].text).toContain('first task details');
     expect(context.messages[0].content[0].text).toContain('second answer details');
     expect(context.messages[0].content[0].text).not.toContain('latest task details');
+  });
+
+  it('rejects compaction output that is not valid XML summary', async () => {
+    completeSimpleMock.mockResolvedValue(
+      createAssistantMessage([{ type: 'text', text: 'plain text summary' }], {
+        timestamp: 999,
+      }),
+    );
+
+    const service = new CompactionService();
+    const model = createMockModel({ contextWindow: 200000, maxTokens: 8192 });
+    const messages = [
+      createUserMessage('first task details', { timestamp: 100 }),
+      createAssistantMessage([{ type: 'text', text: 'first answer details' }], { timestamp: 110 }),
+      createUserMessage('latest task details', { timestamp: 140 }),
+      createAssistantMessage([{ type: 'text', text: 'latest answer details' }], { timestamp: 150 }),
+    ];
+
+    await expect(service.compact({
+      sessionId: 's1',
+      messages,
+      model,
+      source: 'auto-threshold',
+      tokensBefore: 64000,
+      keepRecentTokens: 30,
+    })).rejects.toThrow('Compaction summary must be wrapped');
+  });
+
+  it('does not compact when only the latest unfinished user turn would remain', async () => {
+    const service = new CompactionService();
+    const model = createMockModel({ contextWindow: 200000, maxTokens: 8192 });
+    const messages = [
+      createUserMessage('first task details', { timestamp: 100 }),
+      createAssistantMessage([{ type: 'text', text: 'first answer details' }], { timestamp: 110 }),
+      createUserMessage('latest unfinished task details', { timestamp: 120 }),
+    ];
+
+    const result = await service.compact({
+      sessionId: 's1',
+      messages,
+      model,
+      source: 'auto-threshold',
+      tokensBefore: 64000,
+      keepRecentTokens: 1,
+    });
+
+    expect(result).toBeNull();
+    expect(completeSimpleMock).not.toHaveBeenCalled();
   });
 });
