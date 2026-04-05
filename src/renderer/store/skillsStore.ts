@@ -14,13 +14,13 @@ interface SkillsState {
   // Actions
   loadSkills: (workspace?: string) => Promise<void>;
   installSkill: (name: string) => Promise<void>;
-  uninstallSkill: (name: string) => Promise<void>;
+  uninstallSkill: (name: string, dirPath: string, workspace?: string) => Promise<void>;
   toggleDisable: (name: string, disabled: boolean) => Promise<void>;
   getSkillContent: (dirPath: string) => Promise<string>;
   openFolder: (dirPath: string) => Promise<void>;
 }
 
-export const useSkillsStore = create<SkillsState>((set, get) => ({
+export const useSkillsStore = create<SkillsState>(set => ({
   installed: [],
   builtin: [],
   isLoading: false,
@@ -53,10 +53,10 @@ export const useSkillsStore = create<SkillsState>((set, get) => ({
     }
   },
 
-  uninstallSkill: async (name: string) => {
+  uninstallSkill: async (name: string, dirPath: string, workspace?: string) => {
     set({ pendingAction: name });
     try {
-      await window.ipc.skills.uninstall(name);
+      await window.ipc.skills.uninstall(dirPath, workspace);
     } catch (error) {
       console.error('Failed to uninstall skill:', error);
     } finally {

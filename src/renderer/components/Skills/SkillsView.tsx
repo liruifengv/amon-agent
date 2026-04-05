@@ -199,7 +199,7 @@ const SkillsView: React.FC<SkillsViewProps> = ({ sidebarCollapsed, onToggleSideb
           skill={selectedSkill}
           mode={detailMode}
           onInstall={() => installSkill(selectedSkill.name)}
-          onUninstall={() => uninstallSkill(selectedSkill.name)}
+          onUninstall={() => uninstallSkill(selectedSkill.name, selectedSkill.dirPath, getCurrentWorkspace())}
           onToggleDisable={(disabled) => toggleDisable(selectedSkill.name, disabled)}
         />
       )}

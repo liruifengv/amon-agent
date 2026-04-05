@@ -199,25 +199,37 @@ export class SkillsStore {
     this.invalidateCache();
   }
 
-  /** Uninstall a skill: delete ~/.amon/skills/<name> directory */
-  async uninstallSkill(name: string): Promise<void> {
-    const destDir = path.join(os.homedir(), '.amon', 'skills', name);
+  private async getAllowedSkillRoots(workspace: string): Promise<string[]> {
+    const settings = await this.configStore.getSettings();
+    const roots = [
+      path.join(os.homedir(), '.amon', 'skills'),
+      path.join(workspace, '.amon', 'skills'),
+      ...settings.skills.extraDirs.flatMap(dirName => [
+        path.join(os.homedir(), dirName, 'skills'),
+        path.join(workspace, dirName, 'skills'),
+      ]),
+    ];
 
-    // Silent return if not found
-    if (!fs.existsSync(destDir)) {
-      log.info(`Skill "${name}" not found for uninstall, skipping`);
+    return Array.from(new Set(roots.map(root => path.resolve(root))));
+  }
+
+  /** Uninstall a skill from one of the configured skill directories */
+  async uninstallSkill(dirPath: string, workspace: string): Promise<void> {
+    const resolvedDir = path.resolve(dirPath);
+
+    if (!fs.existsSync(resolvedDir)) {
+      log.info(`Skill directory "${resolvedDir}" not found for uninstall, skipping`);
       return;
     }
 
-    // Safety: only allow deleting from ~/.amon/skills/
-    const skillsRoot = path.join(os.homedir(), '.amon', 'skills');
-    const resolved = path.resolve(destDir);
-    if (!resolved.startsWith(skillsRoot)) {
-      throw new Error(`Cannot uninstall skill outside of ${skillsRoot}`);
+    const allowedRoots = await this.getAllowedSkillRoots(workspace);
+    const parentDir = path.dirname(resolvedDir);
+    if (!allowedRoots.includes(parentDir)) {
+      throw new Error(`Cannot uninstall skill outside configured skill directories: ${resolvedDir}`);
     }
 
-    await fs.promises.rm(destDir, { recursive: true, force: true });
-    log.info(`Uninstalled skill: ${name}`);
+    await fs.promises.rm(resolvedDir, { recursive: true, force: true });
+    log.info(`Uninstalled skill: ${resolvedDir}`);
 
     this.invalidateCache();
   }

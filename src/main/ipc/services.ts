@@ -387,8 +387,9 @@ function registerSkillsHandlers(deps: IpcDependencies): void {
     deps.pushService.pushSkillsChanged();
   });
 
-  handle('skills.uninstall', async (name: unknown) => {
-    await deps.skillsStore.uninstallSkill(name as string);
+  handle('skills.uninstall', async (dirPath: unknown, workspace?: unknown) => {
+    const resolvedWorkspace = await resolveWorkspacePath(deps, workspace as string | undefined);
+    await deps.skillsStore.uninstallSkill(dirPath as string, resolvedWorkspace);
     deps.pushService.pushSkillsChanged();
   });
 
