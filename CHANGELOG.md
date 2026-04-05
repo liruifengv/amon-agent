@@ -1,5 +1,27 @@
 # amon-agent
 
+## 0.4.0
+
+### Minor Changes
+
+- [`ce3adcf`](https://github.com/liruifengv/amon-agent/commit/ce3adcfcb9537e3f0fd01c8c599d400b370f96f0) Thanks [@liruifengv](https://github.com/liruifengv)! - Add automatic conversation compaction for long-running sessions.
+
+  This release persists per-session compaction snapshots, rebuilds active LLM context from a compact summary plus recent history, automatically compacts when context usage approaches the model limit, and recovers from context overflow errors by compacting and retrying. The UI now also shows a real compaction notice when this happens.
+
+### Patch Changes
+
+- [`5214b12`](https://github.com/liruifengv/amon-agent/commit/5214b125ce2ecd2b745929a85e81e22c6d5d2c7d) Thanks [@liruifengv](https://github.com/liruifengv)! - Fix workspace file mentions and path validation.
+
+  File mention suggestions now load from the active session workspace instead of an empty IPC placeholder response. Mentioned `@path` entries are also validated against the real workspace before the UI highlights them as existing files.
+
+- [`7274ebc`](https://github.com/liruifengv/amon-agent/commit/7274ebc1c6d4062eb9fad4f2676aeb2305ad1585) Thanks [@liruifengv](https://github.com/liruifengv)! - Enhance skill uninstall to support multiple configured skill directories.
+
+  The uninstall feature now uses the resolved directory path instead of skill name, allowing skills to be removed from workspace `.amon/skills`, user `~/.amon/skills`, and any configured `extraDirs`. Added safety validation to prevent deletion outside allowed skill roots.
+
+- [`0c5a413`](https://github.com/liruifengv/amon-agent/commit/0c5a413e2d39a8a9d51f04774bbb30066b3f9577) Thanks [@liruifengv](https://github.com/liruifengv)! - Refine conversation compaction behavior and configuration.
+
+  Compaction summaries now require a validated XML structure, which makes the compacted handoff more predictable for later turns. Automatic compaction also uses a safer boundary that keeps a recent user-led tail instead of trimming into an incomplete turn. In settings, the redundant `compaction.enabled` flag is folded into `compaction.autoCompact` while preserving backward compatibility for existing configs.
+
 ## 0.3.4
 
 ### Patch Changes
