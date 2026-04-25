@@ -12,7 +12,6 @@ import { createDefaultToolRegistry } from './tools/tool-registry';
 import { AgentService } from './agent/agent-service';
 import { EventAdapter } from './agent/event-adapter';
 import { PushService, bridgeSessionStoreToPush } from './ipc/push';
-import { SkillsStore } from './skills';
 import { registerIpcHandlers, removeIpcHandlers } from './ipc/services';
 import { handleBeforeQuit, handleWindowAllClosed, shouldHideMainWindowOnClose } from './lifecycle';
 import { ApprovalService } from './permissions/approval-service';
@@ -45,7 +44,6 @@ const DEFAULT_WORKSPACE = path.join(DATA_DIR, 'workspace');
 const sessionStore = new SessionStore();
 const persistence = new Persistence(SESSIONS_DIR);
 const configStore = new ConfigStore(SETTINGS_PATH);
-const skillsStore = new SkillsStore(configStore);
 const pushService = new PushService();
 const eventAdapter = new EventAdapter(sessionStore, pushService);
 const approvalService = new ApprovalService();
@@ -394,7 +392,6 @@ app.on('ready', async () => {
     configStore,
     connectionAuthService,
     toolRegistry,
-    skillsStore,
     eventAdapter,
     pushService,
     approvalService,
@@ -412,7 +409,6 @@ app.on('ready', async () => {
     connectionAuthService,
     credentialStore,
     pushService,
-    skillsStore,
     approvalService,
     questionService,
     getMainWindow: () => mainWindow,
@@ -439,9 +435,6 @@ app.on('ready', async () => {
       item.cancel();
     }
   });
-
-  // First-launch: install default built-in skills
-  await skillsStore.initializeBuiltinSkills();
 
   // Create main window
   createWindow();

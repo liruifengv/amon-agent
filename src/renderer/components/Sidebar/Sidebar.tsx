@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings, PanelLeftClose, Blocks } from 'lucide-react';
+import { Settings, PanelLeftClose } from 'lucide-react';
 import { Button } from '../ui/button';
 import SessionList from './SessionList';
 import NewSessionButton from './NewSessionButton';
@@ -8,11 +8,9 @@ import NewSessionButton from './NewSessionButton';
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
-  activeView: 'chat' | 'skills';
-  onNavigate: (view: 'chat' | 'skills') => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeView, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const { t } = useTranslation('sidebar');
   const handleOpenSettings = () => {
     window.ipc.system.openSettings();
@@ -40,24 +38,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeView, onNa
             <PanelLeftClose className="h-4 w-4 text-muted-foreground" />
           </Button>
           <div className="no-drag">
-            <NewSessionButton onCreated={() => onNavigate('chat')} />
+            <NewSessionButton />
           </div>
-        </div>
-
-        {/* 固定入口区域 */}
-        <div className="px-2 py-1">
-          <Button
-            variant="ghost"
-            onClick={() => onNavigate('skills')}
-            className={`w-full justify-start gap-2 text-sm ${
-              activeView === 'skills'
-                ? 'bg-sidebar-accent text-foreground'
-                : 'text-foreground'
-            }`}
-          >
-            <Blocks className="h-4 w-4" />
-            <span>{t('skills')}</span>
-          </Button>
         </div>
 
         {/* 对话标题 */}
@@ -69,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle, activeView, onNa
 
         {/* 会话列表 */}
         <div className="flex-1 overflow-y-auto">
-          <SessionList onSelectSession={() => onNavigate('chat')} />
+          <SessionList />
         </div>
 
         {/* 底部设置按钮 */}

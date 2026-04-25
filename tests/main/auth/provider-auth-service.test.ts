@@ -23,7 +23,6 @@ function createConfigStore(connections: ConnectionConfig[]) {
       chatWidth: 'narrow',
       shortcuts: { newSession: 'CmdOrCtrl+N', openSettings: 'CmdOrCtrl+,' },
       workspaces: [],
-      skills: { extraDirs: ['.claude'], disabledSkills: [], initialized: false },
       agent: {
         activeConnectionId: 'codex-1',
         maxTurns: 50,

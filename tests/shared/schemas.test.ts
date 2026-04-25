@@ -14,11 +14,6 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.workspaces).toEqual([]);
     expect(DEFAULT_SETTINGS.shortcuts).toEqual(DEFAULT_SHORTCUTS);
     expect(DEFAULT_SETTINGS.agent).toEqual(DEFAULT_AGENT_SETTINGS);
-    expect(DEFAULT_SETTINGS.skills).toEqual({
-      extraDirs: ['.claude'],
-      disabledSkills: [],
-      initialized: false,
-    });
   });
 });
 

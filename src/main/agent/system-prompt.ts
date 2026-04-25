@@ -7,7 +7,6 @@ import type { UserFile } from '../workspace/user-files';
 export interface SystemPromptOptions {
   workspace: string;
   tools: Tool[];
-  skillsPrompt?: string;
   customInstructions?: string;
   globalUserFiles?: UserFile[];
   projectAgentsFile?: UserFile;
@@ -38,7 +37,7 @@ function buildToolsSection(tools: Tool[]): string {
     lines.push('- Use Read to examine files before editing them');
   }
   if (hasGlob) {
-    lines.push('- Use Glob to find files matching patterns (e.g., "**/*.ts")');
+    lines.push('- Use Glob to find files matching patterns (e.g. "**/*.ts")');
   }
   if (hasGrep) {
     lines.push('- Use Grep to search for text patterns in files');
@@ -112,10 +111,6 @@ export function buildSystemPrompt(options: SystemPromptOptions): string {
     buildToolsSection(options.tools),
     buildEnvironmentSection(options.workspace),
   ];
-
-  if (options.skillsPrompt) {
-    parts.push(options.skillsPrompt);
-  }
 
   if (options.customInstructions) {
     parts.push('## Custom Instructions');

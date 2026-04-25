@@ -78,16 +78,6 @@ export type Shortcuts = z.infer<typeof ShortcutsSchema>;
 
 export const DEFAULT_SHORTCUTS: Shortcuts = ShortcutsSchema.parse({});
 
-// ==================== Skills 配置 Schema ====================
-
-export const SkillsSettingsSchema = z.object({
-  extraDirs: z.array(z.string()).default(['.claude']),
-  disabledSkills: z.array(z.string()).default([]),
-  initialized: z.boolean().default(false),
-});
-
-export type SkillsSettings = z.infer<typeof SkillsSettingsSchema>;
-
 // ==================== 设置 Schema ====================
 
 export const SettingsSchema = z.object({
@@ -97,7 +87,6 @@ export const SettingsSchema = z.object({
   shortcuts: ShortcutsSchema.default(DEFAULT_SHORTCUTS),
   workspaces: z.array(WorkspaceSchema).default([]),
   agent: AgentSettingsSchema.default(DEFAULT_AGENT_SETTINGS),
-  skills: SkillsSettingsSchema.default({ extraDirs: ['.claude'], disabledSkills: [], initialized: false }),
 });
 
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -236,7 +225,6 @@ function migrateSettings(data: unknown): unknown {
   }
 
   delete raw.defaultWorkspace;
-
   return raw;
 }
 

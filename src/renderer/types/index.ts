@@ -75,7 +75,6 @@ export interface IpcAPI {
   system: IpcProxy;
   workspace: IpcProxy;
   dialog: IpcProxy;
-  skills: IpcProxy;
   permission: IpcProxy;
   question: IpcProxy;
 }

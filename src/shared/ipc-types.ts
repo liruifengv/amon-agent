@@ -19,6 +19,5 @@ export interface PushEventMap {
   'push:compaction': { sessionId: string; notice: CompactionNotice };
   'push:error': { sessionId: string; error: string };
   'push:settingsChanged': void;
-  'push:skillsChanged': void;
   'push:connectionAuthChanged': { connectionId: string; status: ConnectionAuthStatus };
 }

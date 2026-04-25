@@ -58,8 +58,6 @@ Amon allows you to add multiple API providers with built-in support for Anthropi
 
 Amon works on a per-workspace (folder) basis. You can set up multiple workspaces. Default workspace: `~/.amon/workspace`
 
-Amon supports Agent Skills — you can install Skills to add specialized capabilities to Amon.
-
 ## Getting Started
 
 ### Installation
@@ -133,7 +131,6 @@ amon-agent/
 │   │   ├── ipc/       # IPC communication handlers
 │   │   ├── store/     # State management and persistence
 │   │   ├── tools/     # 8 built-in tools (bash, read, write, edit, etc.)
-│   │   ├── skills/    # Skill loading and parsing
 │   │   └── workspace/ # User file loading (AGENTS.md, SOUL.md)
 │   ├── renderer/      # React renderer process
 │   │   ├── components/# UI components
@@ -144,7 +141,6 @@ amon-agent/
 ├── resources/
 │   ├── icons/         # App icons
 │   └── [bun, uv]     # Runtime binaries
-├── skills/           # Built-in skills packaged with the app
 └── forge.config.ts    # Electron Forge configuration
 ```
 
@@ -167,7 +163,7 @@ Amon adopts a three-layer agent architecture, with each layer cleanly decoupled:
 
 - **AI Layer** (`src/ai/`) — Provider-agnostic streaming abstraction. Global provider registry with 4 built-in providers. Normalizes all responses into a unified `AssistantMessageEvent` stream.
 - **Agent Layer** (`src/agent/`) — Framework-agnostic `Agent` class. Dual-loop architecture: inner loop (LLM call -> tool execution -> steering check), outer loop (follow-up queue -> repeat). Tool input validated with Zod schemas.
-- **Integration Layer** (`src/main/agent/`) — Wires Agent into Electron. `AgentService` resolves providers, models, skills, and workspace bootstrap files per session. `EventAdapter` bridges agent events to session store mutations and push notifications.
+- **Integration Layer** (`src/main/agent/`) — Wires Agent into Electron. `AgentService` resolves providers, models, and workspace bootstrap files per session. `EventAdapter` bridges agent events to session store mutations and push notifications.
 
 ## Tech Stack
 

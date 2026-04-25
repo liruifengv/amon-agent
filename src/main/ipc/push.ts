@@ -71,10 +71,6 @@ export class PushService {
     this.push('push:settingsChanged', undefined as never);
   }
 
-  pushSkillsChanged(): void {
-    this.push('push:skillsChanged', undefined as never);
-  }
-
   pushConnectionAuthChanged(connectionId: string, status: ConnectionAuthStatus): void {
     this.push('push:connectionAuthChanged', { connectionId, status });
   }

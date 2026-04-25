@@ -6,6 +6,5 @@
   "yesterday": "昨天",
   "confirmDeleteSession": "确定要删除会话 \"{{name}}\" 吗？",
   "deleteSession": "删除会话",
-  "skills": "技能",
   "conversations": "对话"
 }

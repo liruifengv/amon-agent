@@ -50,13 +50,13 @@ The preload script exposes `window.ipc` (request/response) and `window.push` (ev
 
 ### Service Wiring
 
-Manual constructor-based DI in `src/main/index.ts`. Services instantiated in order: `SessionStore` → `Persistence` → `ConfigStore` → `SkillsStore` → `ToolRegistry` → `PushService` → `EventAdapter` → `AgentService`. `bridgeSessionStoreToPush()` subscribes store events before windows are created. All shared services are injected into `registerIpcHandlers()` via `IpcDependencies`.
+Manual constructor-based DI in `src/main/index.ts`. Services instantiated in order: `SessionStore` → `Persistence` → `ConfigStore` → `ToolRegistry` → `PushService` → `EventAdapter` → `AgentService`. `bridgeSessionStoreToPush()` subscribes store events before windows are created. All shared services are injected into `registerIpcHandlers()` via `IpcDependencies`.
 
 ### Data Flow
 
 ```
 User input → chatStore.sendMessage() → window.ipc.agent.sendMessage
-→ AgentService.sendMessage() → resolve provider/model → load skills + workspace files
+→ AgentService.sendMessage() → resolve provider/model → load workspace files
 → buildSystemPrompt() → Agent.prompt() → agentLoop()
 → AgentEvent → EventAdapter → SessionStore (messages)
 → bridgeSessionStoreToPush() → PushService → webContents.send
@@ -77,6 +77,5 @@ Zustand stores in `src/renderer/store/`: `chatStore` (messages, agent state, pus
 - **UI**: React 19 + Radix UI primitives + Tailwind CSS v4 + Shadcn components in `src/renderer/components/ui/`
 - **Runtime break**: The old Claude Agent SDK runtime is gone; new work should target the provider-agnostic agent core and main-process integration described above.
 - **Settings migration**: Old format (`providers[]`, `agent.provider`, `agent.model`) → new format (`agent.providerConfigs[]`, `agent.activeProviderId`, `agent.activeModelId`). Migration in `parseSettings()` is best-effort; deprecated fields like `thinkingBudget` and `customSystemPrompt` are removed.
-- **App data**: `~/.amon/` — `settings.json`, `sessions/` (JSONL persistence), `skills/`, `workspace/`
-- **Skills**: Built-in skills live in repo `skills/` and are indexed by `skills/index.json`. Default built-ins are installed to `~/.amon/skills` on first launch. Load order is system/project extra dirs (default `.claude`), then `~/.amon/skills`, then `<workspace>/.amon/skills`, with later entries overriding earlier ones.
+- **App data**: `~/.amon/` — `settings.json`, `sessions/` (JSONL persistence), `workspace/`
 - **Tools**: 8 built-in tools registered in `createDefaultToolRegistry()` at `src/main/tools/tool-registry.ts` (bash, read, write, edit, glob, grep, web-fetch, web-search)

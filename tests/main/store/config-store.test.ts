@@ -72,11 +72,11 @@ describe('ConfigStore', () => {
             },
           ],
           maxTurns: 50,
-        },
-        skills: {
-          extraDirs: ['.claude', '.custom'],
-          disabledSkills: ['legacy'],
-          initialized: false,
+          compaction: {
+            reserveTokens: 16384,
+            keepRecentTokens: 20000,
+            autoCompact: true,
+          },
         },
       }),
       'utf-8',
@@ -88,11 +88,11 @@ describe('ConfigStore', () => {
         ...DEFAULT_SETTINGS.agent,
         ...(await store.getSettings()).agent,
         maxTurns: 99,
-      },
-      skills: {
-        ...DEFAULT_SETTINGS.skills,
-        ...(await store.getSettings()).skills,
-        initialized: true,
+        compaction: {
+          reserveTokens: 8192,
+          keepRecentTokens: 12000,
+          autoCompact: false,
+        },
       },
     });
 
@@ -109,15 +109,8 @@ describe('ConfigStore', () => {
     expect(updated.agent).not.toHaveProperty('providerConfigs');
     expect(updated.agent).not.toHaveProperty('activeProviderId');
     expect(updated.agent).not.toHaveProperty('activeModelId');
-    expect(updated.skills).toEqual({
-      extraDirs: ['.claude', '.custom'],
-      disabledSkills: ['legacy'],
-      initialized: true,
-    });
-
     const saved = JSON.parse(await readFile(settingsPath, 'utf-8'));
     expect(saved.agent.maxTurns).toBe(99);
-    expect(saved.skills.initialized).toBe(true);
     expect(saved.agent.connections).toHaveLength(1);
     expect(saved.agent.providerConfigs).toBeUndefined();
     expect(saved.agent.activeProviderId).toBeUndefined();

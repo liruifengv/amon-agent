@@ -4,7 +4,6 @@
     "provider": "供应商",
     "agent": "智能体",
     "workspace": "工作空间",
-    "skills": "技能",
     "shortcuts": "快捷键",
     "about": "关于"
   },
@@ -81,7 +80,7 @@
     "feature2Title": "本地优先",
     "feature2Desc": "数据存储在本地，保护隐私和安全",
     "feature3Title": "可扩展",
-    "feature3Desc": "通过 Skills 系统扩展功能，适应不同工作场景",
+    "feature3Desc": "通过强大的内置工具，适应不同工作场景",
     "feature4Title": "可视化界面",
     "feature4Desc": "提供友好的图形界面进行 AI 编码",
     "shortcutsTitle": "快捷键",
@@ -123,30 +122,5 @@
   "systemPrompt": {
     "title": "系统提示词",
     "placeholder": "输入系统提示词..."
-  },
-  "skills": {
-    "installLocation": "安装位置",
-    "systemLevel": "系统级",
-    "installed": "已安装",
-    "recommended": "推荐",
-    "noSkills": "暂无 Skills",
-    "loadingFromNetwork": "从网络加载中...",
-    "noRecommendedSkills": "暂无推荐的 Skills",
-    "skillsDesc": "Skills 是包含 SKILL.md 文件的文件夹，用于扩展智能体的能力。系统级 Skills 位于 ~/.claude/skills，工作空间 Skills 位于各工作空间的 .claude/skills 目录。",
-    "systemSkills": "System Skills",
-    "recommendedDesc": "官方推荐的 Skills，点击安装按钮添加到您的系统或工作空间",
-    "installedToSystem": "已安装到系统",
-    "installedToWorkspace": "已安装到{{workspace}}",
-    "installing": "安装中...",
-    "installSkill": "安装 {{name}}",
-    "systemSkillsAvailable": "系统级 Skills 对所有会话可用",
-    "workspaceSkillsAvailable": "工作空间 Skills 仅在该工作空间内可用",
-    "uninstallConfirmTitle": "卸载 Skill",
-    "uninstallConfirmMessage": "确定要卸载 {{name}} 吗？",
-    "uninstallConfirmDetail": "此操作将删除该 Skill 的所有文件。",
-    "openFolder": "打开文件夹",
-    "loadFailed": "加载失败",
-    "installFailed": "安装失败",
-    "uninstallFailed": "卸载失败"
   }
 }

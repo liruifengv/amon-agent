@@ -1,6 +1,6 @@
 
 import { ipcMain, BrowserWindow, dialog, shell, app } from 'electron';
-import type { Session, ImageAttachment, Skill, SkillInfo } from '@shared/types';
+import type { Session, ImageAttachment } from '@shared/types';
 import type { Settings } from '@shared/schemas';
 import type { ApprovalMode, PermissionDecision } from '@shared/permission-types';
 import type { QuestionResponse } from '@shared/question-types';
@@ -9,7 +9,6 @@ import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
 import type { PushService } from './push';
-import type { SkillsStore } from '../skills';
 import type { ApprovalService } from '../permissions/approval-service';
 import type { QuestionService } from '../questions/question-service';
 import { sanitizeSettingsConnections, type ConnectionAuthService, type CredentialStore } from '../auth';
@@ -36,7 +35,6 @@ export interface IpcDependencies {
   connectionAuthService: ConnectionAuthService;
   credentialStore: CredentialStore;
   pushService: PushService;
-  skillsStore: SkillsStore;
   approvalService: ApprovalService;
   questionService: QuestionService;
   getMainWindow: () => BrowserWindow | null;
@@ -73,35 +71,6 @@ async function resolveWorkspaceRequestPath(
   return resolveWorkspacePath(deps);
 }
 
-function getSkillSourceLabel(skill: Skill, workspace: string): string {
-  if (skill.source === 'system-amon') {
-    return 'global';
-  }
-
-  const resolvedWorkspace = path.resolve(workspace);
-  const resolvedSkillDir = path.resolve(skill.baseDir);
-
-  if (
-    resolvedSkillDir === resolvedWorkspace ||
-    resolvedSkillDir.startsWith(`${resolvedWorkspace}${path.sep}`)
-  ) {
-    return path.basename(resolvedWorkspace) || 'workspace';
-  }
-
-  return 'global';
-}
-
-function toSkillInfo(skill: Skill, disabledSkills: string[], workspace: string): SkillInfo {
-  return {
-    name: skill.name,
-    description: skill.description,
-    source: skill.source,
-    dirPath: skill.baseDir,
-    disabled: disabledSkills.includes(skill.name),
-    sourceLabel: getSkillSourceLabel(skill, workspace),
-  };
-}
-
 // ==================== 注册所有 IPC Handlers ====================
 
 export function registerIpcHandlers(deps: IpcDependencies): void {
@@ -114,7 +83,6 @@ export function registerIpcHandlers(deps: IpcDependencies): void {
   registerSystemHandlers(deps);
   registerWorkspaceHandlers(deps);
   registerDialogHandlers();
-  registerSkillsHandlers(deps);
 }
 
 // ==================== Agent Handlers ====================
@@ -358,66 +326,6 @@ function registerDialogHandlers(): void {
   });
 }
 
-// ==================== Skills Handlers ====================
-
-function registerSkillsHandlers(deps: IpcDependencies): void {
-  handle('skills.list', async (workspace?: unknown) => {
-    const resolvedWorkspace = await resolveWorkspacePath(deps, workspace as string | undefined);
-    const settings = await deps.configStore.getSettings();
-    const disabledSkills = settings.skills.disabledSkills;
-    const { skills } = await deps.skillsStore.load(resolvedWorkspace);
-
-    return {
-      installed: skills
-        .map(skill => toSkillInfo(skill, disabledSkills, resolvedWorkspace))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-      builtin: deps.skillsStore
-        .getBuiltinSkills()
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    };
-  });
-
-  handle('skills.getContent', async (dirPath: unknown) => {
-    const skillFilePath = path.join(dirPath as string, 'SKILL.md');
-    return deps.skillsStore.readSkillContent(skillFilePath);
-  });
-
-  handle('skills.install', async (name: unknown) => {
-    await deps.skillsStore.installBuiltinSkill(name as string);
-    deps.pushService.pushSkillsChanged();
-  });
-
-  handle('skills.uninstall', async (dirPath: unknown, workspace?: unknown) => {
-    const resolvedWorkspace = await resolveWorkspacePath(deps, workspace as string | undefined);
-    await deps.skillsStore.uninstallSkill(dirPath as string, resolvedWorkspace);
-    deps.pushService.pushSkillsChanged();
-  });
-
-  handle('skills.toggleDisable', async (name: unknown, disabled: unknown) => {
-    const settings = await deps.configStore.getSettings();
-    const disabledSkills = new Set(settings.skills.disabledSkills);
-
-    if (disabled) {
-      disabledSkills.add(name as string);
-    } else {
-      disabledSkills.delete(name as string);
-    }
-
-    await deps.configStore.updateSettings({
-      skills: {
-        ...settings.skills,
-        disabledSkills: Array.from(disabledSkills).sort(),
-      },
-    });
-    deps.pushService.pushSettingsChanged();
-    deps.pushService.pushSkillsChanged();
-  });
-
-  handle('skills.openFolder', async (dirPath: unknown) => {
-    await shell.openPath(dirPath as string);
-  });
-}
-
 // ==================== 清理 ====================
 
 export function removeIpcHandlers(): void {
@@ -432,8 +340,6 @@ export function removeIpcHandlers(): void {
     'system.openPath', 'system.openExternal', 'system.getVersion',
     'workspace.listFiles', 'workspace.validatePaths',
     'dialog.selectFolder', 'dialog.selectImages', 'dialog.confirm',
-    'skills.list', 'skills.getContent', 'skills.install',
-    'skills.uninstall', 'skills.toggleDisable', 'skills.openFolder',
   ];
   for (const ch of channels) {
     ipcMain.removeHandler(ch);

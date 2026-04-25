@@ -130,7 +130,6 @@ amon-agent/
 │   │   ├── ipc/       # IPC 通信处理
 │   │   ├── store/     # 状态管理和持久化
 │   │   ├── tools/     # 8 个内置工具（bash、read、write、edit 等）
-│   │   ├── skills/    # Skill 加载与解析
 │   │   └── workspace/ # 用户文件加载（AGENTS.md、SOUL.md）
 │   ├── renderer/      # React 渲染进程
 │   │   ├── components/# UI 组件
@@ -141,7 +140,6 @@ amon-agent/
 ├── resources/
 │   ├── icons/         # 应用图标
 │   └── [bun, uv]     # 运行时二进制文件
-├── skills/           # 随应用一起打包的内置 Skills
 └── forge.config.ts    # Electron Forge 配置
 ```
 
@@ -164,7 +162,7 @@ Amon 采用三层 Agent 架构，各层之间解耦清晰：
 
 - **AI 层** (`src/ai/`) — Provider 无关的流式抽象。全局 Provider 注册表，内置 4 个 Provider。将所有响应标准化为统一的 `AssistantMessageEvent` 流。
 - **Agent 层** (`src/agent/`) — 框架无关的 `Agent` 类。双循环架构：内循环（LLM 调用 -> 工具执行 -> 转向检查），外循环（后续队列 -> 重复）。工具输入使用 Zod Schema 验证。
-- **集成层** (`src/main/agent/`) — 将 Agent 接入 Electron。`AgentService` 按会话解析 Provider、模型、Skills 和工作区启动文件。`EventAdapter` 将 Agent 事件桥接到会话存储和推送通知。
+- **集成层** (`src/main/agent/`) — 将 Agent 接入 Electron。`AgentService` 按会话解析 Provider、模型和工作区启动文件。`EventAdapter` 将 Agent 事件桥接到会话存储和推送通知。
 
 ## 技术栈
 

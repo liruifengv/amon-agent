@@ -14,7 +14,6 @@ import type { Tool, ToolResult } from '../tools/types';
 import type { SessionStore } from '../store/session-store';
 import type { Persistence } from '../store/persistence';
 import type { ConfigStore } from '../store/config-store';
-import type { SkillsStore } from '../skills';
 import type { EventAdapter } from './event-adapter';
 import type { PushService } from '../ipc/push';
 import type { ConnectionAuthService } from '../auth';
@@ -30,7 +29,6 @@ import {
   toCompactionNotice,
 } from './compaction-service';
 import { loadGlobalUserFiles, loadProjectAgentsFile } from '../workspace';
-import { formatSkillsForPrompt } from '../skills';
 import { ApprovalService } from '../permissions/approval-service';
 import { PermissionedToolExecutor } from '../permissions/tool-executor';
 import type { QuestionService } from '../questions/question-service';
@@ -44,7 +42,6 @@ interface AgentServiceDeps {
   configStore: ConfigStore;
   connectionAuthService: ConnectionAuthService;
   toolRegistry: ToolRegistry;
-  skillsStore: SkillsStore;
   eventAdapter: EventAdapter;
   pushService: PushService;
   approvalService: ApprovalService;
@@ -154,7 +151,7 @@ export class AgentService {
     // Abort any existing run for this session
     this.abort(sessionId);
 
-    const { sessionStore, persistence, configStore, connectionAuthService, toolRegistry, skillsStore, eventAdapter, dataDir, defaultWorkspace } = this.deps;
+    const { sessionStore, persistence, configStore, connectionAuthService, toolRegistry, eventAdapter, dataDir, defaultWorkspace } = this.deps;
 
     const session = sessionStore.getSession(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
@@ -189,11 +186,6 @@ export class AgentService {
 
     const model = resolveRuntimeModel(connection);
 
-    // Load skills
-    await skillsStore.load(session.workspace);
-    const disabledSkills = settings.skills?.disabledSkills ?? [];
-    const skillsPrompt = formatSkillsForPrompt(skillsStore.getSkills(), disabledSkills);
-
     // Load user files
     const globalUserFiles = await loadGlobalUserFiles(dataDir);
     const projectAgentsFile = await loadProjectAgentsFile(session.workspace, defaultWorkspace);
@@ -202,7 +194,6 @@ export class AgentService {
     const systemPrompt = buildSystemPrompt({
       workspace: session.workspace,
       tools: toolRegistry.getAll(),
-      skillsPrompt,
       globalUserFiles,
       projectAgentsFile: projectAgentsFile ?? undefined,
     });

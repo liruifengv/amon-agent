@@ -51,9 +51,6 @@ function createDeps(sessionStore: SessionStore) {
           activeConnectionId: null,
         },
         workspaces: [],
-        skills: {
-          disabledSkills: [],
-        },
       })),
       updateSettings: vi.fn(),
     },
@@ -65,14 +62,6 @@ function createDeps(sessionStore: SessionStore) {
     credentialStore: {},
     pushService: {
       pushSettingsChanged: vi.fn(),
-      pushSkillsChanged: vi.fn(),
-    },
-    skillsStore: {
-      load: vi.fn(),
-      getBuiltinSkills: vi.fn(() => []),
-      readSkillContent: vi.fn(),
-      installBuiltinSkill: vi.fn(),
-      uninstallSkill: vi.fn(),
     },
     approvalService: {
       respond: vi.fn(),
@@ -143,21 +132,5 @@ describe('registerIpcHandlers workspace handlers', () => {
     ) as boolean[];
 
     expect(results).toEqual([true, true, false]);
-  });
-
-  it('uninstalls skills by their resolved directory path', async () => {
-    const sessionStore = new SessionStore();
-    const deps = createDeps(sessionStore);
-    const skillDir = path.join(workspaceDir, '.amon', 'skills', 'test-skill');
-
-    registerIpcHandlers(deps);
-
-    const handler = registeredHandlers.get('skills.uninstall');
-    expect(handler).toBeTypeOf('function');
-
-    await handler?.(undefined, skillDir, workspaceDir);
-
-    expect(deps.skillsStore.uninstallSkill).toHaveBeenCalledWith(skillDir, workspaceDir);
-    expect(deps.pushService.pushSkillsChanged).toHaveBeenCalledOnce();
   });
 });

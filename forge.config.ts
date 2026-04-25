@@ -37,8 +37,7 @@ const config: ForgeConfig = {
       ...(process.platform === 'win32' ? ['./resources/msys2'] : []),
       // workspace 模板文件
       './resources/templates',
-      // 内置 skills
-      './skills',
+      // 内置 resources
     ],
   },
   rebuildConfig: {},

@@ -4,7 +4,6 @@
     "provider": "Provider",
     "agent": "Agent",
     "workspace": "Workspace",
-    "skills": "Skills",
     "shortcuts": "Shortcuts",
     "about": "About"
   },
@@ -81,7 +80,7 @@
     "feature2Title": "Local First",
     "feature2Desc": "Data stored locally, protecting your privacy and security",
     "feature3Title": "Extensible",
-    "feature3Desc": "Extend functionality through the Skills system to adapt to different work scenarios",
+    "feature3Desc": "Adapt to different work scenarios with powerful built-in tools",
     "feature4Title": "Visual Interface",
     "feature4Desc": "Provides a friendly graphical interface for AI coding",
     "shortcutsTitle": "Shortcuts",
@@ -123,30 +122,5 @@
   "systemPrompt": {
     "title": "System Prompt",
     "placeholder": "Enter system prompt..."
-  },
-  "skills": {
-    "installLocation": "Install Location",
-    "systemLevel": "System Level",
-    "installed": "Installed",
-    "recommended": "Recommended",
-    "noSkills": "No Skills",
-    "loadingFromNetwork": "Loading from network...",
-    "noRecommendedSkills": "No Recommended Skills",
-    "skillsDesc": "Skills are folders containing SKILL.md files that extend the agent's capabilities. System Skills are located at ~/.claude/skills, workspace Skills are in each workspace's .claude/skills directory.",
-    "systemSkills": "System Skills",
-    "recommendedDesc": "Officially recommended Skills. Click the install button to add to your system or workspace.",
-    "installedToSystem": "Installed to system",
-    "installedToWorkspace": "Installed to {{workspace}}",
-    "installing": "Installing...",
-    "installSkill": "Install {{name}}",
-    "systemSkillsAvailable": "System Skills are available for all sessions",
-    "workspaceSkillsAvailable": "Workspace Skills are only available within that workspace",
-    "uninstallConfirmTitle": "Uninstall Skill",
-    "uninstallConfirmMessage": "Are you sure you want to uninstall {{name}}?",
-    "uninstallConfirmDetail": "This will delete all files for this Skill.",
-    "openFolder": "Open folder",
-    "loadFailed": "Load failed",
-    "installFailed": "Install failed",
-    "uninstallFailed": "Uninstall failed"
   }
 }

@@ -11,7 +11,6 @@ import enPermission from '../locales/en/permission.json';
 import enOnboarding from '../locales/en/onboarding.json';
 import enMenu from '../locales/en/menu.json';
 import enValidation from '../locales/en/validation.json';
-import enSkills from '../locales/en/skills.json';
 
 // Chinese translations
 import zhCommon from '../locales/zh/common.json';
@@ -23,7 +22,6 @@ import zhPermission from '../locales/zh/permission.json';
 import zhOnboarding from '../locales/zh/onboarding.json';
 import zhMenu from '../locales/zh/menu.json';
 import zhValidation from '../locales/zh/validation.json';
-import zhSkills from '../locales/zh/skills.json';
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -37,7 +35,6 @@ i18n.use(initReactI18next).init({
       onboarding: enOnboarding,
       menu: enMenu,
       validation: enValidation,
-      skills: enSkills,
     },
     zh: {
       common: zhCommon,
@@ -49,7 +46,6 @@ i18n.use(initReactI18next).init({
       onboarding: zhOnboarding,
       menu: zhMenu,
       validation: zhValidation,
-      skills: zhSkills,
     },
   },
   lng: 'en',
@@ -64,7 +60,6 @@ i18n.use(initReactI18next).init({
     'onboarding',
     'menu',
     'validation',
-    'skills',
   ],
   defaultNS: 'common',
   fallbackNS: 'common',

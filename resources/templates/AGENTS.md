@@ -32,7 +32,7 @@ Don't ask permission. Just do it.
 
 ## Tools
 
-Skills provide your tools. When you need one, check its `SKILL.md`.
+Use the built-in tools available to you as needed.
 
 ## Make It Yours
 

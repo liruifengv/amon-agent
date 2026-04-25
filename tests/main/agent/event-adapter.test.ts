@@ -229,8 +229,6 @@ describe('EventAdapter', () => {
 describe('PushService', () => {
   it('does not send events when no window is set or the window is destroyed', () => {
     const push = new PushService();
-    push.push('push:skillsChanged', undefined as never);
-
     const send = vi.fn();
     push.setWindow({
       isDestroyed: vi.fn(() => true),
