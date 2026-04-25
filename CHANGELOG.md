@@ -1,5 +1,11 @@
 # amon-agent
 
+## 0.5.0
+
+### Minor Changes
+
+- [`e8ca292`](https://github.com/liruifengv/amon-agent/commit/e8ca2925f8e6f8ef0aad72b559f22aff6306f790) Thanks [@liruifengv](https://github.com/liruifengv)! - Remove skills management feature and clean up all related code, tests, locales, docs, and build config.
+
 ## 0.4.0
 
 ### Minor Changes
